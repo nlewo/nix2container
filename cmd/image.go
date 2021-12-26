@@ -8,6 +8,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/opencontainers/image-spec/specs-go/v1"
 	digest "github.com/opencontainers/go-digest"
+	"github.com/nlewo/containers-image-nix/types"
 )
 
 var imageCmd = &cobra.Command{
@@ -17,7 +18,7 @@ var imageCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		image, err := image(args[0], args[1:])
 		if err != nil {
-			fmt.Println(err)
+			fmt.Fprintf(os.Stderr, "%s", err)
 			os.Exit(1)
 		}
 		fmt.Println(image)
@@ -26,7 +27,7 @@ var imageCmd = &cobra.Command{
 
 type NixImage struct {
 	Config v1.Image `json:"config"`
-	Layers []Layer `json:"layers"`
+	Layers []types.Layer `json:"layers"`
 }
 
 func image(imageConfigPath string, layerPaths []string) (string, error){
@@ -52,7 +53,7 @@ func image(imageConfigPath string, layerPaths []string) (string, error){
 	}
 	nixImage.Config.Config = imageConfig
 	for _, path := range(layerPaths) {
-		var layers []Layer
+		var layers []types.Layer
 		layerFile, err := os.Open(path)
 		if err != nil {
 			return "", err

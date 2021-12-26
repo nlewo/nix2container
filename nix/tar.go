@@ -11,7 +11,7 @@ import (
 )
 
 func TarPathsSum(paths []string) (digest.Digest, error) {
-	reader, _, err := tarPaths(paths)
+	reader, _, err := TarPaths(paths)
 	if err != nil {
 		return "", err
 	}
@@ -23,7 +23,7 @@ func TarPathsSum(paths []string) (digest.Digest, error) {
 	return digest, nil
 }
 
-func tarPaths(paths []string) (io.ReadCloser, int64, error) {
+func TarPaths(paths []string) (io.ReadCloser, int64, error) {
 	// In Skopeo, is it posisble to avoid writing to a file
 	// without having bad error messages?
 	// TODO: find a better place ;)
