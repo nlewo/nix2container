@@ -16,11 +16,8 @@ func TarPathsWrite(paths []string, destinationFilename string) (digest.Digest, e
 	if err != nil {
 		return "", err
 	}
-	reader, _, err := TarPaths(paths)
+	reader := TarPaths(paths)
 	defer reader.Close()
-	if err != nil {
-		return "", err
-	}
 	r := io.TeeReader(reader, f)	
 	digest, err := digest.FromReader(r)
 	if err != nil {
@@ -30,10 +27,7 @@ func TarPathsWrite(paths []string, destinationFilename string) (digest.Digest, e
 }
 
 func TarPathsSum(paths []string) (digest.Digest, error) {
-	reader, _, err := TarPaths(paths)
-	if err != nil {
-		return "", err
-	}
+	reader := TarPaths(paths)
 	defer reader.Close()
 	digest, err := digest.FromReader(reader)
 	if err != nil {
@@ -42,63 +36,65 @@ func TarPathsSum(paths []string) (digest.Digest, error) {
 	return digest, nil
 }
 
-func TarPaths(paths []string) (io.ReadCloser, int64, error) {
-	// In Skopeo, is it posisble to avoid writing to a file
-	// without having bad error messages?
-	// TODO: find a better place ;)
-	f, err := os.Create("/tmp/blob.tar")
-	tw := tar.NewWriter(f)
-	for _, path := range(paths) {
-		err = filepath.Walk(path, func(path string, info os.FileInfo, err error) error {
-			var link string
-			if err != nil {
-				return errors.New(fmt.Sprintf("Prevent panic by handling failure accessing a path %q: %v\n", path, err))
-			}
-			if info.Mode()&os.ModeSymlink != 0 {
-				link, err = os.Readlink(path)
-				if err != nil {
-					return err
-				}
-			}
-			hdr, err := tar.FileInfoHeader(info, link)
-			if err != nil {
-				return err
-			}
-			hdr.Name = path
-			hdr.Uid = 0
-			hdr.Gid = 0
-			hdr.Uname = "root"
-			hdr.Gname = "root"
-			if err := tw.WriteHeader(hdr); err != nil {
-				return errors.New(fmt.Sprintf("Could not write hdr '%#v', got error '%s'", hdr, err.Error()))
-			}
-			if link == "" {
-				file, err := os.Open(path)
-				if err != nil {
-					return errors.New(fmt.Sprintf("Could not open file '%s', got error '%s'", path, err.Error()))
-				}
-				defer file.Close()
-				if !info.IsDir() {
-					_, err = io.Copy(tw, file)
-					if err != nil {
-						return errors.New(fmt.Sprintf("Could not copy the file '%s' data to the tarball, got error '%s'", path, err.Error()))
-					}
-				}
-			}
-			return nil
-		})
+func appendFileToTar(tw *tar.Writer, path string, info os.FileInfo) error {
+	var link string
+	var err error
+	if info.Mode()&os.ModeSymlink != 0 {
+		link, err = os.Readlink(path)
 		if err != nil {
-			return nil, 0, err
+			return err
 		}
 	}
-	err = tw.Close()
+	hdr, err := tar.FileInfoHeader(info, link)
 	if err != nil {
-		return nil, 0, err
+		return err
 	}
-	_, err = f.Seek(0, 0)
-	if err != nil {
-		fmt.Printf("%w\n", err)
-		return nil, 0, err
+	hdr.Name = path
+	hdr.Uid = 0
+	hdr.Gid = 0
+	hdr.Uname = "root"
+	hdr.Gname = "root"
+	if err := tw.WriteHeader(hdr); err != nil {
+		return errors.New(fmt.Sprintf("Could not write hdr '%#v', got error '%s'", hdr, err.Error()))
 	}
-	return f, -1, nil
+	if link == "" {
+		file, err := os.Open(path)
+		if err != nil {
+			return errors.New(fmt.Sprintf("Could not open file '%s', got error '%s'", path, err.Error()))
+		}
+		defer file.Close()
+		if !info.IsDir() {
+			_, err = io.Copy(tw, file)
+			if err != nil {
+				return errors.New(fmt.Sprintf("Could not copy the file '%s' data to the tarball, got error '%s'", path, err.Error()))
+			}
+		}
+	}
+	return nil
+}
+
+func TarPaths(paths []string) (io.ReadCloser) {
+	r, w := io.Pipe()
+	tw := tar.NewWriter(w)
+	go func() {
+		defer w.Close()
+		for _, path := range(paths) {
+			err := filepath.Walk(path, func(path string, info os.FileInfo, err error) error {
+				if err != nil {
+					return errors.New(fmt.Sprintf("Failed accessing path %q: %v", path, err))
+				}
+				return appendFileToTar(tw, path, info)
+			})
+			if err != nil {
+				w.CloseWithError(err)
+				return 
+			}
+		}
+		err := tw.Close()
+		if err != nil {
+			w.CloseWithError(err)
+			return
+		}
+	}()
+	return r
 }
