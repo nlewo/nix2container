@@ -10,6 +10,25 @@ import (
 	digest "github.com/opencontainers/go-digest"
 )
 
+func TarPathsWrite(paths []string, destinationFilename string) (digest.Digest, error) {
+	f, err := os.Create(destinationFilename)
+	defer f.Close()
+	if err != nil {
+		return "", err
+	}
+	reader, _, err := TarPaths(paths)
+	defer reader.Close()
+	if err != nil {
+		return "", err
+	}
+	r := io.TeeReader(reader, f)	
+	digest, err := digest.FromReader(r)
+	if err != nil {
+		return "", err
+	}
+	return digest, nil
+}
+
 func TarPathsSum(paths []string) (digest.Digest, error) {
 	reader, _, err := TarPaths(paths)
 	if err != nil {

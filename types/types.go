@@ -6,9 +6,13 @@ import (
 	"io/ioutil"
 )
 
+type Layers struct {
+}
+
 type Layer struct {
 	Digest string `json:"digest"`
 	Paths []string `json:"paths"`
+	TarPath string `json:"tar-path,omitempty"`
 }
 
 func NewLayersFromFile(filename string) ([]Layer, error) {
