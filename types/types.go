@@ -15,9 +15,25 @@ type Image struct {
 type Layers struct {
 }
 
+type Rewrite struct {
+	Regex string `json:"regex"`
+	Repl string `json:"repl"`
+}
+
+type PathOptions struct {
+	Rewrite Rewrite `json:"rewrite,omitempty"`
+}
+
+type Path struct {
+	Path string `json:"path"`
+	Options PathOptions `json:"options,omitempty"`
+}
+
+type Paths []Path
+
 type Layer struct {
 	Digest string `json:"digest"`
-	Paths []string `json:"paths,omitempty"`
+	Paths Paths `json:"paths,omitempty"`
 	TarPath string `json:"tar-path,omitempty"`
 }
 

@@ -8,6 +8,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"reflect"
 	"strings"
 	"io/ioutil"
 	"encoding/json"
@@ -45,7 +46,7 @@ var layersReproducibleCmd = &cobra.Command{
 	Short: "Generate a layer.json file from a list of reproducible paths",
 	Args: cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		layer, err := layer(args[0], exclude, "", args[1:])
+		layer, err := layer(args[0], exclude, "", rewrites, args[1:])
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s", err)
 			os.Exit(1)
@@ -66,7 +67,7 @@ var layersNonReproducibleCmd = &cobra.Command{
 	Short: "Generate a layer.json file from a list of paths",
 	Args: cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		layer, err := layer(args[0], exclude, tarDirectory, args[1:])
+		layer, err := layer(args[0], exclude, tarDirectory, rewrites, args[1:])
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s", err)
 			os.Exit(1)
@@ -80,13 +81,39 @@ var layersNonReproducibleCmd = &cobra.Command{
 	},
 }
 
+
+type rewriteFlag struct {
+	Path string
+	Regex string
+	Repl string
+}
+
+type rewriteFlags []rewriteFlag
+
+func (i *rewriteFlags) String() string {
+	return ""
+}
+func (i *rewriteFlags) Type() string {
+	return "path,regex,replacement"
+}
+func (i *rewriteFlags) Set(value string) error {
+	elts := strings.Split(value, ",")
+	*i = append(*i, rewriteFlag{
+		Path: elts[0],
+		Regex: elts[1],
+		Repl: elts[2],
+	})
+	return nil
+}
+
+var rewrites rewriteFlags
 var exclude string
 var tarDirectory string
 
-func isPathInLayers(layers []types.Layer, path string) bool {
+func isPathInLayers(layers []types.Layer, path types.Path) bool {
 	for _, layer := range(layers) {
 		for _, p := range(layer.Paths) {
-			if path == p {
+			if reflect.DeepEqual(p, path) {
 				return true
 			}
 		}
@@ -117,7 +144,7 @@ func getStorePaths(pathsFilename string) ([]string, error) {
 	return paths, nil
 }
 
-func layer(pathsFilename string, exclude string, tarDirectory string, dependencyLayerPaths []string) (*types.Layer, error) {
+func layer(pathsFilename string, exclude string, tarDirectory string, rewrites rewriteFlags, dependencyLayerPaths []string) (*types.Layer, error) {
 	var dependencyLayers []types.Layer
 	for _, dLayerPath := range(dependencyLayerPaths) {
 		layers, err := types.NewLayersFromFile(dLayerPath)
@@ -128,32 +155,45 @@ func layer(pathsFilename string, exclude string, tarDirectory string, dependency
 			dependencyLayers = append(dependencyLayers, l)
 		}
 	}
-	paths, err := getStorePaths(pathsFilename)
+	storepaths, err := getStorePaths(pathsFilename)
 	if err != nil {
 		return nil, err
 	}
-	var sanitizedPaths []string
-	for _, p := range(paths) {
-		if p == "" || p == exclude || isPathInLayers(dependencyLayers, p){
+	var paths types.Paths
+	for _, sp := range(storepaths) {
+		path := types.Path{
+			Path: sp,
+		}
+		for _, rewrite := range rewrites {
+			if sp == rewrite.Path {
+				path.Options = types.PathOptions{
+					Rewrite: types.Rewrite{
+						Regex: rewrite.Regex,
+						Repl:  rewrite.Repl,
+					},
+				}
+			}
+		}
+		if sp == "" || sp == exclude || isPathInLayers(dependencyLayers, path){
 			continue
 		}
-		sanitizedPaths = append(sanitizedPaths, p)
+		paths = append(paths, path)
 	}
 
 	tarPath := ""
 	var d digest.Digest
 	if tarDirectory != "" {
 		tarPath = tarDirectory + "/layer.tar"
-		d, err = nix.TarPathsWrite(sanitizedPaths, tarPath)
+		d, err = nix.TarPathsWrite(paths, tarPath)
 	} else {
-		d, err = nix.TarPathsSum(sanitizedPaths)
+		d, err = nix.TarPathsSum(paths)
 	}
 	if err != nil {
 		return nil, err
 	}
 	layer := types.Layer{
 		Digest: d.String(),
-		Paths: sanitizedPaths,
+		Paths: paths,
 		TarPath: tarPath,
 	}
 	return &layer, nil
@@ -182,8 +222,13 @@ func init() {
 	// TODO: make this flag it required
 	layersNonReproducibleCmd.Flags().StringVarP(&tarDirectory, "tar-directory", "", "", "The directory where tar of layers are created.")
 
+	layersNonReproducibleCmd.Flags().Var(&rewrites, "rewrite", "Replace the regex part by replacement for all files of the a path")
+
+
+
 	rootCmd.AddCommand(layersReproducibleCmd)
 	layersReproducibleCmd.Flags().StringVarP(&exclude, "exclude", "", "", "Exclude path")
+	layersReproducibleCmd.Flags().Var(&rewrites, "rewrite", "Replace the regex part by replacement for all files of the a path")
 
 	rootCmd.AddCommand(layersTarCmd)
 }

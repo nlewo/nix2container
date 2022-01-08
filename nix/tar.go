@@ -2,15 +2,17 @@ package nix
 
 import (
 	"errors"
+	"regexp"
 	"io"
 	"archive/tar"
 	"path/filepath"
 	"os"
 	"fmt"
 	digest "github.com/opencontainers/go-digest"
+	"github.com/nlewo/containers-image-nix/types"
 )
 
-func TarPathsWrite(paths []string, destinationFilename string) (digest.Digest, error) {
+func TarPathsWrite(paths types.Paths, destinationFilename string) (digest.Digest, error) {
 	f, err := os.Create(destinationFilename)
 	defer f.Close()
 	if err != nil {
@@ -26,7 +28,7 @@ func TarPathsWrite(paths []string, destinationFilename string) (digest.Digest, e
 	return digest, nil
 }
 
-func TarPathsSum(paths []string) (digest.Digest, error) {
+func TarPathsSum(paths types.Paths) (digest.Digest, error) {
 	reader := TarPaths(paths)
 	defer reader.Close()
 	digest, err := digest.FromReader(reader)
@@ -36,7 +38,7 @@ func TarPathsSum(paths []string) (digest.Digest, error) {
 	return digest, nil
 }
 
-func appendFileToTar(tw *tar.Writer, path string, info os.FileInfo) error {
+func appendFileToTar(tw *tar.Writer, path string, info os.FileInfo, opts types.PathOptions) error {
 	var link string
 	var err error
 	if info.Mode()&os.ModeSymlink != 0 {
@@ -49,7 +51,15 @@ func appendFileToTar(tw *tar.Writer, path string, info os.FileInfo) error {
 	if err != nil {
 		return err
 	}
-	hdr.Name = path
+	if opts.Rewrite.Regex != "" {
+		re := regexp.MustCompile(opts.Rewrite.Regex)
+		hdr.Name = string(re.ReplaceAll([]byte(path), []byte(opts.Rewrite.Repl)))
+	} else {
+		hdr.Name = path
+	}
+	if hdr.Name == "" {
+		return nil
+	}
 	hdr.Uid = 0
 	hdr.Gid = 0
 	hdr.Uname = "root"
@@ -73,17 +83,18 @@ func appendFileToTar(tw *tar.Writer, path string, info os.FileInfo) error {
 	return nil
 }
 
-func TarPaths(paths []string) (io.ReadCloser) {
+func TarPaths(paths types.Paths) (io.ReadCloser) {
 	r, w := io.Pipe()
 	tw := tar.NewWriter(w)
 	go func() {
 		defer w.Close()
-		for _, path := range(paths) {
-			err := filepath.Walk(path, func(path string, info os.FileInfo, err error) error {
+		for _, path := range paths {
+			options := path.Options
+			err := filepath.Walk(path.Path, func(path string, info os.FileInfo, err error) error {
 				if err != nil {
 					return errors.New(fmt.Sprintf("Failed accessing path %q: %v", path, err))
 				}
-				return appendFileToTar(tw, path, info)
+				return appendFileToTar(tw, path, info, options)
 			})
 			if err != nil {
 				w.CloseWithError(err)
