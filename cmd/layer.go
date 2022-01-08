@@ -1,3 +1,8 @@
+// The generated structure is a list of layers. Currently, the list
+// always contains a single Layer, but in the future, we would like to
+// generate several layers with some algorithms, such as
+// https://grahamc.com/blog/nix-and-layered-docker-images
+
 package cmd
 
 import (
@@ -15,17 +20,63 @@ import (
 )
 
 // layerCmd represents the layer command
-var layersCmd = &cobra.Command{
-	Use:   "layers STOREPATHS.lst",
-	Short: "Generate a layer.json file from a list of paths",
-	Args: cobra.MinimumNArgs(1),
+var layersTarCmd = &cobra.Command{
+	Use:   "layers-from-tar file.tar",
+	Short: "Generate a layer.json file from a tar file",
+	Args: cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		layers, err := layers(args[0], exclude, tarDirectory, args[1:])
+		layer, err := layerFromTar(args[0])
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s", err)
 			os.Exit(1)
 		}
-		fmt.Println(layers)
+		layersJson, err := layerToJson(layer)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s", err)
+			os.Exit(1)
+		}
+		fmt.Println(layersJson)
+	},
+}
+
+// layerCmd represents the layer command
+var layersReproducibleCmd = &cobra.Command{
+	Use:   "layers-from-reproducible-storepaths STOREPATHS.lst",
+	Short: "Generate a layer.json file from a list of reproducible paths",
+	Args: cobra.MinimumNArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		layer, err := layer(args[0], exclude, "", args[1:])
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s", err)
+			os.Exit(1)
+		}
+		layersJson, err := layerToJson(layer)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s", err)
+			os.Exit(1)
+		}
+		fmt.Println(layersJson)
+	},
+}
+
+
+// layerCmd represents the layer command
+var layersNonReproducibleCmd = &cobra.Command{
+	Use:   "layers-from-non-reproducible-storepaths STOREPATHS.lst",
+	Short: "Generate a layer.json file from a list of paths",
+	Args: cobra.MinimumNArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		layer, err := layer(args[0], exclude, tarDirectory, args[1:])
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s", err)
+			os.Exit(1)
+		}
+		layersJson, err := layerToJson(layer)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s", err)
+			os.Exit(1)
+		}
+		fmt.Println(layersJson)
 	},
 }
 
@@ -43,11 +94,7 @@ func isPathInLayers(layers []types.Layer, path string) bool {
 	return false
 }
 
-func layers(pathsFilename string, exclude string, tarDirectory string, dependencyLayerPaths []string) (string, error) {
-	layer, err := layer(pathsFilename, exclude, tarDirectory, dependencyLayerPaths)
-	if err != nil {
-		return "", err
-	}
+func layerToJson(layer *types.Layer) (string, error) {
 	layers := []*types.Layer{layer}
 	res, err := json.MarshalIndent(layers, "", "\t")
 	if err != nil {
@@ -112,8 +159,31 @@ func layer(pathsFilename string, exclude string, tarDirectory string, dependency
 	return &layer, nil
 }
 
+func layerFromTar(filename string) (*types.Layer, error) {
+	f, err := os.Open(filename)
+	defer f.Close()
+	if err != nil {
+		return nil, err
+	}
+	d, err := digest.FromReader(f)
+	if err != nil {
+		return nil, err
+	}
+	layer := types.Layer{
+		Digest: d.String(),
+		TarPath: filename,
+	}
+	return &layer, nil
+}
+
 func init() {
-	rootCmd.AddCommand(layersCmd)
-	layersCmd.Flags().StringVarP(&exclude, "exclude", "", "", "Exclude path")
-	layersCmd.Flags().StringVarP(&tarDirectory, "tar-directory", "", "", "The directory where tar of layers are created.")
+	rootCmd.AddCommand(layersNonReproducibleCmd)
+	layersNonReproducibleCmd.Flags().StringVarP(&exclude, "exclude", "", "", "Exclude path")
+	// TODO: make this flag it required
+	layersNonReproducibleCmd.Flags().StringVarP(&tarDirectory, "tar-directory", "", "", "The directory where tar of layers are created.")
+
+	rootCmd.AddCommand(layersReproducibleCmd)
+	layersReproducibleCmd.Flags().StringVarP(&exclude, "exclude", "", "", "Exclude path")
+
+	rootCmd.AddCommand(layersTarCmd)
 }

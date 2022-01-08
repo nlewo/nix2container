@@ -6,10 +6,7 @@ import (
 	"github.com/nlewo/containers-image-nix/types"
 )
 
-func GetBlob(layer types.Layer) (reader io.ReadCloser, digest string, size int64, err error) {
-
-	digest = layer.Digest
-
+func LayerGetBlob(layer types.Layer) (reader io.ReadCloser, size int64, err error) {
 	if layer.TarPath != "" {
 		reader, err = os.Open(layer.TarPath)
 		return

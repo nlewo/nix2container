@@ -7,12 +7,11 @@ import (
 	"encoding/json"
 	"github.com/spf13/cobra"
 	"github.com/opencontainers/image-spec/specs-go/v1"
-	digest "github.com/opencontainers/go-digest"
 	"github.com/nlewo/containers-image-nix/types"
 )
 
 var imageCmd = &cobra.Command{
-	Use:   "image",
+	Use:   "image config.json layer-1.json layer-2.json",
 	Short: "Generate an image.json file from a image configuration and layers",
 	Args: cobra.MinimumNArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
@@ -25,16 +24,9 @@ var imageCmd = &cobra.Command{
 	},
 }
 
-type NixImage struct {
-	Config v1.Image `json:"config"`
-	Layers []types.Layer `json:"layers"`
-}
-
 func image(imageConfigPath string, layerPaths []string) (string, error){
 	var imageConfig v1.ImageConfig
-	var nixImage NixImage
-	nixImage.Config.OS = "linux"
-	nixImage.Config.Architecture = "amd64"
+	var image types.Image
 
 	imageConfigFile, err := os.Open(imageConfigPath)
 	if err != nil {
@@ -51,7 +43,7 @@ func image(imageConfigPath string, layerPaths []string) (string, error){
 		fmt.Println(err)
 		os.Exit(1)
 	}
-	nixImage.Config.Config = imageConfig
+	image.ImageConfig = imageConfig
 	for _, path := range(layerPaths) {
 		var layers []types.Layer
 		layerFile, err := os.Open(path)
@@ -67,17 +59,10 @@ func image(imageConfigPath string, layerPaths []string) (string, error){
 			return "", err
 		}
 		for _, layer := range(layers) {
-			digest, err := digest.Parse(layer.Digest)
-			if err != nil {
-				return "", err
-			}
-			nixImage.Config.RootFS.DiffIDs = append(
-				nixImage.Config.RootFS.DiffIDs,
-				digest)
-			nixImage.Layers = append(nixImage.Layers, layer)
+			image.Layers = append(image.Layers, layer)
 		}
 	}
-	res, err := json.MarshalIndent(nixImage, "", "\t")
+	res, err := json.MarshalIndent(image, "", "\t")
 	if err != nil {
 		return "", err
 	}
