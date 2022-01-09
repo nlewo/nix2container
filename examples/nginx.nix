@@ -21,24 +21,18 @@ let
     nginxWebRoot = pkgs.writeTextDir "index.html" ''
       <html><body><h1>Hello from NGINX</h1></body></html>
     '';
+    nginxVar = pkgs.runCommand "nginx-var" {} ''
+      mkdir -p $out/var/log/nginx
+      mkdir -p $out/var/cache/nginx
+    '';
 in
   buildImage {
-    # name = "nginx-container";
-    # tag = "latest";
     contents = [
       pkgs.dockerTools.fakeNss
-      pkgs.nginx
+      nginxVar
     ];
-
-    # extraCommands = ''
-    #   # nginx still tries to read this directory even if error_log
-    #   # directive is specifying another file :/
-    #   mkdir -p var/log/nginx
-    #   mkdir -p var/cache/nginx
-    # '';
-
     config = {
-      Cmd = [ "nginx" "-c" nginxConf ];
+      Cmd = [ "${pkgs.nginx}/bin/nginx" "-c" nginxConf ];
       ExposedPorts = {
         "${nginxPort}/tcp" = {};
       };
