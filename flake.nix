@@ -69,6 +69,7 @@
     examples = {
       hello = import ./examples/hello.nix { inherit pkgs buildImage buildLayer; };
       nginx = import ./examples/nginx.nix { inherit pkgs buildImage buildLayer; };
+      bash = import ./examples/bash.nix { inherit pkgs buildImage; };
       };
   in
   {
