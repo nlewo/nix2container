@@ -3,7 +3,7 @@ package nix
 import (
 	"os"
 	"io"
-	"github.com/nlewo/containers-image-nix/types"
+	"github.com/nlewo/nix2container/types"
 )
 
 func LayerGetBlob(layer types.Layer) (reader io.ReadCloser, size int64, err error) {

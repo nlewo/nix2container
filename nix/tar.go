@@ -11,7 +11,7 @@ import (
 	"os"
 	"fmt"
 	digest "github.com/opencontainers/go-digest"
-	"github.com/nlewo/containers-image-nix/types"
+	"github.com/nlewo/nix2container/types"
 )
 
 func TarPathsWrite(paths types.Paths, destinationFilename string) (digest.Digest, error) {

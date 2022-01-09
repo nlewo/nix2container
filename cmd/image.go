@@ -7,7 +7,7 @@ import (
 	"encoding/json"
 	"github.com/spf13/cobra"
 	"github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/nlewo/containers-image-nix/types"
+	"github.com/nlewo/nix2container/types"
 )
 
 var imageCmd = &cobra.Command{

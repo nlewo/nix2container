@@ -1,4 +1,4 @@
-module github.com/nlewo/containers-image-nix
+module github.com/nlewo/nix2container
 
 go 1.16
 

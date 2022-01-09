@@ -13,10 +13,10 @@ import (
 	"io/ioutil"
 	"encoding/json"
 	"github.com/spf13/cobra"
-	"github.com/nlewo/containers-image-nix/nix"
+	"github.com/nlewo/nix2container/nix"
 	_ "crypto/sha256"
 	_ "crypto/sha512"
-	"github.com/nlewo/containers-image-nix/types"
+	"github.com/nlewo/nix2container/types"
 	digest "github.com/opencontainers/go-digest"
 )
 

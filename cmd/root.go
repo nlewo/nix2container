@@ -10,8 +10,8 @@ import (
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
-	Use:   "nix-containers-image",
-	Short: "Generate nix container images!",
+	Use:   "container2nix",
+	Short: "Generate container image from Nix storepaths",
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
