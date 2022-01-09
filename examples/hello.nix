@@ -10,6 +10,6 @@ buildImage {
     entrypoint = ["${pkgs.bash}/bin/bash" application];
   };
   isolatedDeps = [
-    (buildLayer { contents = [pkgs.bash pkgs.hello]; })
+    (buildLayer { deps = [pkgs.bash pkgs.hello]; })
   ];
 }
