@@ -2,7 +2,9 @@ package nix
 
 import (
 	"errors"
+	"reflect"
 	"regexp"
+	"time"
 	"io"
 	"archive/tar"
 	"path/filepath"
@@ -38,7 +40,7 @@ func TarPathsSum(paths types.Paths) (digest.Digest, error) {
 	return digest, nil
 }
 
-func appendFileToTar(tw *tar.Writer, path string, info os.FileInfo, opts types.PathOptions) error {
+func appendFileToTar(tw *tar.Writer, tarHeaders *tarHeaders, path string, info os.FileInfo, opts types.PathOptions) error {
 	var link string
 	var err error
 	if info.Mode()&os.ModeSymlink != 0 {
@@ -64,6 +66,22 @@ func appendFileToTar(tw *tar.Writer, path string, info os.FileInfo, opts types.P
 	hdr.Gid = 0
 	hdr.Uname = "root"
 	hdr.Gname = "root"
+	hdr.ModTime = time.Date(1970, 01, 01, 0, 0, 0, 0, time.UTC)
+	hdr.AccessTime = time.Date(1970, 01, 01, 0, 0, 0, 0, time.UTC)
+	hdr.ChangeTime = time.Date(1970, 01, 01, 0, 0, 0, 0, time.UTC)
+
+	for _, h := range *tarHeaders {
+		if hdr.Name == h.Name {
+			// We don't want to override a file already existing in the archive
+			// by a file with different headers.
+			if !reflect.DeepEqual(hdr, h) {
+				return errors.New(fmt.Sprintf("The file %s overrides a file with different attributes (previous: %#v current: %#v)", hdr.Name, h, hdr))
+			}
+			return nil
+		}
+	}
+	*tarHeaders = append(*tarHeaders, hdr)
+
 	if err := tw.WriteHeader(hdr); err != nil {
 		return errors.New(fmt.Sprintf("Could not write hdr '%#v', got error '%s'", hdr, err.Error()))
 	}
@@ -83,9 +101,12 @@ func appendFileToTar(tw *tar.Writer, path string, info os.FileInfo, opts types.P
 	return nil
 }
 
+type tarHeaders []*tar.Header
+
 func TarPaths(paths types.Paths) (io.ReadCloser) {
 	r, w := io.Pipe()
 	tw := tar.NewWriter(w)
+	tarHeaders := make(tarHeaders, 0)
 	go func() {
 		defer w.Close()
 		for _, path := range paths {
@@ -94,7 +115,7 @@ func TarPaths(paths types.Paths) (io.ReadCloser) {
 				if err != nil {
 					return errors.New(fmt.Sprintf("Failed accessing path %q: %v", path, err))
 				}
-				return appendFileToTar(tw, path, info, options)
+				return appendFileToTar(tw, &tarHeaders, path, info, options)
 			})
 			if err != nil {
 				w.CloseWithError(err)
