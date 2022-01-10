@@ -53,7 +53,7 @@
     in
     pkgs.runCommand "layer.json" {} ''
       mkdir $out
-      ${containers-image-nix}/bin/containers-image-nix layers-from-reproducible-storepaths \
+      ${containers-image-nix}/bin/nix2container layers-from-reproducible-storepaths \
         ${pkgs.closureInfo {rootPaths = allDeps;}}/store-paths \
         ${rewrites} \
         ${pkgs.lib.concatMapStringsSep " "  (l: l + "/layer.json") isolatedDeps} \
@@ -61,6 +61,8 @@
       '';
   
     buildImage = {
+      name,
+      tag ? "latest",
       # An attribute set describing a container configuration
       config,
       isolatedDeps ? [],
@@ -78,11 +80,14 @@
           isolatedDeps = isolatedDeps;
         };
         layerPaths = pkgs.lib.concatMapStringsSep " " (l: l + "/layer.json") ([configDepsLayer] ++ isolatedDeps);
-      in
-      pkgs.runCommand "image.json" {} ''
-        echo ${containers-image-nix}/bin/containers-image-nix image ${configFile} ${layerPaths}
-        ${containers-image-nix}/bin/containers-image-nix image ${configFile} ${layerPaths} > $out
-      '';
+        image = pkgs.runCommand "image.json" {} ''
+          echo ${containers-image-nix}/bin/nix2container image ${configFile} ${layerPaths}
+          ${containers-image-nix}/bin/nix2container image ${configFile} ${layerPaths} > $out
+        '';
+        namedImage = image // { inherit name tag; };
+      in namedImage // {
+          pushToDockerDeamon = pushToDockerDeamon namedImage;
+      };
     examples = {
       hello = import ./examples/hello.nix { inherit pkgs buildImage buildLayer; };
       nginx = import ./examples/nginx.nix { inherit pkgs buildImage buildLayer; };

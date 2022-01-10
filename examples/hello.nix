@@ -6,6 +6,7 @@ let
   '';
 in
 buildImage {
+  name = "hello";
   config = {
     entrypoint = ["${pkgs.bash}/bin/bash" application];
   };

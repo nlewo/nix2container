@@ -1,5 +1,6 @@
 { pkgs, buildImage }:
 buildImage {
+  name = "bash";
   contents = [
     # When we want tools in /, we need to symlink them in order to
     # still have libraries in /nix/store. This differs from

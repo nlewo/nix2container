@@ -27,6 +27,7 @@ let
     '';
 in
   buildImage {
+    name = "nginx";
     contents = [
       pkgs.dockerTools.fakeNss
       nginxVar
