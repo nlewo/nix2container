@@ -35,6 +35,11 @@
       '';
     });
 
+    pushToDockerDeamon = image: pkgs.writeScriptBin "push-to-docker-deamon" ''
+      ${skopeo}/bin/skopeo --insecure-policy copy nix:${image} docker-daemon:${image.name}:${image.tag}
+      echo Docker image ${image.name}:${image.tag} have been loaded
+    '';
+
     buildLayer = {
       # A list of store paths to include in the layer
       deps,
