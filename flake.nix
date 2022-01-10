@@ -18,6 +18,23 @@
       vendorSha256 = "sha256-gBme4IheJ/cJCRwRH3pnZlU7LKePD2eo7kiZldqQikY=";
     };
 
+    skopeo = pkgs.skopeo.overrideAttrs (old: {
+      preBuild = let
+        patch = pkgs.fetchurl {
+          url = "https://github.com/nlewo/image/commit/023556c0d31b155fd73e77ea8d06b7aee87adea8.patch";
+          sha256 = "sha256-ygU9jrtxt0KnslWbqjU5fnmwvEfzkIRPjjjil/YiuwQ=";
+        };
+      in ''
+        mkdir -p vendor/github.com/nlewo/nix2container/
+        cp -r ${containers-image-nix.src}/* vendor/github.com/nlewo/nix2container/
+        cd vendor/github.com/containers/image/v5
+        mkdir nix/
+        touch nix/transport.go
+        patch -p1 < ${patch}
+        cd -
+      '';
+    });
+
     buildLayer = {
       # A list of store paths to include in the layer
       deps,
@@ -74,7 +91,7 @@
   in
   {
     packages.x86_64-linux = {
-      inherit containers-image-nix examples;
+      inherit containers-image-nix examples skopeo;
     };
   };
 }
