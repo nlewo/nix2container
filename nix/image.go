@@ -23,7 +23,7 @@ func GetConfigBlob(image types.Image) ([]byte, error) {
 	return configBlob, nil
 }
 
-// GetConfigBlob returns the digest of the config blog of an image.
+// GetConfigDigest returns the digest of the config blog of an image.
 func GetConfigDigest(image types.Image) (d godigest.Digest, err error) {
 	configBlob, err := GetConfigBlob(image)
 	if err != nil {
@@ -33,7 +33,7 @@ func GetConfigDigest(image types.Image) (d godigest.Digest, err error) {
 	return
 }
 
-// GetConfigBlob gets the layer corresponding to the provided digest.
+// GetBlob gets the layer corresponding to the provided digest.
 func GetBlob(image types.Image, digest godigest.Digest) (io.ReadCloser, error) {
 	for _, layer := range(image.Layers) {
 		if layer.Digest == digest.String() {
