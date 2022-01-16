@@ -51,16 +51,24 @@
       # A list of layers containing dependencies: if a store path of the
       # currently built layer already belongs to a dependency layer,
       # this store path is skipped
-      isolatedDeps ? []
+      isolatedDeps ? [],
+      # Store the layer tar in the derivation. This is useful when the
+      # layer dependencies are not bit reproducible.
+      reproducible ? true
     }: let
+      subcommand = if reproducible
+                then "layers-from-reproducible-storepaths"
+                else "layers-from-non-reproducible-storepaths";
       rewrites = pkgs.lib.concatMapStringsSep " " (p: "--rewrite '${p},^${p},'") contents;
       allDeps = deps ++ contents;
+      tarDirectory = pkgs.lib.optionalString (! reproducible) "--tar-directory $out";
     in
     pkgs.runCommand "layer.json" {} ''
       mkdir $out
-      ${containers-image-nix}/bin/nix2container layers-from-reproducible-storepaths \
+      ${containers-image-nix}/bin/nix2container ${subcommand} \
         ${pkgs.closureInfo {rootPaths = allDeps;}}/store-paths \
         ${rewrites} \
+        ${tarDirectory} \
         ${pkgs.lib.concatMapStringsSep " "  (l: l + "/layer.json") isolatedDeps} \
         ${pkgs.lib.optionalString (exclude != null) "--exclude ${exclude}"} > $out/layer.json
       '';
@@ -98,6 +106,7 @@
       nginx = import ./examples/nginx.nix { inherit pkgs buildImage buildLayer; };
       bash = import ./examples/bash.nix { inherit pkgs buildImage; };
       basic = import ./examples/basic.nix { inherit pkgs buildImage; };
+      nonReproducible = import ./examples/non-reproducible.nix { inherit pkgs buildImage buildLayer; };
       };
   in
   {
