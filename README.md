@@ -1,5 +1,7 @@
 # nix2container
 
+**warning: nix2container is in early development stages and interfaces are not stable**
+
 nix2container provides an efficient container development workflow
 with images built by Nix: it doesn't write tarballs to the Nix
 store and allows to skip already pushed layers (with having to rebuild
@@ -12,6 +14,8 @@ nix2container is
 
 This is based on ideas developped in [this blog
 post](https://lewo.abesis.fr/posts/nix-build-container-image/).
+
+
 
 ## Basic example
 
