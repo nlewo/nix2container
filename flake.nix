@@ -17,9 +17,9 @@
     in
     rec {
       packages = {
-        inherit (pkgs) containers-image-nix skopeo-nix2container;
+        inherit (pkgs) nix2containerUtil skopeo-nix2container;
         inherit examples;
       };
-      defaultPackage = packages.containers-image-nix;
+      defaultPackage = packages.nix2containerUtil;
     }));
 }

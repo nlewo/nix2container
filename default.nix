@@ -8,7 +8,13 @@ let
       filter = path: type:
       let
         p = baseNameOf path;
-      in !(p == "flake.nix" || p == "flake.lock" || p == "examples");
+      in !(
+        p == "flake.nix" ||
+        p == "flake.lock" ||
+        p == "examples" ||
+        p == "README.md" ||
+        p == "default.nix"
+      );
     };
     vendorSha256 = "sha256-gBme4IheJ/cJCRwRH3pnZlU7LKePD2eo7kiZldqQikY=";
   };
@@ -98,6 +104,6 @@ let
     };
 in
 {
-  inherit nix2containerUtil;
+  inherit nix2containerUtil skopeo-nix2container;
   nix2container = { inherit buildImage buildLayer; };
 }
