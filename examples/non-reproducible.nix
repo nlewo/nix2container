@@ -1,16 +1,16 @@
-{pkgs, buildImage, buildLayer}:
+{ pkgs }:
 let
   nonReproducible = pkgs.runCommand "non-reproducible" {} ''
     date > $out
   '';
 in
-buildImage {
+pkgs.nix2container.buildImage {
   name = "non-reproducible";
   config = {
     entrypoint = ["${pkgs.coreutils}/bin/cat" "${nonReproducible}"];
   };
   isolatedDeps = [
-    (buildLayer {
+    (pkgs.nix2container.buildLayer {
       deps = [nonReproducible];
       reproducible = false;
     })

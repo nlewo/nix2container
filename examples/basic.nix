@@ -1,5 +1,5 @@
-{pkgs, buildImage}:
-buildImage {
+{ pkgs }:
+pkgs.nix2container.buildImage {
   name = "basic";
   config = {
     entrypoint = ["${pkgs.hello}/bin/hello"];

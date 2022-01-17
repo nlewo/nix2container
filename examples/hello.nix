@@ -1,16 +1,16 @@
-{pkgs, buildImage, buildLayer}:
+{ pkgs }:
 let
   application = pkgs.writeScript "conversation" ''
     ${pkgs.hello}/bin/hello 
     echo "Haaa aa... I'm dying!!!"
   '';
 in
-buildImage {
+pkgs.nix2container.buildImage {
   name = "hello";
   config = {
     entrypoint = ["${pkgs.bash}/bin/bash" application];
   };
   isolatedDeps = [
-    (buildLayer { deps = [pkgs.bash pkgs.hello]; })
+    (pkgs.nix2container.buildLayer { deps = [pkgs.bash pkgs.hello]; })
   ];
 }

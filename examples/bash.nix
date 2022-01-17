@@ -1,5 +1,5 @@
-{ pkgs, buildImage }:
-buildImage {
+{ pkgs }:
+pkgs.nix2container.buildImage {
   name = "bash";
   contents = [
     # When we want tools in /, we need to symlink them in order to

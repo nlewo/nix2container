@@ -16,12 +16,11 @@ This is based on ideas developped in [this blog
 post](https://lewo.abesis.fr/posts/nix-build-container-image/).
 
 
-
 ## Basic example
 
 ```nix
-{pkgs, buildImage}:
-buildImage {
+{ pkgs }:
+pkgs.nix2container.buildImage {
   name = "basic";
   config = {
     entrypoint = ["${pkgs.hello}/bin/hello"];
@@ -48,6 +47,7 @@ $ docker run basic:latest
 Hello, world!
 ```
 
+
 ## Isolate dependencies in dedicated layers
 
 It is possible to isolate application dependencies in a dedicated
@@ -66,20 +66,20 @@ As shown below, the `buildImage.isolatedDeps` attribute allows to
 explicitly specify a set of dependencies to isolate.
 
 ```nix
-{pkgs, buildImage, buildLayer}:
+{ pkgs }:
 let
   application = pkgs.writeScript "conversation" ''
     ${pkgs.hello}/bin/hello 
     echo "Haaa aa... I'm dying!!!"
   '';
 in
-buildImage {
+pkgs.nix2container.buildImage {
   name = "hello";
   config = {
     entrypoint = ["${pkgs.bash}/bin/bash" application];
   };
   isolatedDeps = [
-    (buildLayer { deps = [pkgs.bash pkgs.hello]; })
+    (pkgs.nix2container.buildLayer { deps = [pkgs.bash pkgs.hello]; })
   ];
 }
 ```
