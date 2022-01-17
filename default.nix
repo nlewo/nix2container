@@ -1,7 +1,7 @@
 { pkgs ? import <nixpkgs> { } }:
 let
-  containers-image-nix = pkgs.buildGoModule rec {
-    pname = "container-images-nix";
+  nix2containerUtil = pkgs.buildGoModule rec {
+    pname = "nix2container";
     version = "0.0.1";
     src = pkgs.lib.cleanSourceWith {
       src = ./.;
@@ -21,7 +21,7 @@ let
       };
     in ''
       mkdir -p vendor/github.com/nlewo/nix2container/
-      cp -r ${containers-image-nix.src}/* vendor/github.com/nlewo/nix2container/
+      cp -r ${nix2containerUtil.src}/* vendor/github.com/nlewo/nix2container/
       cd vendor/github.com/containers/image/v5
       mkdir nix/
       touch nix/transport.go
@@ -60,7 +60,7 @@ let
   in
   pkgs.runCommand "layer.json" {} ''
     mkdir $out
-    ${containers-image-nix}/bin/nix2container ${subcommand} \
+    ${nix2containerUtil}/bin/nix2container ${subcommand} \
       ${pkgs.closureInfo {rootPaths = allDeps;}}/store-paths \
       ${rewrites} \
       ${tarDirectory} \
@@ -89,8 +89,8 @@ let
       };
       layerPaths = pkgs.lib.concatMapStringsSep " " (l: l + "/layer.json") ([configDepsLayer] ++ isolatedDeps);
       image = pkgs.runCommand "image.json" {} ''
-        echo ${containers-image-nix}/bin/nix2container image ${configFile} ${layerPaths}
-        ${containers-image-nix}/bin/nix2container image ${configFile} ${layerPaths} > $out
+        echo ${nix2containerUtil}/bin/nix2container image ${configFile} ${layerPaths}
+        ${nix2containerUtil}/bin/nix2container image ${configFile} ${layerPaths} > $out
       '';
       namedImage = image // { inherit name tag; };
     in namedImage // {
@@ -98,6 +98,6 @@ let
     };
 in
 {
-  inherit containers-image-nix;
+  inherit nix2containerUtil;
   nix2container = { inherit buildImage buildLayer; };
 }
