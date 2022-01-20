@@ -31,7 +31,7 @@ pkgs.nix2container.buildImage {
 This image can be loaded to the Docker deamon with
 
 ```shell
-$ nix run .#examples.basic.pushToDockerDeamon
+$ nix run .#examples.basic.copyToDockerDeamon
 Getting image source signatures
 Copying blob f4e931379cd5 done
 Copying config 88d76532a9 done

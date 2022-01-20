@@ -36,9 +36,14 @@ let
     '';
   });
 
-  pushToDockerDeamon = image: pkgs.writeScriptBin "push-to-docker-deamon" ''
+  copyToDockerDeamon = image: pkgs.writeScriptBin "copy-to-docker-deamon" ''
     ${skopeo-nix2container}/bin/skopeo --insecure-policy copy nix:${image} docker-daemon:${image.name}:${image.tag}
     echo Docker image ${image.name}:${image.tag} have been loaded
+  '';
+
+  copyToRegistry = image: pkgs.writeScriptBin "copy-to-docker-deamon" ''
+    ${skopeo-nix2container}/bin/skopeo --insecure-policy copy nix:${image} docker://${image.name}:${image.tag} $@
+    echo Docker image ${image.name}:${image.tag} have copied to registry
   '';
 
   buildLayer = {
@@ -100,7 +105,8 @@ let
       '';
       namedImage = image // { inherit name tag; };
     in namedImage // {
-        pushToDockerDeamon = pushToDockerDeamon namedImage;
+        copyToDockerDeamon = copyToDockerDeamon namedImage;
+        copyToRegistry = copyToRegistry namedImage;
     };
 in
 {
