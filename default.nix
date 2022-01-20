@@ -16,14 +16,14 @@ let
         p == "default.nix"
       );
     };
-    vendorSha256 = "sha256-gBme4IheJ/cJCRwRH3pnZlU7LKePD2eo7kiZldqQikY=";
+    vendorSha256 = "sha256-kA1qOx2GdDgbous9tqFpdbfx9n+ECv/o3FqM1NmbAfI=";
   };
 
   skopeo-nix2container = pkgs.skopeo.overrideAttrs (old: {
     preBuild = let
       patch = pkgs.fetchurl {
-        url = "https://github.com/nlewo/image/commit/023556c0d31b155fd73e77ea8d06b7aee87adea8.patch";
-        sha256 = "sha256-ygU9jrtxt0KnslWbqjU5fnmwvEfzkIRPjjjil/YiuwQ=";
+        url = "https://github.com/nlewo/image/commit/4755e8ca87a39702c1ac8c4fc4cd2ba62f020159.patch";
+        sha256 = "sha256-BWSUHmIEqtbkKzBLwE719MOfNgEbTgrs2JWizdpzFDU=";
       };
     in ''
       mkdir -p vendor/github.com/nlewo/nix2container/

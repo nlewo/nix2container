@@ -55,19 +55,3 @@ func NewLayersFromFile(filename string) ([]Layer, error) {
 	return layers, nil
 }
 
-func NewImageFromFile(filename string) (image Image, err error) {
-	file, err := os.Open(filename)
-	defer file.Close()
-	if err != nil {
-		return image, err
-	}
-	content, err := ioutil.ReadAll(file)
-	if err != nil {
-		return image, err
-	}
-	err = json.Unmarshal(content, &image)
-	if err != nil {
-		return image, err
-	}
-	return image, nil
-}

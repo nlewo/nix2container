@@ -2,11 +2,14 @@ package nix
 
 import (
 	"io"
+	"os"
+	"io/ioutil"
 	"bytes"
 	"errors"
 	"encoding/json"
 	"github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/nlewo/nix2container/types"
+	"github.com/sirupsen/logrus"
 	godigest "github.com/opencontainers/go-digest"
 )
 
@@ -72,6 +75,57 @@ func getV1Image(image types.Image) (imageV1 v1.Image, err error) {
 	}
 	return
 }
+
+func NewImageFromFile(filename string) (image types.Image, err error) {
+	file, err := os.Open(filename)
+	defer file.Close()
+	if err != nil {
+		return image, err
+	}
+	content, err := ioutil.ReadAll(file)
+	if err != nil {
+		return image, err
+	}
+	err = json.Unmarshal(content, &image)
+	if err != nil {
+		return image, err
+	}
+	return image, nil
+}
+
+// NewImageFromDir builds an Image based on an directory populated by
+// the Skopeo dir transport. The directory needs to be a absolute
+// path since tarball filepaths are referenced in the image Layers.
+func NewImageFromDir(directory string) (image types.Image, err error) {
+	manifestFile, err := os.Open(directory + "/manifest.json")
+	defer manifestFile.Close()
+	if err != nil {
+		return image, err
+	}
+	content, err := ioutil.ReadAll(manifestFile)
+	if err != nil {
+		return image, err
+	}
+	var manifest v1.Manifest
+	err = json.Unmarshal(content, &manifest)
+	if err != nil {
+		return image, err
+	}
+	
+	// TODO: we should also load the configuration of the image.
+
+	for _, l := range manifest.Layers {
+		layerFilename := directory + "/" + l.Digest.Encoded()
+		logrus.Infof("Adding tar file '%s' as image layer", layerFilename)
+		image.Layers = append(image.Layers, types.Layer{
+			TarPath: layerFilename,
+			Digest: l.Digest.String(),
+		})
+	}
+	return image, nil
+}
+
+
 
 type nopCloser struct{
 	io.Reader

@@ -8,6 +8,8 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/nlewo/nix2container/types"
+	"github.com/nlewo/nix2container/nix"
+	"github.com/sirupsen/logrus"
 )
 
 var imageCmd = &cobra.Command{
@@ -22,6 +24,36 @@ var imageCmd = &cobra.Command{
 		}
 		fmt.Println(image)
 	},
+}
+
+var imageFromDirCmd = &cobra.Command{
+	Use:   "image-from-dir OUTPUT-FILENAME DIRECTORY",
+	Short: "Write an image.json file to OUTPUT-FILENAME from a DIRECTORY populated by the Skopeo dir transport",
+	Args: cobra.MinimumNArgs(2),
+	Run: func(cmd *cobra.Command, args []string) {
+		err := imageFromDir(args[0], args[1])
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s", err)
+			os.Exit(1)
+		}
+	},
+}
+
+func imageFromDir(outputFilename, directory string) error {
+	image, err := nix.NewImageFromDir(directory)
+	if err != nil {
+		return err
+	}
+	res, err := json.MarshalIndent(image, "", "\t")
+	if err != nil {
+		return err
+	}
+	err = ioutil.WriteFile(outputFilename, []byte(res), 0666)
+	if err != nil {
+		return err
+	}
+	logrus.Infof("Image has been written to %s", outputFilename)
+	return nil
 }
 
 func image(imageConfigPath string, layerPaths []string) (string, error){
@@ -71,4 +103,5 @@ func image(imageConfigPath string, layerPaths []string) (string, error){
 
 func init() {
 	rootCmd.AddCommand(imageCmd)
+	rootCmd.AddCommand(imageFromDirCmd)
 }
