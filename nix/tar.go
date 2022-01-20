@@ -40,7 +40,7 @@ func TarPathsSum(paths types.Paths) (digest.Digest, error) {
 	return digest, nil
 }
 
-func appendFileToTar(tw *tar.Writer, tarHeaders *tarHeaders, path string, info os.FileInfo, opts types.PathOptions) error {
+func appendFileToTar(tw *tar.Writer, tarHeaders *tarHeaders, path string, info os.FileInfo, opts *types.PathOptions) error {
 	var link string
 	var err error
 	if info.Mode()&os.ModeSymlink != 0 {
@@ -53,7 +53,7 @@ func appendFileToTar(tw *tar.Writer, tarHeaders *tarHeaders, path string, info o
 	if err != nil {
 		return err
 	}
-	if opts.Rewrite.Regex != "" {
+	if opts != nil && opts.Rewrite.Regex != "" {
 		re := regexp.MustCompile(opts.Rewrite.Regex)
 		hdr.Name = string(re.ReplaceAll([]byte(path), []byte(opts.Rewrite.Repl)))
 	} else {

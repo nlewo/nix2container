@@ -166,7 +166,7 @@ func layer(pathsFilename string, exclude string, tarDirectory string, rewrites r
 		}
 		for _, rewrite := range rewrites {
 			if sp == rewrite.Path {
-				path.Options = types.PathOptions{
+				path.Options = &types.PathOptions{
 					Rewrite: types.Rewrite{
 						Regex: rewrite.Regex,
 						Repl:  rewrite.Repl,

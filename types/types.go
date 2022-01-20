@@ -26,7 +26,7 @@ type PathOptions struct {
 
 type Path struct {
 	Path string `json:"path"`
-	Options PathOptions `json:"options,omitempty"`
+	Options *PathOptions `json:"options,omitempty"`
 }
 
 type Paths []Path
