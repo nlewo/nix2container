@@ -9,6 +9,8 @@ them).
 
 nix2container is
 - a Nix library to build container image manifests
+- a binary (`nix2container`) to create JSON files describing layers and images (this
+  binary is used by the nix2container Nix library)
 - a Go library to produce image configurations and layers from these
   manifests (currently used by Skopeo)
 
@@ -90,12 +92,10 @@ and a second layer containing the script only.
 In real life, the isolated layer can contains a Python environment or
 Node modules.
 
-## Use the Go library
-
-The Go library exposes 
-- `NewImageFromFile`: create an `Image` object from a JSON file (created by `nix2container.buildImage`),
-- `GetConfigBlob`: generate the config of an `Image`,
-- `GetBlob`: get a blob from an `Image`.
+## The nix2container Go library
 
 This library is currently used by the Skopeo `nix` transport available
 in [this branch](https://github.com/nlewo/image/tree/nix).
+
+For more information, refer to [the Go
+documentation](https://pkg.go.dev/github.com/nlewo/nix2container).

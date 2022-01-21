@@ -1,3 +1,12 @@
+// This package can be used to generate image configuration and blobs
+// from an image JSON file.
+//
+// First, you need to create an types.Image with NewImageFromFile.
+//
+// With this types.Image object, it is then possible to get the image
+// configuration with the GetConfigBlob method. To get layer blobs,
+// you need to iterate on the layers of the image and use the GetBlob
+// or LayerGetBlob functions to get a Reader on this layer.
 package nix
 
 import (
@@ -76,6 +85,9 @@ func getV1Image(image types.Image) (imageV1 v1.Image, err error) {
 	return
 }
 
+// NewImageFromDir creates an Image from a JSON file describing an
+// image. This file has usually been created by Nix through the
+// nix2container binary.
 func NewImageFromFile(filename string) (image types.Image, err error) {
 	file, err := os.Open(filename)
 	defer file.Close()
