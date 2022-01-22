@@ -6,32 +6,36 @@
 package cmd
 
 import (
-	"fmt"
-	"os"
-	"reflect"
-	"strings"
-	"io/ioutil"
-	"encoding/json"
-	"github.com/spf13/cobra"
-	"github.com/nlewo/nix2container/nix"
 	_ "crypto/sha256"
 	_ "crypto/sha512"
+	"encoding/json"
+	"fmt"
+	"io/ioutil"
+	"os"
+	"strings"
+
+	"github.com/nlewo/nix2container/nix"
 	"github.com/nlewo/nix2container/types"
 	digest "github.com/opencontainers/go-digest"
+	"github.com/spf13/cobra"
 )
+
+var rewrites rewritePaths
+var ignore string
+var tarDirectory string
 
 // layerCmd represents the layer command
 var layersTarCmd = &cobra.Command{
 	Use:   "layers-from-tar file.tar",
 	Short: "Generate a layer.json file from a tar file",
-	Args: cobra.ExactArgs(1),
+	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		layer, err := layerFromTar(args[0])
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s", err)
 			os.Exit(1)
 		}
-		layersJson, err := layerToJson(layer)
+		layersJson, err := layersToJson(layer)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s", err)
 			os.Exit(1)
@@ -44,14 +48,24 @@ var layersTarCmd = &cobra.Command{
 var layersReproducibleCmd = &cobra.Command{
 	Use:   "layers-from-reproducible-storepaths STOREPATHS.lst",
 	Short: "Generate a layer.json file from a list of reproducible paths",
-	Args: cobra.MinimumNArgs(1),
+	Args:  cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		layer, err := layer(args[0], exclude, "", rewrites, args[1:])
+		storepaths, err := getStorepaths(args[0])
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s", err)
 			os.Exit(1)
 		}
-		layersJson, err := layerToJson(layer)
+		parents, err := getLayersFromFiles(args[1:])
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s", err)
+			os.Exit(1)
+		}
+		layers, err := nix.NewLayers(storepaths, parents, rewrites, ignore)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s", err)
+			os.Exit(1)
+		}
+		layersJson, err := layersToJson(layers)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s", err)
 			os.Exit(1)
@@ -59,20 +73,29 @@ var layersReproducibleCmd = &cobra.Command{
 		fmt.Println(layersJson)
 	},
 }
-
 
 // layerCmd represents the layer command
 var layersNonReproducibleCmd = &cobra.Command{
 	Use:   "layers-from-non-reproducible-storepaths STOREPATHS.lst",
 	Short: "Generate a layer.json file from a list of paths",
-	Args: cobra.MinimumNArgs(1),
+	Args:  cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		layer, err := layer(args[0], exclude, tarDirectory, rewrites, args[1:])
+		storepaths, err := getStorepaths(args[0])
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s", err)
 			os.Exit(1)
 		}
-		layersJson, err := layerToJson(layer)
+		parents, err := getLayersFromFiles(args[1:])
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s", err)
+			os.Exit(1)
+		}
+		layers, err := nix.NewLayersNonReproducible(storepaths, tarDirectory, parents, rewrites, ignore)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s", err)
+			os.Exit(1)
+		}
+		layersJson, err := layersToJson(layers)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s", err)
 			os.Exit(1)
@@ -81,48 +104,25 @@ var layersNonReproducibleCmd = &cobra.Command{
 	},
 }
 
+type rewritePaths []types.RewritePath
 
-type rewriteFlag struct {
-	Path string
-	Regex string
-	Repl string
-}
-
-type rewriteFlags []rewriteFlag
-
-func (i *rewriteFlags) String() string {
+func (i *rewritePaths) String() string {
 	return ""
 }
-func (i *rewriteFlags) Type() string {
-	return "path,regex,replacement"
+func (i *rewritePaths) Type() string {
+	return "PATH,REGEX,REPLACEMENT"
 }
-func (i *rewriteFlags) Set(value string) error {
+func (i *rewritePaths) Set(value string) error {
 	elts := strings.Split(value, ",")
-	*i = append(*i, rewriteFlag{
-		Path: elts[0],
+	*i = append(*i, types.RewritePath{
+		Path:  elts[0],
 		Regex: elts[1],
-		Repl: elts[2],
+		Repl:  elts[2],
 	})
 	return nil
 }
 
-var rewrites rewriteFlags
-var exclude string
-var tarDirectory string
-
-func isPathInLayers(layers []types.Layer, path types.Path) bool {
-	for _, layer := range(layers) {
-		for _, p := range(layer.Paths) {
-			if reflect.DeepEqual(p, path) {
-				return true
-			}
-		}
-	}
-	return false
-}
-
-func layerToJson(layer *types.Layer) (string, error) {
-	layers := []*types.Layer{layer}
+func layersToJson(layers []types.Layer) (string, error) {
 	res, err := json.MarshalIndent(layers, "", "\t")
 	if err != nil {
 		return "", err
@@ -130,104 +130,61 @@ func layerToJson(layer *types.Layer) (string, error) {
 	return string(res), nil
 }
 
-func getStorePaths(pathsFilename string) ([]string, error) {
-	file, err := os.Open(pathsFilename)
-	defer file.Close()
+func getStorepaths(pathsFilename string) (paths []string, err error) {
+	content, err := ioutil.ReadFile(pathsFilename)
 	if err != nil {
-		return nil, err
+		return paths, err
 	}
-	content, err := ioutil.ReadAll(file)
-	if err != nil {
-		return nil, err
+	for _, path := range strings.Split(string(content), "\n") {
+		if path != "" {
+			paths = append(paths, path)
+		}
 	}
-	paths := strings.Split(string(content), "\n")
 	return paths, nil
 }
 
-func layer(pathsFilename string, exclude string, tarDirectory string, rewrites rewriteFlags, dependencyLayerPaths []string) (*types.Layer, error) {
-	var dependencyLayers []types.Layer
-	for _, dLayerPath := range(dependencyLayerPaths) {
-		layers, err := types.NewLayersFromFile(dLayerPath)
+func getLayersFromFiles(layersPaths []string) (layers []types.Layer, err error) {
+	for _, layersPath := range layersPaths {
+		ls, err := types.NewLayersFromFile(layersPath)
 		if err != nil {
-			return nil, err
+			return layers, err
 		}
-		for _, l := range(layers) {
-			dependencyLayers = append(dependencyLayers, l)
+		for _, l := range ls {
+			layers = append(layers, l)
 		}
 	}
-	storepaths, err := getStorePaths(pathsFilename)
-	if err != nil {
-		return nil, err
-	}
-	var paths types.Paths
-	for _, sp := range(storepaths) {
-		path := types.Path{
-			Path: sp,
-		}
-		for _, rewrite := range rewrites {
-			if sp == rewrite.Path {
-				path.Options = &types.PathOptions{
-					Rewrite: types.Rewrite{
-						Regex: rewrite.Regex,
-						Repl:  rewrite.Repl,
-					},
-				}
-			}
-		}
-		if sp == "" || sp == exclude || isPathInLayers(dependencyLayers, path){
-			continue
-		}
-		paths = append(paths, path)
-	}
-
-	tarPath := ""
-	var d digest.Digest
-	if tarDirectory != "" {
-		tarPath = tarDirectory + "/layer.tar"
-		d, err = nix.TarPathsWrite(paths, tarPath)
-	} else {
-		d, err = nix.TarPathsSum(paths)
-	}
-	if err != nil {
-		return nil, err
-	}
-	layer := types.Layer{
-		Digest: d.String(),
-		Paths: paths,
-		TarPath: tarPath,
-	}
-	return &layer, nil
+	return layers, nil
 }
 
-func layerFromTar(filename string) (*types.Layer, error) {
+func layerFromTar(filename string) (layers []types.Layer, err error) {
 	f, err := os.Open(filename)
 	defer f.Close()
 	if err != nil {
-		return nil, err
+		return layers, err
 	}
 	d, err := digest.FromReader(f)
 	if err != nil {
-		return nil, err
+		return layers, err
 	}
-	layer := types.Layer{
-		Digest: d.String(),
-		TarPath: filename,
+	layers = []types.Layer{
+		types.Layer{
+			Digest:    d.String(),
+			LayerPath: filename,
+		},
 	}
-	return &layer, nil
+	return layers, nil
 }
 
 func init() {
 	rootCmd.AddCommand(layersNonReproducibleCmd)
-	layersNonReproducibleCmd.Flags().StringVarP(&exclude, "exclude", "", "", "Exclude path")
-	// TODO: make this flag it required
+	layersNonReproducibleCmd.Flags().StringVarP(&ignore, "ignore", "", "", "Ignore the path from the list of storepaths")
+	// TODO: make this flag required
 	layersNonReproducibleCmd.Flags().StringVarP(&tarDirectory, "tar-directory", "", "", "The directory where tar of layers are created.")
 
-	layersNonReproducibleCmd.Flags().Var(&rewrites, "rewrite", "Replace the regex part by replacement for all files of the a path")
-
-
+	layersNonReproducibleCmd.Flags().Var(&rewrites, "rewrite", "Replace the REGEX part by REPLACEMENT for all files in the tree PATH")
 
 	rootCmd.AddCommand(layersReproducibleCmd)
-	layersReproducibleCmd.Flags().StringVarP(&exclude, "exclude", "", "", "Exclude path")
+	layersReproducibleCmd.Flags().StringVarP(&ignore, "ignore", "", "", "Ignore the path from the list of storepaths")
 	layersReproducibleCmd.Flags().Var(&rewrites, "rewrite", "Replace the regex part by replacement for all files of the a path")
 
 	rootCmd.AddCommand(layersTarCmd)

@@ -1,8 +1,9 @@
 package nix
 
 import (
-	"testing"
 	"reflect"
+	"testing"
+
 	"github.com/nlewo/nix2container/types"
 )
 
@@ -14,12 +15,12 @@ func TestNewImageFromDir(t *testing.T) {
 	expected := types.Image{
 		Layers: []types.Layer{
 			types.Layer{
-				Digest: "sha256:688e187d6c79c46e8261890f0010fd5d178b8faa178959b0b46b2635aa1eeff3",
-				TarPath: "../data/image-directory/688e187d6c79c46e8261890f0010fd5d178b8faa178959b0b46b2635aa1eeff3",
+				Digest:    "sha256:688e187d6c79c46e8261890f0010fd5d178b8faa178959b0b46b2635aa1eeff3",
+				LayerPath: "../data/image-directory/688e187d6c79c46e8261890f0010fd5d178b8faa178959b0b46b2635aa1eeff3",
 			},
 			types.Layer{
-				Digest: "sha256:788e187d6c79c46e8261890f0010fd5d178b8faa178959b0b46b2635aa1eeff4",
-				TarPath: "../data/image-directory/788e187d6c79c46e8261890f0010fd5d178b8faa178959b0b46b2635aa1eeff4",
+				Digest:    "sha256:788e187d6c79c46e8261890f0010fd5d178b8faa178959b0b46b2635aa1eeff4",
+				LayerPath: "../data/image-directory/788e187d6c79c46e8261890f0010fd5d178b8faa178959b0b46b2635aa1eeff4",
 			},
 		},
 	}

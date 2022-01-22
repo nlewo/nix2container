@@ -1,23 +1,33 @@
 package types
 
 import (
-	"os"
 	"encoding/json"
 	"io/ioutil"
-	"github.com/opencontainers/image-spec/specs-go/v1"
+	"os"
+
+	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 type Image struct {
 	ImageConfig v1.ImageConfig `json:"image-config"`
-	Layers []Layer `json:"layers"`
-}
-
-type Layers struct {
+	Layers      []Layer        `json:"layers"`
 }
 
 type Rewrite struct {
 	Regex string `json:"regex"`
-	Repl string `json:"repl"`
+	Repl  string `json:"repl"`
+}
+
+// RewritePath describes how to replace the Regex in Path by the
+// replacement Repl.
+//
+// This allows to rewrite storepaths during the tar operation. This is
+// mainly used to move storepaths from the /nix/store to / in the
+// image.
+type RewritePath struct {
+	Path  string
+	Regex string
+	Repl  string
 }
 
 type PathOptions struct {
@@ -25,7 +35,7 @@ type PathOptions struct {
 }
 
 type Path struct {
-	Path string `json:"path"`
+	Path    string       `json:"path"`
 	Options *PathOptions `json:"options,omitempty"`
 }
 
@@ -33,8 +43,11 @@ type Paths []Path
 
 type Layer struct {
 	Digest string `json:"digest"`
-	Paths Paths `json:"paths,omitempty"`
-	TarPath string `json:"tar-path,omitempty"`
+	Paths  Paths  `json:"paths,omitempty"`
+	// OCI mediatype
+	// https://github.com/opencontainers/image-spec/blob/8b9d41f48198a7d6d0a5c1a12dc2d1f7f47fc97f/specs-go/v1/mediatype.go
+	MediaType string `json:"mediatype"`
+	LayerPath string `json:"layer-path,omitempty"`
 }
 
 func NewLayersFromFile(filename string) ([]Layer, error) {
@@ -54,4 +67,3 @@ func NewLayersFromFile(filename string) ([]Layer, error) {
 	}
 	return layers, nil
 }
-

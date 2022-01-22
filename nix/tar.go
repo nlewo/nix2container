@@ -1,17 +1,18 @@
 package nix
 
 import (
+	"archive/tar"
 	"errors"
+	"fmt"
+	"io"
+	"os"
+	"path/filepath"
 	"reflect"
 	"regexp"
 	"time"
-	"io"
-	"archive/tar"
-	"path/filepath"
-	"os"
-	"fmt"
-	digest "github.com/opencontainers/go-digest"
+
 	"github.com/nlewo/nix2container/types"
+	digest "github.com/opencontainers/go-digest"
 )
 
 func TarPathsWrite(paths types.Paths, destinationFilename string) (digest.Digest, error) {
@@ -22,7 +23,7 @@ func TarPathsWrite(paths types.Paths, destinationFilename string) (digest.Digest
 	}
 	reader := TarPaths(paths)
 	defer reader.Close()
-	r := io.TeeReader(reader, f)	
+	r := io.TeeReader(reader, f)
 	digest, err := digest.FromReader(r)
 	if err != nil {
 		return "", err
@@ -103,7 +104,7 @@ func appendFileToTar(tw *tar.Writer, tarHeaders *tarHeaders, path string, info o
 
 type tarHeaders []*tar.Header
 
-func TarPaths(paths types.Paths) (io.ReadCloser) {
+func TarPaths(paths types.Paths) io.ReadCloser {
 	r, w := io.Pipe()
 	tw := tar.NewWriter(w)
 	tarHeaders := make(tarHeaders, 0)
@@ -119,7 +120,7 @@ func TarPaths(paths types.Paths) (io.ReadCloser) {
 			})
 			if err != nil {
 				w.CloseWithError(err)
-				return 
+				return
 			}
 		}
 		err := tw.Close()

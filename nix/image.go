@@ -10,16 +10,17 @@
 package nix
 
 import (
-	"io"
-	"os"
-	"io/ioutil"
 	"bytes"
-	"errors"
 	"encoding/json"
-	"github.com/opencontainers/image-spec/specs-go/v1"
+	"errors"
+	"io"
+	"io/ioutil"
+	"os"
+
 	"github.com/nlewo/nix2container/types"
-	"github.com/sirupsen/logrus"
 	godigest "github.com/opencontainers/go-digest"
+	v1 "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/sirupsen/logrus"
 )
 
 // GetConfigBlob returns the config blog of an image.
@@ -47,7 +48,7 @@ func GetConfigDigest(image types.Image) (d godigest.Digest, err error) {
 
 // GetBlob gets the layer corresponding to the provided digest.
 func GetBlob(image types.Image, digest godigest.Digest) (io.ReadCloser, error) {
-	for _, layer := range(image.Layers) {
+	for _, layer := range image.Layers {
 		if layer.Digest == digest.String() {
 			rc, _, err := LayerGetBlob(layer)
 			return rc, err
@@ -73,7 +74,7 @@ func getV1Image(image types.Image) (imageV1 v1.Image, err error) {
 	imageV1.Architecture = "amd64"
 	imageV1.Config = image.ImageConfig
 
-	for _, layer := range(image.Layers) {
+	for _, layer := range image.Layers {
 		digest, err := godigest.Parse(layer.Digest)
 		if err != nil {
 			return imageV1, err
@@ -123,23 +124,22 @@ func NewImageFromDir(directory string) (image types.Image, err error) {
 	if err != nil {
 		return image, err
 	}
-	
+
 	// TODO: we should also load the configuration of the image.
 
 	for _, l := range manifest.Layers {
 		layerFilename := directory + "/" + l.Digest.Encoded()
 		logrus.Infof("Adding tar file '%s' as image layer", layerFilename)
 		image.Layers = append(image.Layers, types.Layer{
-			TarPath: layerFilename,
-			Digest: l.Digest.String(),
+			LayerPath: layerFilename,
+			Digest:    l.Digest.String(),
 		})
 	}
 	return image, nil
 }
 
-
-
-type nopCloser struct{
+type nopCloser struct {
 	io.Reader
 }
+
 func (nopCloser) Close() error { return nil }

@@ -51,9 +51,9 @@ let
     deps,
     # A list of store paths to include in the layer root
     contents ? [],
-    # A store path to exclude. This is mainly useful to exclude the
+    # A store path to ignore. This is mainly useful to ignore the
     # configuration file from the container layer.
-    exclude ? null,
+    ignore ? null,
     # A list of layers containing dependencies: if a store path of the
     # currently built layer already belongs to a dependency layer,
     # this store path is skipped
@@ -76,7 +76,7 @@ let
       ${rewrites} \
       ${tarDirectory} \
       ${pkgs.lib.concatMapStringsSep " "  (l: l + "/layer.json") isolatedDeps} \
-      ${pkgs.lib.optionalString (exclude != null) "--exclude ${exclude}"} > $out/layer.json
+      ${pkgs.lib.optionalString (ignore != null) "--ignore ${ignore}"} > $out/layer.json
     '';
 
   buildImage = {
@@ -89,13 +89,13 @@ let
   }:
     let
       configFile = pkgs.writeText "config.json" (builtins.toJSON config);
-      # This layer contains all config dependencies. We exclude the
+      # This layer contains all config dependencies. We ignore the
       # configFile because it is already part of the image, as a
       # specific blob.
       configDepsLayer = buildLayer {
         inherit contents;
         deps = [configFile];
-        exclude = configFile;
+        ignore = configFile;
         isolatedDeps = isolatedDeps;
       };
       layerPaths = pkgs.lib.concatMapStringsSep " " (l: l + "/layer.json") ([configDepsLayer] ++ isolatedDeps);
