@@ -13,12 +13,14 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var fromImageFilename string
+
 var imageCmd = &cobra.Command{
 	Use:   "image config.json layer-1.json layer-2.json",
 	Short: "Generate an image.json file from a image configuration and layers",
 	Args:  cobra.MinimumNArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
-		image, err := image(args[0], args[1:])
+		image, err := image(args[0], fromImageFilename, args[1:])
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s", err)
 			os.Exit(1)
@@ -57,7 +59,7 @@ func imageFromDir(outputFilename, directory string) error {
 	return nil
 }
 
-func image(imageConfigPath string, layerPaths []string) (string, error) {
+func image(imageConfigPath string, fromImageFilename string, layerPaths []string) (string, error){
 	var imageConfig v1.ImageConfig
 	var image types.Image
 
@@ -76,6 +78,18 @@ func image(imageConfigPath string, layerPaths []string) (string, error) {
 		fmt.Println(err)
 		os.Exit(1)
 	}
+
+	if fromImageFilename != "" {
+		fromImage, err := nix.NewImageFromFile(fromImageFilename)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		for _, layer := range fromImage.Layers {
+			image.Layers = append(image.Layers, layer)
+		}
+	}
+
 	image.ImageConfig = imageConfig
 	for _, path := range layerPaths {
 		var layers []types.Layer
@@ -104,5 +118,6 @@ func image(imageConfigPath string, layerPaths []string) (string, error) {
 
 func init() {
 	rootCmd.AddCommand(imageCmd)
+	imageCmd.Flags().StringVarP(&fromImageFilename, "from-image", "", "", "A JSON file describing the base image")
 	rootCmd.AddCommand(imageFromDirCmd)
 }

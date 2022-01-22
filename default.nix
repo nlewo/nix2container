@@ -23,8 +23,8 @@ let
   skopeo-nix2container = pkgs.skopeo.overrideAttrs (old: {
     preBuild = let
       patch = pkgs.fetchurl {
-        url = "https://github.com/nlewo/image/commit/4755e8ca87a39702c1ac8c4fc4cd2ba62f020159.patch";
-        sha256 = "sha256-BWSUHmIEqtbkKzBLwE719MOfNgEbTgrs2JWizdpzFDU=";
+        url = "https://github.com/nlewo/image/commit/5f09f731b816775e2635e7565b4bc54d5e75e254.patch";
+        sha256 = "sha256-tnK+ws7/IwhzKgE9dZRhdtud/+/eYfTZJsvDKBrQ9Po=";
       };
     in ''
       mkdir -p vendor/github.com/nlewo/nix2container/
@@ -46,6 +46,50 @@ let
     ${skopeo-nix2container}/bin/skopeo --insecure-policy copy nix:${image} docker://${image.name}:${image.tag} $@
     echo Docker image ${image.name}:${image.tag} have copied to registry
   '';
+
+  # Pull an image from a registry with Skopeo and translate it to a
+  # nix2container image.json file.
+  # This mainly comes from nixpkgs/build-support/docker/default.nix.
+  pullImage =
+    let
+      fixName = name: builtins.replaceStrings [ "/" ":" ] [ "-" "-" ] name;
+    in
+    { imageName
+      # To find the digest of an image, you can use skopeo:
+      # see doc/functions.xml
+    , imageDigest
+    , sha256
+    , os ? "linux"
+    , arch ? pkgs.go.GOARCH
+    , tlsVerify ? true
+    , name ? fixName "docker-image-${imageName}"
+    }: let
+      dir = pkgs.runCommand name
+      {
+        inherit imageDigest;
+        impureEnvVars = pkgs.lib.fetchers.proxyImpureEnvVars;
+        outputHashMode = "recursive";
+        outputHashAlgo = "sha256";
+        outputHash = sha256;
+
+        nativeBuildInputs = pkgs.lib.singleton pkgs.skopeo;
+        SSL_CERT_FILE = "${pkgs.cacert.out}/etc/ssl/certs/ca-bundle.crt";
+
+        sourceURL = "docker://${imageName}@${imageDigest}";
+      } ''
+      skopeo \
+        --insecure-policy \
+        --tmpdir=$TMPDIR \
+        --override-os ${os} \
+        --override-arch ${arch} \
+        copy \
+        --src-tls-verify=${pkgs.lib.boolToString tlsVerify} \
+        "$sourceURL" "dir://$out" \
+        | cat  # pipe through cat to force-disable progress bar
+      '';
+    in pkgs.runCommand "nix2container-${imageName}.json" {} ''
+      ${nix2containerUtil}/bin/nix2container image-from-dir $out ${dir}
+    '';
 
   buildLayer = {
     # A list of store paths to include in the layer
@@ -87,6 +131,7 @@ let
     config,
     isolatedDeps ? [],
     contents ? [],
+    fromImage ? "",
   }:
     let
       configFile = pkgs.writeText "config.json" (builtins.toJSON config);
@@ -99,10 +144,12 @@ let
         ignore = configFile;
         isolatedDeps = isolatedDeps;
       };
+      fromImageFlag = pkgs.lib.optionalString (fromImage != "") "--from-image ${fromImage}";
       layerPaths = pkgs.lib.concatMapStringsSep " " (l: l + "/layer.json") ([configDepsLayer] ++ isolatedDeps);
       image = pkgs.runCommand "image.json" {} ''
-        echo ${nix2containerUtil}/bin/nix2container image ${configFile} ${layerPaths}
-        ${nix2containerUtil}/bin/nix2container image ${configFile} ${layerPaths} > $out
+        ${nix2containerUtil}/bin/nix2container image \
+        ${fromImageFlag} \
+        ${configFile} ${layerPaths} > $out
       '';
       namedImage = image // { inherit name tag; };
     in namedImage // {
@@ -112,5 +159,5 @@ let
 in
 {
   inherit nix2containerUtil skopeo-nix2container;
-  nix2container = { inherit buildImage buildLayer; };
+  nix2container = { inherit buildImage buildLayer pullImage; };
 }
