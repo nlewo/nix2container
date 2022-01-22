@@ -43,6 +43,7 @@ type Paths []Path
 
 type Layer struct {
 	Digest string `json:"digest"`
+	DiffIDs string `json:"diff_ids"`
 	Paths  Paths  `json:"paths,omitempty"`
 	// OCI mediatype
 	// https://github.com/opencontainers/image-spec/blob/8b9d41f48198a7d6d0a5c1a12dc2d1f7f47fc97f/specs-go/v1/mediatype.go

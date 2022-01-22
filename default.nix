@@ -3,6 +3,7 @@ let
   nix2containerUtil = pkgs.buildGoModule rec {
     pname = "nix2container";
     version = "0.0.1";
+    doCheck = false;
     src = pkgs.lib.cleanSourceWith {
       src = ./.;
       filter = path: type:
@@ -16,7 +17,7 @@ let
         p == "default.nix"
       );
     };
-    vendorSha256 = "sha256-kA1qOx2GdDgbous9tqFpdbfx9n+ECv/o3FqM1NmbAfI=";
+    vendorSha256 = "sha256-o7eE/R8UbuEP0SA+eS0mXb3XeV+gvLfFRDIJ6jvqMuA=";
   };
 
   skopeo-nix2container = pkgs.skopeo.overrideAttrs (old: {

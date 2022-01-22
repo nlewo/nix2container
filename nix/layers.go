@@ -42,6 +42,7 @@ func NewLayers(storePaths []string, parents []types.Layer, rewrites []types.Rewr
 	layers = []types.Layer{
 		types.Layer{
 			Digest:    d.String(),
+			DiffIDs:    d.String(),
 			Paths:     paths,
 			MediaType: v1.MediaTypeImageLayer,
 		},
@@ -60,7 +61,9 @@ func NewLayersNonReproducible(storePaths []string, tarDirectory string, parents 
 	layers = []types.Layer{
 		types.Layer{
 			Digest:    d.String(),
+			DiffIDs:    d.String(),
 			Paths:     paths,
+			// TODO: we should use v1.MediaTypeImageLayerGzip instead
 			MediaType: v1.MediaTypeImageLayer,
 			LayerPath: layerPath,
 		},

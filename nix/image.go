@@ -16,7 +16,8 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
-
+	"fmt"
+	"github.com/containers/image/v5/manifest"
 	"github.com/nlewo/nix2container/types"
 	godigest "github.com/opencontainers/go-digest"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
@@ -75,7 +76,7 @@ func getV1Image(image types.Image) (imageV1 v1.Image, err error) {
 	imageV1.Config = image.ImageConfig
 
 	for _, layer := range image.Layers {
-		digest, err := godigest.Parse(layer.Digest)
+		digest, err := godigest.Parse(layer.DiffIDs)
 		if err != nil {
 			return imageV1, err
 		}
@@ -119,21 +120,42 @@ func NewImageFromDir(directory string) (image types.Image, err error) {
 	if err != nil {
 		return image, err
 	}
-	var manifest v1.Manifest
-	err = json.Unmarshal(content, &manifest)
+	var v1Manifest v1.Manifest
+	err = json.Unmarshal(content, &v1Manifest)
 	if err != nil {
 		return image, err
 	}
 
-	// TODO: we should also load the configuration of the image.
+	content, err = ioutil.ReadFile(directory + "/" + v1Manifest.Config.Digest.Encoded())
+	if err != nil {
+		return image, err
+	}
+	var v1ImageConfig manifest.Schema2Image
+	err = json.Unmarshal(content, &v1ImageConfig)
+	if err != nil {
+		return image, err
+	}
+	
+	// TODO: we should also load the configuration in order to
+	// allow configuration merges
 
-	for _, l := range manifest.Layers {
+	for i, l := range v1Manifest.Layers {
 		layerFilename := directory + "/" + l.Digest.Encoded()
 		logrus.Infof("Adding tar file '%s' as image layer", layerFilename)
-		image.Layers = append(image.Layers, types.Layer{
+		layer := types.Layer{
 			LayerPath: layerFilename,
 			Digest:    l.Digest.String(),
-		})
+			DiffIDs:   v1ImageConfig.RootFS.DiffIDs[i].String(),
+		}
+		switch l.MediaType {
+		case "application/vnd.docker.image.rootfs.diff.tar":
+			layer.MediaType = v1.MediaTypeImageLayer
+		case "application/vnd.docker.image.rootfs.diff.tar.gzip":
+			layer.MediaType = v1.MediaTypeImageLayerGzip
+		default:
+			return image, fmt.Errorf("Unknown media type: %q", l.MediaType)
+		}
+		image.Layers = append(image.Layers, layer)
 	}
 	return image, nil
 }

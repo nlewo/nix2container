@@ -104,7 +104,9 @@ func appendFileToTar(tw *tar.Writer, tarHeaders *tarHeaders, path string, info o
 
 type tarHeaders []*tar.Header
 
-func TarPaths(paths types.Paths) io.ReadCloser {
+// TarPaths takes a list of paths and return a ReadCloser to the tar
+// archive. If an error occurs, the ReadCloser is closed with the error.
+func TarPaths(paths types.Paths) (io.ReadCloser) {
 	r, w := io.Pipe()
 	tw := tar.NewWriter(w)
 	tarHeaders := make(tarHeaders, 0)

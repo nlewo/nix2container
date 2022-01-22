@@ -15,16 +15,14 @@ func TestNewImageFromDir(t *testing.T) {
 	expected := types.Image{
 		Layers: []types.Layer{
 			types.Layer{
-				Digest:    "sha256:688e187d6c79c46e8261890f0010fd5d178b8faa178959b0b46b2635aa1eeff3",
-				LayerPath: "../data/image-directory/688e187d6c79c46e8261890f0010fd5d178b8faa178959b0b46b2635aa1eeff3",
-			},
-			types.Layer{
-				Digest:    "sha256:788e187d6c79c46e8261890f0010fd5d178b8faa178959b0b46b2635aa1eeff4",
-				LayerPath: "../data/image-directory/788e187d6c79c46e8261890f0010fd5d178b8faa178959b0b46b2635aa1eeff4",
+				Digest: "sha256:59bf1c3509f33515622619af21ed55bbe26d24913cedbca106468a5fb37a50c3",
+				DiffIDs:"sha256:8d3ac3489996423f53d6087c81180006263b79f206d3fdec9e66f0e27ceb8759",
+				MediaType:"application/vnd.oci.image.layer.v1.tar+gzip",
+				LayerPath:"../data/image-directory/59bf1c3509f33515622619af21ed55bbe26d24913cedbca106468a5fb37a50c3",
 			},
 		},
 	}
 	if !reflect.DeepEqual(image.Layers, expected.Layers) {
-		t.Fatalf("Response should be '%#v' (while it is %#v)", expected.Layers, image.Layers)
+		t.Fatalf("Layers should be '%#v' (while they are %#v)", expected.Layers, image.Layers)
 	}
 }

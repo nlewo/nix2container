@@ -1,0 +1,74 @@
+{
+  "architecture": "amd64",
+  "config": {
+    "Hostname": "",
+    "Domainname": "",
+    "User": "",
+    "AttachStdin": false,
+    "AttachStdout": false,
+    "AttachStderr": false,
+    "Tty": false,
+    "OpenStdin": false,
+    "StdinOnce": false,
+    "Env": [
+      "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+    ],
+    "Cmd": [
+      "/bin/sh"
+    ],
+    "Image": "sha256:b747534ae29d08c0c84cc4326caf04e873c6d02bb67cd9c7644be2b4fa8d2f31",
+    "Volumes": null,
+    "WorkingDir": "",
+    "Entrypoint": null,
+    "OnBuild": null,
+    "Labels": null
+  },
+  "container": "4292e8ed2ef2b6dc4bbaf8e1cda0cb5f95b96adc4aa2da3d15181b54d07a0b34",
+  "container_config": {
+    "Hostname": "4292e8ed2ef2",
+    "Domainname": "",
+    "User": "",
+    "AttachStdin": false,
+    "AttachStdout": false,
+    "AttachStderr": false,
+    "Tty": false,
+    "OpenStdin": false,
+    "StdinOnce": false,
+    "Env": [
+      "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+    ],
+    "Cmd": [
+      "/bin/sh",
+      "-c",
+      "#(nop) ",
+      "CMD [\"/bin/sh\"]"
+    ],
+    "Image": "sha256:b747534ae29d08c0c84cc4326caf04e873c6d02bb67cd9c7644be2b4fa8d2f31",
+    "Volumes": null,
+    "WorkingDir": "",
+    "Entrypoint": null,
+    "OnBuild": null,
+    "Labels": {
+    }
+  },
+  "created": "2021-11-24T20:19:40.483367546Z",
+  "docker_version": "20.10.7",
+  "history": [
+    {
+      "created": "2021-11-24T20:19:40.199700946Z",
+      "created_by": "/bin/sh -c #(nop) ADD file:9233f6f2237d79659a9521f7e390df217cec49f1a8aa3a12147bbca1956acdb9 in / "
+    },
+    {
+      "created": "2021-11-24T20:19:40.483367546Z",
+      "created_by": "/bin/sh -c #(nop)  CMD [\"/bin/sh\"]",
+      "empty_layer": true
+    }
+  ],
+  "os": "linux",
+  "rootfs": {
+    "type": "layers",
+    "diff_ids": [
+      "sha256:8d3ac3489996423f53d6087c81180006263b79f206d3fdec9e66f0e27ceb8759"
+    ]
+  }
+}
