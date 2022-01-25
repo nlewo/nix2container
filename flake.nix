@@ -5,21 +5,22 @@
   inputs.nixpkgs.url = "github:NixOS/nixpkgs";
 
   outputs = { self, nixpkgs, flake-utils }:
-  {
-    overlay = import ./overlay.nix;
-  } // (flake-utils.lib.eachDefaultSystem (system:
-    let
-      pkgs = import nixpkgs {
-        inherit system;
-        overlays = [ self.overlay ];
-      };
-      examples = import ./examples { inherit pkgs; };
-    in
-    rec {
-      packages = {
-        inherit (pkgs) nix2containerUtil skopeo-nix2container;
-        inherit examples;
-      };
-      defaultPackage = packages.nix2containerUtil;
-    }));
+    flake-utils.lib.eachDefaultSystem (system:
+      let
+        pkgs = nixpkgs.legacyPackages.${system};
+        nix2container = import ./. {
+          inherit pkgs;
+        };
+        examples = import ./examples {
+          inherit pkgs;
+          inherit (nix2container) nix2container;
+        };
+      in
+        rec {
+          packages = {
+            inherit (nix2container) nix2containerUtil skopeo-nix2container nix2container;
+            inherit examples;
+          };
+          defaultPackage = packages.nix2containerUtil;
+        });
 }

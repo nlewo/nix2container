@@ -1,4 +1,4 @@
-{ pkgs }:
+{ pkgs, nix2container }:
 let
     nginxPort = "80";
     nginxConf = pkgs.writeText "nginx.conf" ''
@@ -26,7 +26,7 @@ let
       mkdir -p $out/var/cache/nginx
     '';
 in
-  pkgs.nix2container.buildImage {
+  nix2container.buildImage {
     name = "nginx";
     contents = [
       pkgs.dockerTools.fakeNss

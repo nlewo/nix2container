@@ -1,4 +1,4 @@
-{ pkgs, lib }:
+{ pkgs, lib, nix2container }:
 
 let
   python = pkgs.python3;
@@ -8,7 +8,7 @@ let
   });
   pythonEnv = python.withPackages (p: [p.flask]);
 in
-pkgs.nix2container.buildImage {
+nix2container.buildImage {
   name = "uwsgi";
   config = {
     entrypoint = [
@@ -23,7 +23,7 @@ pkgs.nix2container.buildImage {
   # This is to not rebuild/push uwsgi and pythonEnv closures on a
   # hello.py change.
   isolatedDeps = [
-    (pkgs.nix2container.buildLayer {
+    (nix2container.buildLayer {
       deps = [uwsgi pythonEnv];
     })
   ];
