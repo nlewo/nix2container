@@ -15,7 +15,7 @@
       in
         rec {
           packages = {
-            inherit (nix2container) nix2containerUtil skopeo-nix2container;
+            inherit (nix2container) nix2containerUtil skopeo-nix2container nix2container;
             inherit examples;
           };
           defaultPackage = packages.nix2containerUtil;
