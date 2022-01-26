@@ -43,6 +43,7 @@ type Paths []Path
 
 type Layer struct {
 	Digest string `json:"digest"`
+	Size int64 `json:"size"`
 	DiffIDs string `json:"diff_ids"`
 	Paths  Paths  `json:"paths,omitempty"`
 	// OCI mediatype

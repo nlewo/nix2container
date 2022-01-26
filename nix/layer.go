@@ -16,5 +16,5 @@ func LayerGetBlob(layer types.Layer) (reader io.ReadCloser, size int64, err erro
 		reader = TarPaths(layer.Paths)
 		return
 	}
-	return
+	return reader, layer.Size, err
 }

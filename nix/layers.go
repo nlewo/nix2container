@@ -35,7 +35,7 @@ func getPaths(storePaths []string, parents []types.Layer, rewrites []types.Rewri
 
 func NewLayers(storePaths []string, parents []types.Layer, rewrites []types.RewritePath, exclude string) (layers []types.Layer, err error) {
 	paths := getPaths(storePaths, parents, rewrites, exclude)
-	d, err := TarPathsSum(paths)
+	d, s, err := TarPathsSum(paths)
 	if err != nil {
 		return layers, err
 	}
@@ -43,6 +43,7 @@ func NewLayers(storePaths []string, parents []types.Layer, rewrites []types.Rewr
 		types.Layer{
 			Digest:    d.String(),
 			DiffIDs:    d.String(),
+			Size: s,
 			Paths:     paths,
 			MediaType: v1.MediaTypeImageLayer,
 		},
@@ -54,7 +55,7 @@ func NewLayersNonReproducible(storePaths []string, tarDirectory string, parents 
 	paths := getPaths(storePaths, parents, rewrites, exclude)
 
 	layerPath := tarDirectory + "/layer.tar"
-	d, err := TarPathsWrite(paths, layerPath)
+	d, s, err := TarPathsWrite(paths, layerPath)
 	if err != nil {
 		return layers, err
 	}
@@ -62,6 +63,7 @@ func NewLayersNonReproducible(storePaths []string, tarDirectory string, parents 
 		types.Layer{
 			Digest:    d.String(),
 			DiffIDs:    d.String(),
+			Size: s,
 			Paths:     paths,
 			// TODO: we should use v1.MediaTypeImageLayerGzip instead
 			MediaType: v1.MediaTypeImageLayer,

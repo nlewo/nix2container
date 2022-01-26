@@ -15,30 +15,36 @@ import (
 	digest "github.com/opencontainers/go-digest"
 )
 
-func TarPathsWrite(paths types.Paths, destinationFilename string) (digest.Digest, error) {
+func TarPathsWrite(paths types.Paths, destinationFilename string) (digest.Digest, int64, error) {
 	f, err := os.Create(destinationFilename)
 	defer f.Close()
 	if err != nil {
-		return "", err
+		return "", 0, err
 	}
 	reader := TarPaths(paths)
 	defer reader.Close()
+
 	r := io.TeeReader(reader, f)
-	digest, err := digest.FromReader(r)
+
+	digester := digest.Canonical.Digester()
+	size, err := io.Copy(digester.Hash(), r)
 	if err != nil {
-		return "", err
+		return "", 0, err
 	}
-	return digest, nil
+
+	return digester.Digest(), size, nil
 }
 
-func TarPathsSum(paths types.Paths) (digest.Digest, error) {
+func TarPathsSum(paths types.Paths) (digest.Digest, int64, error) {
 	reader := TarPaths(paths)
 	defer reader.Close()
-	digest, err := digest.FromReader(reader)
+
+	digester := digest.Canonical.Digester()
+	size, err := io.Copy(digester.Hash(), reader)
 	if err != nil {
-		return "", err
+		return "", 0, err
 	}
-	return digest, nil
+	return digester.Digest(), size, nil
 }
 
 func appendFileToTar(tw *tar.Writer, tarHeaders *tarHeaders, path string, info os.FileInfo, opts *types.PathOptions) error {

@@ -19,6 +19,7 @@ func TestNewLayers(t *testing.T) {
 		types.Layer{
 			Digest: "sha256:38856f8cd2e336497b6257e891ad860ea77e24193a726125445823618aa16cce",
 			DiffIDs: "sha256:38856f8cd2e336497b6257e891ad860ea77e24193a726125445823618aa16cce",
+			Size: 1536,
 			Paths: types.Paths{
 				types.Path{
 					Path: "../data/layer1/file1",
@@ -40,6 +41,7 @@ func TestNewLayers(t *testing.T) {
 		types.Layer{
 			Digest: "sha256:38856f8cd2e336497b6257e891ad860ea77e24193a726125445823618aa16cce",
 			DiffIDs: "sha256:38856f8cd2e336497b6257e891ad860ea77e24193a726125445823618aa16cce",
+			Size: 1536,
 			Paths: types.Paths{
 				types.Path{
 					Path: "../data/layer1/file1",

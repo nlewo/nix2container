@@ -37,37 +37,36 @@ func GetConfigBlob(image types.Image) ([]byte, error) {
 	return configBlob, nil
 }
 
-// GetConfigDigest returns the digest of the config blog of an image.
-func GetConfigDigest(image types.Image) (d godigest.Digest, err error) {
+// GetConfigDigest returns the digest and the size of the config blog of an image.
+func GetConfigDigest(image types.Image) (d godigest.Digest, size int64, err error) {
 	configBlob, err := GetConfigBlob(image)
 	if err != nil {
-		return d, err
+		return d, size, err
 	}
 	d = godigest.FromBytes(configBlob)
-	return
+	return  d, int64(len(configBlob)), err
 }
 
 // GetBlob gets the layer corresponding to the provided digest.
-func GetBlob(image types.Image, digest godigest.Digest) (io.ReadCloser, error) {
+func GetBlob(image types.Image, digest godigest.Digest) (io.ReadCloser, int64, error) {
 	for _, layer := range image.Layers {
 		if layer.Digest == digest.String() {
-			rc, _, err := LayerGetBlob(layer)
-			return rc, err
+			return LayerGetBlob(layer)
 		}
 	}
-	configDigest, err := GetConfigDigest(image)
+	configDigest, _, err := GetConfigDigest(image)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	if digest == configDigest {
 		configBlob, err := GetConfigBlob(image)
 		if err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 		rc := nopCloser{bytes.NewReader(configBlob)}
-		return rc, nil
+		return rc, int64(len(configBlob)), nil
 	}
-	return nil, errors.New("No blob with specified digest found in image")
+	return nil, 0, errors.New("No blob with specified digest found in image")
 }
 
 func getV1Image(image types.Image) (imageV1 v1.Image, err error) {
