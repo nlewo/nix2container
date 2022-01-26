@@ -5,4 +5,5 @@
   basic = pkgs.callPackage ./basic.nix { };
   nonReproducible = pkgs.callPackage ./non-reproducible.nix { };
   fromImage = pkgs.callPackage ./from-image.nix { };
+  uwsgi = pkgs.callPackage ./uwsgi { };
 }

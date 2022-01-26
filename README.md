@@ -92,6 +92,29 @@ and a second layer containing the script only.
 In real life, the isolated layer can contains a Python environment or
 Node modules.
 
+
+## Quick and dirty benchmarks
+
+The main goal of nix2container is to provide fast rebuild/push
+container cycles. In the following, we provide an order of magnitude
+of rebuild and repush time, for the [`uwsgi` image](https://github.com/nlewo/nix2container/blob/c6a8d82f1cdd80fabb76e7c1459471e1ea95a080/examples/uwsgi/default.nix).
+
+**warning: this is quick and dirty benchmarks which only provide an order of magnitude**
+
+We build the container and push the container. We then made a small
+change in the `hello.py` file to trigger a rebuild and a push.
+
+Method | Rebuild/repush time | Executed command
+---|---|---
+nix2container.buildImage | ~1.8s | `nix run .#example.uwsgi.copyToRegistry`
+dockerTools.streamLayeredImage | ~7.5s | `nix build .#example.uwsgi \| docker load`
+dockerTools.buildImage | ~10s | `nix build .#example.uwsgi; skopeo copy docker-archive://./result docker://localhost:5000/uwsgi:latest`
+
+Note we could not compare the same distribution mechanisms because
+- Skopeo is not able to skip already loaded layers by the Docker deamon and
+- Skopeo failed to push to the registry an image streamed to stdin.
+
+
 ## The nix2container Go library
 
 This library is currently used by the Skopeo `nix` transport available
