@@ -25,26 +25,6 @@ var ignore string
 var tarDirectory string
 
 // layerCmd represents the layer command
-var layersTarCmd = &cobra.Command{
-	Use:   "layers-from-tar file.tar",
-	Short: "Generate a layers.json file from a tar file",
-	Args:  cobra.ExactArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
-		layer, err := layerFromTar(args[0])
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "%s", err)
-			os.Exit(1)
-		}
-		layersJson, err := layersToJson(layer)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "%s", err)
-			os.Exit(1)
-		}
-		fmt.Println(layersJson)
-	},
-}
-
-// layerCmd represents the layer command
 var layersReproducibleCmd = &cobra.Command{
 	Use:   "layers-from-reproducible-storepaths STOREPATHS.lst",
 	Short: "Generate a layers.json file from a list of reproducible paths",
@@ -186,6 +166,4 @@ func init() {
 	rootCmd.AddCommand(layersReproducibleCmd)
 	layersReproducibleCmd.Flags().StringVarP(&ignore, "ignore", "", "", "Ignore the path from the list of storepaths")
 	layersReproducibleCmd.Flags().Var(&rewrites, "rewrite", "Replace the regex part by replacement for all files of the a path")
-
-	rootCmd.AddCommand(layersTarCmd)
 }
