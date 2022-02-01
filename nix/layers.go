@@ -6,6 +6,7 @@ import (
 	"reflect"
 
 	"github.com/nlewo/nix2container/types"
+	"github.com/sirupsen/logrus"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
@@ -25,7 +26,12 @@ func getPaths(storePaths []string, parents []types.Layer, rewrites []types.Rewri
 				}
 			}
 		}
-		if p == exclude || isPathInLayers(parents, path) {
+		if p == exclude {
+			logrus.Infof("Excluding path %s from layer", p)
+			continue
+		}
+		if isPathInLayers(parents, path) {
+			logrus.Infof("Excluding path %s because already present in a parent layer", p)
 			continue
 		}
 		paths = append(paths, path)
@@ -36,6 +42,7 @@ func getPaths(storePaths []string, parents []types.Layer, rewrites []types.Rewri
 func NewLayers(storePaths []string, parents []types.Layer, rewrites []types.RewritePath, exclude string) (layers []types.Layer, err error) {
 	paths := getPaths(storePaths, parents, rewrites, exclude)
 	d, s, err := TarPathsSum(paths)
+	logrus.Infof("Adding %d paths to layer (size:%d digest:%s)", len(paths), s, d.String())
 	if err != nil {
 		return layers, err
 	}
@@ -56,6 +63,7 @@ func NewLayersNonReproducible(storePaths []string, tarDirectory string, parents 
 
 	layerPath := tarDirectory + "/layer.tar"
 	d, s, err := TarPathsWrite(paths, layerPath)
+	logrus.Infof("Adding %d paths to layer (size:%d digest:%s)", len(paths), s, d.String())
 	if err != nil {
 		return layers, err
 	}

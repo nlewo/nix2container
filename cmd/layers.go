@@ -17,6 +17,7 @@ import (
 	"github.com/nlewo/nix2container/nix"
 	"github.com/nlewo/nix2container/types"
 	digest "github.com/opencontainers/go-digest"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
 
@@ -26,16 +27,16 @@ var tarDirectory string
 
 // layerCmd represents the layer command
 var layersReproducibleCmd = &cobra.Command{
-	Use:   "layers-from-reproducible-storepaths STOREPATHS.lst",
+	Use:   "layers-from-reproducible-storepaths OUTPUT-FILENAME.JSON STOREPATHS.lst",
 	Short: "Generate a layers.json file from a list of reproducible paths",
-	Args:  cobra.MinimumNArgs(1),
+	Args:  cobra.MinimumNArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
-		storepaths, err := getStorepaths(args[0])
+		storepaths, err := getStorepaths(args[1])
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s", err)
 			os.Exit(1)
 		}
-		parents, err := getLayersFromFiles(args[1:])
+		parents, err := getLayersFromFiles(args[2:])
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s", err)
 			os.Exit(1)
@@ -45,27 +46,26 @@ var layersReproducibleCmd = &cobra.Command{
 			fmt.Fprintf(os.Stderr, "%s", err)
 			os.Exit(1)
 		}
-		layersJson, err := layersToJson(layers)
+		err = layersToJson(args[0], layers)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s", err)
 			os.Exit(1)
 		}
-		fmt.Println(layersJson)
 	},
 }
 
 // layerCmd represents the layer command
 var layersNonReproducibleCmd = &cobra.Command{
-	Use:   "layers-from-non-reproducible-storepaths STOREPATHS.lst",
+	Use:   "layers-from-non-reproducible-storepaths OUTPUT-FILENAME.JSON STOREPATHS.lst",
 	Short: "Generate a layers.json file from a list of paths",
-	Args:  cobra.MinimumNArgs(1),
+	Args:  cobra.MinimumNArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
-		storepaths, err := getStorepaths(args[0])
+		storepaths, err := getStorepaths(args[1])
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s", err)
 			os.Exit(1)
 		}
-		parents, err := getLayersFromFiles(args[1:])
+		parents, err := getLayersFromFiles(args[2:])
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s", err)
 			os.Exit(1)
@@ -75,12 +75,11 @@ var layersNonReproducibleCmd = &cobra.Command{
 			fmt.Fprintf(os.Stderr, "%s", err)
 			os.Exit(1)
 		}
-		layersJson, err := layersToJson(layers)
+		err = layersToJson(args[0], layers)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s", err)
 			os.Exit(1)
 		}
-		fmt.Println(layersJson)
 	},
 }
 
@@ -102,12 +101,17 @@ func (i *rewritePaths) Set(value string) error {
 	return nil
 }
 
-func layersToJson(layers []types.Layer) (string, error) {
+func layersToJson(outputFilename string, layers []types.Layer) error {
 	res, err := json.MarshalIndent(layers, "", "\t")
 	if err != nil {
-		return "", err
+		return err
 	}
-	return string(res), nil
+	err = ioutil.WriteFile(outputFilename, []byte(res), 0666)
+	if err != nil {
+		return err
+	}
+	logrus.Infof("Layer has been written to %s", outputFilename)
+	return nil
 }
 
 func getStorepaths(pathsFilename string) (paths []string, err error) {

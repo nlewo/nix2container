@@ -124,14 +124,15 @@ let
     allDeps = deps ++ contents;
     tarDirectory = pkgs.lib.optionalString (! reproducible) "--tar-directory $out";
   in
-  pkgs.runCommand "layer.json" {} ''
+  pkgs.runCommand "layers.json" {} ''
     mkdir $out
     ${nix2containerUtil}/bin/nix2container ${subcommand} \
+      $out/layers.json \
       ${pkgs.closureInfo {rootPaths = allDeps;}}/store-paths \
       ${rewrites} \
       ${tarDirectory} \
-      ${pkgs.lib.concatMapStringsSep " "  (l: l + "/layer.json") isolatedDeps} \
-      ${pkgs.lib.optionalString (ignore != null) "--ignore ${ignore}"} > $out/layer.json
+      ${pkgs.lib.concatMapStringsSep " "  (l: l + "/layers.json") isolatedDeps} \
+      ${pkgs.lib.optionalString (ignore != null) "--ignore ${ignore}"}
     '';
 
   buildImage = {
@@ -155,7 +156,7 @@ let
         isolatedDeps = isolatedDeps;
       };
       fromImageFlag = pkgs.lib.optionalString (fromImage != "") "--from-image ${fromImage}";
-      layerPaths = pkgs.lib.concatMapStringsSep " " (l: l + "/layer.json") ([configDepsLayer] ++ isolatedDeps);
+      layerPaths = pkgs.lib.concatMapStringsSep " " (l: l + "/layers.json") ([configDepsLayer] ++ isolatedDeps);
       image = pkgs.runCommand "image.json" {} ''
         ${nix2containerUtil}/bin/nix2container image \
         $out \
