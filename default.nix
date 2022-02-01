@@ -47,6 +47,16 @@ let
     echo Docker image ${image.name}:${image.tag} have copied to registry
   '';
 
+  copyTo = image: pkgs.writeScriptBin "copy-to" ''
+    echo Running skopeo --insecure-policy copy nix:${image} $@
+    ${skopeo-nix2container}/bin/skopeo --insecure-policy copy nix:${image} $@
+  '';
+
+  copyToPodman = image: pkgs.writeShellScriptBin "copy-to-podman" ''
+    ${skopeo-nix2container}/bin/skopeo --insecure-policy copy nix:${image} containers-storage:${image.name}:${image.tag}
+    echo Image ${image.name}:${image.tag} have been copied
+  '';
+
   # Pull an image from a registry with Skopeo and translate it to a
   # nix2container image.json file.
   # This mainly comes from nixpkgs/build-support/docker/default.nix.
@@ -155,6 +165,8 @@ let
     in namedImage // {
         copyToDockerDeamon = copyToDockerDeamon namedImage;
         copyToRegistry = copyToRegistry namedImage;
+        copyToPodman = copyToPodman namedImage;
+        copyTo = copyTo namedImage;
     };
 in
 {
