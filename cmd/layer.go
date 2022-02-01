@@ -27,7 +27,7 @@ var tarDirectory string
 // layerCmd represents the layer command
 var layersTarCmd = &cobra.Command{
 	Use:   "layers-from-tar file.tar",
-	Short: "Generate a layer.json file from a tar file",
+	Short: "Generate a layers.json file from a tar file",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		layer, err := layerFromTar(args[0])
@@ -47,7 +47,7 @@ var layersTarCmd = &cobra.Command{
 // layerCmd represents the layer command
 var layersReproducibleCmd = &cobra.Command{
 	Use:   "layers-from-reproducible-storepaths STOREPATHS.lst",
-	Short: "Generate a layer.json file from a list of reproducible paths",
+	Short: "Generate a layers.json file from a list of reproducible paths",
 	Args:  cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		storepaths, err := getStorepaths(args[0])
@@ -77,7 +77,7 @@ var layersReproducibleCmd = &cobra.Command{
 // layerCmd represents the layer command
 var layersNonReproducibleCmd = &cobra.Command{
 	Use:   "layers-from-non-reproducible-storepaths STOREPATHS.lst",
-	Short: "Generate a layer.json file from a list of paths",
+	Short: "Generate a layers.json file from a list of paths",
 	Args:  cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		storepaths, err := getStorepaths(args[0])

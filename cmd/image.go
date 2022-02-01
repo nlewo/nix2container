@@ -16,16 +16,15 @@ import (
 var fromImageFilename string
 
 var imageCmd = &cobra.Command{
-	Use:   "image config.json layer-1.json layer-2.json",
+	Use:   "image OUTPUT-FILENAME CONFIG.JSON LAYERS-1.JSON LAYERS-2.JSON ...",
 	Short: "Generate an image.json file from a image configuration and layers",
-	Args:  cobra.MinimumNArgs(2),
+	Args:  cobra.MinimumNArgs(3),
 	Run: func(cmd *cobra.Command, args []string) {
-		image, err := image(args[0], fromImageFilename, args[1:])
+		err := image(args[0], args[1], fromImageFilename, args[2:])
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s", err)
 			os.Exit(1)
 		}
-		fmt.Println(image)
 	},
 }
 
@@ -59,61 +58,57 @@ func imageFromDir(outputFilename, directory string) error {
 	return nil
 }
 
-func image(imageConfigPath string, fromImageFilename string, layerPaths []string) (string, error){
+func image(outputFilename, imageConfigPath string, fromImageFilename string, layerPaths []string) error{
 	var imageConfig v1.ImageConfig
 	var image types.Image
 
-	imageConfigFile, err := os.Open(imageConfigPath)
+	logrus.Infof("Getting image configuration from %s", imageConfigPath)
+	imageConfigJson, err := ioutil.ReadFile(imageConfigPath)
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
-	imageConfigJson, err := ioutil.ReadAll(imageConfigFile)
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		return err
 	}
 	err = json.Unmarshal(imageConfigJson, &imageConfig)
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		return err
 	}
 
 	if fromImageFilename != "" {
 		fromImage, err := nix.NewImageFromFile(fromImageFilename)
 		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
+			return err
 		}
 		for _, layer := range fromImage.Layers {
 			image.Layers = append(image.Layers, layer)
 		}
+		logrus.Infof("Using base image %s containing %d layers", fromImageFilename, len(fromImage.Layers))
 	}
 
 	image.ImageConfig = imageConfig
 	for _, path := range layerPaths {
 		var layers []types.Layer
-		layerFile, err := os.Open(path)
+		layerJson, err := ioutil.ReadFile(path)
 		if err != nil {
-			return "", err
-		}
-		layerJson, err := ioutil.ReadAll(layerFile)
-		if err != nil {
-			return "", err
+			return err
 		}
 		err = json.Unmarshal(layerJson, &layers)
 		if err != nil {
-			return "", err
+			return err
 		}
+		logrus.Infof("Adding %d layers from %s", len(layers), path)
 		for _, layer := range layers {
 			image.Layers = append(image.Layers, layer)
 		}
 	}
 	res, err := json.MarshalIndent(image, "", "\t")
 	if err != nil {
-		return "", err
+		return err
 	}
-	return string(res), nil
+	err = ioutil.WriteFile(outputFilename, []byte(res), 0666)
+	if err != nil {
+		return err
+	}
+	logrus.Infof("Image has been written to %s", outputFilename)
+	return nil
 }
 
 func init() {

@@ -158,8 +158,10 @@ let
       layerPaths = pkgs.lib.concatMapStringsSep " " (l: l + "/layer.json") ([configDepsLayer] ++ isolatedDeps);
       image = pkgs.runCommand "image.json" {} ''
         ${nix2containerUtil}/bin/nix2container image \
+        $out \
         ${fromImageFlag} \
-        ${configFile} ${layerPaths} > $out
+        ${configFile} \
+        ${layerPaths}
       '';
       namedImage = image // { inherit name tag; };
     in namedImage // {
