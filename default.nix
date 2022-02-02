@@ -103,7 +103,7 @@ let
 
   buildLayer = {
     # A list of store paths to include in the layer
-    deps,
+    deps ? [],
     # A list of store paths to include in the layer root
     contents ? [],
     # A store path to ignore. This is mainly useful to ignore the
@@ -115,12 +115,25 @@ let
     isolatedDeps ? [],
     # Store the layer tar in the derivation. This is useful when the
     # layer dependencies are not bit reproducible.
-    reproducible ? true
+    reproducible ? true,
+    # A list of file permisssions which are set when the tar layer is
+    # created: these permissions are not written to the Nix store.
+    # 
+    # Each element of this permission list is a dict such as
+    # { path = "a store path";
+    #   regex = ".*";
+    #   mode = "0664";
+    # }
+    # The mode is applied on a specific path. In this path subtree,
+    # the mode is then applied on all files matching the regex.
+    perms ? [],
   }: let
     subcommand = if reproducible
               then "layers-from-reproducible-storepaths"
               else "layers-from-non-reproducible-storepaths";
     rewrites = pkgs.lib.concatMapStringsSep " " (p: "--rewrite '${p},^${p},'") contents;
+    permsFile = pkgs.writeText "perms.json" (builtins.toJSON perms);
+    permsFlag = pkgs.lib.optionalString (perms != []) "--perms ${permsFile}";
     allDeps = deps ++ contents;
     tarDirectory = pkgs.lib.optionalString (! reproducible) "--tar-directory $out";
   in
@@ -130,6 +143,7 @@ let
       $out/layers.json \
       ${pkgs.closureInfo {rootPaths = allDeps;}}/store-paths \
       ${rewrites} \
+      ${permsFlag} \
       ${tarDirectory} \
       ${pkgs.lib.concatMapStringsSep " "  (l: l + "/layers.json") isolatedDeps} \
       ${pkgs.lib.optionalString (ignore != null) "--ignore ${ignore}"}

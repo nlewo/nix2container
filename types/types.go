@@ -30,8 +30,22 @@ type RewritePath struct {
 	Repl  string
 }
 
+type Perm struct {
+	Regex string `json:"regex"`
+	// Octal representation of file permissions
+	Mode  string `json:"mode"`
+}
+
+type PermPath struct {
+	Path  string `json:"path"`
+	Regex string `json:"regex"`
+	// Octal representation of file permissions
+	Mode  string `json:"mode"`
+}
+
 type PathOptions struct {
 	Rewrite Rewrite `json:"rewrite,omitempty"`
+	Perms []Perm `json:"perms,omitempty"`
 }
 
 type Path struct {

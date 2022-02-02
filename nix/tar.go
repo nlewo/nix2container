@@ -73,6 +73,20 @@ func appendFileToTar(tw *tar.Writer, tarHeaders *tarHeaders, path string, info o
 	hdr.Gid = 0
 	hdr.Uname = "root"
 	hdr.Gname = "root"
+
+	if opts != nil {
+		for _, perms := range opts.Perms {
+			re := regexp.MustCompile(opts.Rewrite.Regex)
+			if re.Match([]byte(path)) {
+				_, err := fmt.Sscanf(perms.Mode, "%o", &hdr.Mode)
+				if err != nil{
+					return err
+				}
+			}
+		}
+	}
+
+
 	hdr.ModTime = time.Date(1970, 01, 01, 0, 0, 0, 0, time.UTC)
 	hdr.AccessTime = time.Date(1970, 01, 01, 0, 0, 0, 0, time.UTC)
 	hdr.ChangeTime = time.Date(1970, 01, 01, 0, 0, 0, 0, time.UTC)

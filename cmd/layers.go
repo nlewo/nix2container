@@ -24,6 +24,7 @@ import (
 var rewrites rewritePaths
 var ignore string
 var tarDirectory string
+var permsFilepath string
 
 // layerCmd represents the layer command
 var layersReproducibleCmd = &cobra.Command{
@@ -41,7 +42,15 @@ var layersReproducibleCmd = &cobra.Command{
 			fmt.Fprintf(os.Stderr, "%s", err)
 			os.Exit(1)
 		}
-		layers, err := nix.NewLayers(storepaths, parents, rewrites, ignore)
+		var perms []types.PermPath
+		if permsFilepath != "" {
+			perms, err = readPermsFile(permsFilepath)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "%s", err)
+				os.Exit(1)
+			}
+		}
+		layers, err := nix.NewLayers(storepaths, parents, rewrites, ignore, perms)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s", err)
 			os.Exit(1)
@@ -70,7 +79,15 @@ var layersNonReproducibleCmd = &cobra.Command{
 			fmt.Fprintf(os.Stderr, "%s", err)
 			os.Exit(1)
 		}
-		layers, err := nix.NewLayersNonReproducible(storepaths, tarDirectory, parents, rewrites, ignore)
+		var perms []types.PermPath
+		if permsFilepath != "" {
+			perms, err = readPermsFile(permsFilepath)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "%s", err)
+				os.Exit(1)
+			}
+		}
+		layers, err := nix.NewLayersNonReproducible(storepaths, tarDirectory, parents, rewrites, ignore, perms)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s", err)
 			os.Exit(1)
@@ -166,8 +183,11 @@ func init() {
 	layersNonReproducibleCmd.Flags().StringVarP(&tarDirectory, "tar-directory", "", "", "The directory where tar of layers are created.")
 
 	layersNonReproducibleCmd.Flags().Var(&rewrites, "rewrite", "Replace the REGEX part by REPLACEMENT for all files in the tree PATH")
+	layersNonReproducibleCmd.Flags().StringVarP(&permsFilepath, "perms", "", "", "A JSON file containing file permissions")
 
 	rootCmd.AddCommand(layersReproducibleCmd)
 	layersReproducibleCmd.Flags().StringVarP(&ignore, "ignore", "", "", "Ignore the path from the list of storepaths")
 	layersReproducibleCmd.Flags().Var(&rewrites, "rewrite", "Replace the regex part by replacement for all files of the a path")
+	layersReproducibleCmd.Flags().StringVarP(&permsFilepath, "perms", "", "", "A JSON file containing file permissions")
+
 }
