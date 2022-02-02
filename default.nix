@@ -39,7 +39,7 @@ let
 
   copyToDockerDeamon = image: pkgs.writeScriptBin "copy-to-docker-deamon" ''
     ${skopeo-nix2container}/bin/skopeo --insecure-policy copy nix:${image} docker-daemon:${image.name}:${image.tag}
-    echo Docker image ${image.name}:${image.tag} have been loaded
+    ${skopeo-nix2container}/bin/skopeo --insecure-policy inspect docker-daemon:${image.name}:${image.tag}
   '';
 
   copyToRegistry = image: pkgs.writeScriptBin "copy-to-docker-deamon" ''
@@ -54,7 +54,7 @@ let
 
   copyToPodman = image: pkgs.writeShellScriptBin "copy-to-podman" ''
     ${skopeo-nix2container}/bin/skopeo --insecure-policy copy nix:${image} containers-storage:${image.name}:${image.tag}
-    echo Image ${image.name}:${image.tag} have been copied
+    ${skopeo-nix2container}/bin/skopeo --insecure-policy inspect containers-storage:${image.name}:${image.tag}
   '';
 
   # Pull an image from a registry with Skopeo and translate it to a
@@ -157,6 +157,7 @@ let
     isolatedDeps ? [],
     contents ? [],
     fromImage ? "",
+    perms ? [],
   }:
     let
       configFile = pkgs.writeText "config.json" (builtins.toJSON config);
@@ -164,7 +165,7 @@ let
       # configFile because it is already part of the image, as a
       # specific blob.
       configDepsLayer = buildLayer {
-        inherit contents;
+        inherit contents perms;
         deps = [configFile];
         ignore = configFile;
         isolatedDeps = isolatedDeps;
