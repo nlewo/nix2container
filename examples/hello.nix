@@ -10,7 +10,7 @@ nix2container.buildImage {
   config = {
     entrypoint = ["${pkgs.bash}/bin/bash" application];
   };
-  isolatedDeps = [
+  layers = [
     (nix2container.buildLayer { deps = [pkgs.bash pkgs.hello]; })
   ];
 }

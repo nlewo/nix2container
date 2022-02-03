@@ -9,7 +9,7 @@ nix2container.buildImage {
   config = {
     entrypoint = ["${pkgs.coreutils}/bin/cat" "${nonReproducible}"];
   };
-  isolatedDeps = [
+  layers = [
     (nix2container.buildLayer {
       deps = [nonReproducible];
       reproducible = false;

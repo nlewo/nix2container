@@ -109,10 +109,12 @@ let
     # A store path to ignore. This is mainly useful to ignore the
     # configuration file from the container layer.
     ignore ? null,
-    # A list of layers containing dependencies: if a store path of the
-    # currently built layer already belongs to a dependency layer,
-    # this store path is skipped
-    isolatedDeps ? [],
+    # A list of layers built with the buildLayer function: if a store
+    # path in deps or contents belongs to one of these layers, this
+    # store path is skipped. This is pretty useful to
+    # isolate store paths that are often updated from more stable
+    # store paths, to speed up build and push time.
+    layers ? [],
     # Store the layer tar in the derivation. This is useful when the
     # layer dependencies are not bit reproducible.
     reproducible ? true,
@@ -145,18 +147,38 @@ let
       ${rewrites} \
       ${permsFlag} \
       ${tarDirectory} \
-      ${pkgs.lib.concatMapStringsSep " "  (l: l + "/layers.json") isolatedDeps} \
+      ${pkgs.lib.concatMapStringsSep " "  (l: l + "/layers.json") layers} \
       ${pkgs.lib.optionalString (ignore != null) "--ignore ${ignore}"}
     '';
 
   buildImage = {
     name,
     tag ? "latest",
-    # An attribute set describing a container configuration
-    config,
-    isolatedDeps ? [],
+    # An attribute set describing an image configuration as defined in
+    # https://github.com/opencontainers/image-spec/blob/8b9d41f48198a7d6d0a5c1a12dc2d1f7f47fc97f/specs-go/v1/config.go#L23
+    config ? {},
+    # A list of layers built with the buildLayer function: if a store
+    # path in deps or contents belongs to one of these layers, this
+    # store path is skipped. This is pretty useful to
+    # isolate store paths that are often updated from more stable
+    # store paths, to speed up build and push time.
+    layers ? [],
+    # A list of store paths to include in the layer root. The store
+    # path prefix /nix/store/hash-path is removed. The store path
+    # content is then located at the image /.
     contents ? [],
+    # An image that is used as base image of this image.
     fromImage ? "",
+    # A list of file permisssions which are set when the tar layer is
+    # created: these permissions are not written to the Nix store.
+    # 
+    # Each element of this permission list is a dict such as
+    # { path = "a store path";
+    #   regex = ".*";
+    #   mode = "0664";
+    # }
+    # The mode is applied on a specific path. In this path subtree,
+    # the mode is then applied on all files matching the regex.
     perms ? [],
   }:
     let
@@ -168,10 +190,10 @@ let
         inherit contents perms;
         deps = [configFile];
         ignore = configFile;
-        isolatedDeps = isolatedDeps;
+        layers = layers;
       };
       fromImageFlag = pkgs.lib.optionalString (fromImage != "") "--from-image ${fromImage}";
-      layerPaths = pkgs.lib.concatMapStringsSep " " (l: l + "/layers.json") ([configDepsLayer] ++ isolatedDeps);
+      layerPaths = pkgs.lib.concatMapStringsSep " " (l: l + "/layers.json") ([configDepsLayer] ++ layers);
       image = pkgs.runCommand "image.json" {} ''
         ${nix2containerUtil}/bin/nix2container image \
         $out \

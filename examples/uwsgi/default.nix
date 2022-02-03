@@ -22,7 +22,7 @@ nix2container.buildImage {
   };
   # This is to not rebuild/push uwsgi and pythonEnv closures on a
   # hello.py change.
-  isolatedDeps = [
+  layers = [
     (nix2container.buildLayer {
       deps = [uwsgi pythonEnv];
     })

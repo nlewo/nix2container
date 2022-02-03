@@ -64,7 +64,7 @@ dependencies in a dedicated layer: when we modify the script, we only
 need to rebuild and push the layer containing the script. The layer
 containing dependencies won't be rebuilt and pushed.
 
-As shown below, the `buildImage.isolatedDeps` attribute allows to
+As shown below, the `buildImage.layers` attribute allows to
 explicitly specify a set of dependencies to isolate.
 
 ```nix
@@ -80,7 +80,7 @@ pkgs.nix2container.buildImage {
   config = {
     entrypoint = ["${pkgs.bash}/bin/bash" application];
   };
-  isolatedDeps = [
+  layers = [
     (pkgs.nix2container.buildLayer { deps = [pkgs.bash pkgs.hello]; })
   ];
 }
