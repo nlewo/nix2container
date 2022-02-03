@@ -38,47 +38,30 @@ post](https://lewo.abesis.fr/posts/nix-build-container-image/).
 }
 ```
 
-
-## Basic example
-
-```nix
-{ pkgs }:
-pkgs.nix2container.buildImage {
-  name = "basic";
-  config = {
-    entrypoint = ["${pkgs.hello}/bin/hello"];
-  };
-}
-```
-
-This image can be loaded to the Docker deamon with
-
-```shell
-$ nix run .#examples.basic.copyToDockerDeamon
-Getting image source signatures
-Copying blob f4e931379cd5 done
-Copying config 88d76532a9 done
-Writing manifest to image destination
-Storing signatures
-Docker image basic:latest have been loaded
-```
-
-And run with Docker
+This image can then be loaded into Docker with
 
 ```
-$ docker run basic:latest
+$ nix run .#hello.copyToDockerDeamon
+$ docker run hello:latest
 Hello, world!
 ```
 
 
 ## More Examples
 
-- [Bash](./examples/bash.nix): Bash in `/bin/`
-- [FromImage](./examples/from-image.nix): Alpine as base image
-- [NGINX](./examples/nginx.nix)
-- [NonReproducible](./examples/non-reproducible.nix): with a non reproducible store path :/
-- [Openbar](./examples/openbar.nix): set permissions on files (without root nor VM)
-- [uWSGI](./examples/uwsgi/default.nix): isolate dependencies in layers
+To load and run the `bash` example image into Podman:
+
+```
+$ nix run github:nlewo/nix2container#examples.bash.copyToPodman
+$ podman run -it bash
+```
+
+- [`bash`](./examples/bash.nix): Bash in `/bin/`
+- [`fromImage`](./examples/from-image.nix): Alpine as base image
+- [`nginx`](./examples/nginx.nix)
+- [`nonReproducible`](./examples/non-reproducible.nix): with a non reproducible store path :/
+- [`openbar`](./examples/openbar.nix): set permissions on files (without root nor VM)
+- [`uwsgi`](./examples/uwsgi/default.nix): isolate dependencies in layers
 
 
 ## Isolate dependencies in dedicated layers
