@@ -102,9 +102,11 @@ let
     '';
 
   buildLayer = {
-    # A list of store paths to include in the layer
+    # A list of store paths to include in the layer.
     deps ? [],
-    # A list of store paths to include in the layer root
+    # A list of store paths to include in the layer root. The store
+    # path prefix /nix/store/hash-path is removed. The store path
+    # content is then located at the image /.
     contents ? [],
     # A store path to ignore. This is mainly useful to ignore the
     # configuration file from the container layer.

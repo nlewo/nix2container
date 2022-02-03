@@ -18,6 +18,27 @@ This is based on ideas developped in [this blog
 post](https://lewo.abesis.fr/posts/nix-build-container-image/).
 
 
+## Getting started
+
+```nix
+{
+  inputs.nix2container.url = "github:nlewo/nix2container";
+
+  outputs = { self, nixpkgs, nix2container }: let
+    pkgs = import nixpkgs { system = "x86_64-linux"; };
+    nix2containerPkgs = nix2container.packages.x86_64-linux;
+  in {
+    packages.x86_64-linux.hello = nix2containerPkgs.nix2container.buildImage {
+      name = "hello";
+      config = {
+        entrypoint = ["${pkgs.hello}/bin/hello"];
+      };
+    };
+  };
+}
+```
+
+
 ## Basic example
 
 ```nix
@@ -48,6 +69,16 @@ And run with Docker
 $ docker run basic:latest
 Hello, world!
 ```
+
+
+## More Examples
+
+- [Bash](./examples/bash.nix): Bash in `/bin/`
+- [FromImage](./examples/from-image.nix): Alpine as base image
+- [NGINX](./examples/nginx.nix)
+- [NonReproducible](./examples/non-reproducible.nix): with a non reproducible store path :/
+- [Openbar](./examples/openbar.nix): set permissions on files (without root nor VM)
+- [uWSGI](./examples/uwsgi/default.nix): isolate dependencies in layers
 
 
 ## Isolate dependencies in dedicated layers
