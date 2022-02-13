@@ -78,8 +78,7 @@ func NewLayers(storePaths []string, parents []types.Layer, rewrites []types.Rewr
 func NewLayersNonReproducible(storePaths []string, tarDirectory string, parents []types.Layer, rewrites []types.RewritePath, exclude string, perms []types.PermPath) (layers []types.Layer, err error) {
 	paths := getPaths(storePaths, parents, rewrites, exclude, perms)
 
-	layerPath := tarDirectory + "/layer.tar"
-	d, s, err := TarPathsWrite(paths, layerPath)
+	layerPath, d, s, err := TarPathsWrite(paths, tarDirectory)
 	logrus.Infof("Adding %d paths to layer (size:%d digest:%s)", len(paths), s, d.String())
 	if err != nil {
 		return layers, err

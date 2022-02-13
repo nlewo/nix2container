@@ -10,16 +10,17 @@ import (
 	"reflect"
 	"regexp"
 	"time"
+	"io/ioutil"
 
 	"github.com/nlewo/nix2container/types"
 	digest "github.com/opencontainers/go-digest"
 )
 
-func TarPathsWrite(paths types.Paths, destinationFilename string) (digest.Digest, int64, error) {
-	f, err := os.Create(destinationFilename)
+func TarPathsWrite(paths types.Paths, destinationDirectory string) (string, digest.Digest, int64, error) {
+	f, err := ioutil.TempFile(destinationDirectory, "")
 	defer f.Close()
 	if err != nil {
-		return "", 0, err
+		return "", "", 0, err
 	}
 	reader := TarPaths(paths)
 	defer reader.Close()
@@ -29,10 +30,16 @@ func TarPathsWrite(paths types.Paths, destinationFilename string) (digest.Digest
 	digester := digest.Canonical.Digester()
 	size, err := io.Copy(digester.Hash(), r)
 	if err != nil {
-		return "", 0, err
+		return "", "", 0, err
 	}
+	digest := digester.Digest()
 
-	return digester.Digest(), size, nil
+	filename := destinationDirectory + "/" + digest.Encoded() + ".tar"
+	err = os.Rename(f.Name(), filename)
+	if err != nil {
+		return "", "", 0, err
+	}
+	return filename, digest, size, nil
 }
 
 func TarPathsSum(paths types.Paths) (digest.Digest, int64, error) {
