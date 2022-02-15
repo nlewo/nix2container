@@ -7,4 +7,5 @@
   fromImage = pkgs.callPackage ./from-image.nix { inherit nix2container; };
   uwsgi = pkgs.callPackage ./uwsgi { inherit nix2container; };
   openbar = pkgs.callPackage ./openbar.nix { inherit nix2container; };
+  layered = pkgs.callPackage ./layered.nix { inherit nix2container; };
 }

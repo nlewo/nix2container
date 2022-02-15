@@ -131,6 +131,10 @@ let
     # The mode is applied on a specific path. In this path subtree,
     # the mode is then applied on all files matching the regex.
     perms ? [],
+    # The maximun number of layer to create. This is based on the
+    # store path "popularity" as described in
+    # https://grahamc.com/blog/nix-and-layered-docker-images
+    maxLayers ? 1,
   }: let
     subcommand = if reproducible
               then "layers-from-reproducible-storepaths"
@@ -145,13 +149,28 @@ let
     mkdir $out
     ${nix2containerUtil}/bin/nix2container ${subcommand} \
       $out/layers.json \
-      ${pkgs.closureInfo {rootPaths = allDeps;}}/store-paths \
+      ${closureGraph allDeps} \
+      --max-layers ${toString maxLayers} \
       ${rewrites} \
       ${permsFlag} \
       ${tarDirectory} \
       ${pkgs.lib.concatMapStringsSep " "  (l: l + "/layers.json") layers} \
       ${pkgs.lib.optionalString (ignore != null) "--ignore ${ignore}"}
     '';
+
+  # Write the references of `path' to a file.
+  closureGraph = paths: pkgs.runCommand "closure-graph.json"
+  {
+    exportReferencesGraph.graph = paths;
+    __structuredAttrs = true;
+    PATH = "${pkgs.jq}/bin";
+    builder = builtins.toFile "builder"
+    ''
+      . .attrs.sh
+      jq .graph .attrs.json > ''${outputs[out]}
+    '';
+  }
+  "";
 
   buildImage = {
     name,
@@ -182,6 +201,12 @@ let
     # The mode is applied on a specific path. In this path subtree,
     # the mode is then applied on all files matching the regex.
     perms ? [],
+    # The maximun number of layer to create. This is based on the
+    # store path "popularity" as described in
+    # https://grahamc.com/blog/nix-and-layered-docker-images
+    # Note this is applied on the image layers and not on layers added
+    # with the buildImage.layers attribute
+    maxLayers ? 1,
   }:
     let
       configFile = pkgs.writeText "config.json" (builtins.toJSON config);
@@ -189,7 +214,7 @@ let
       # configFile because it is already part of the image, as a
       # specific blob.
       configDepsLayer = buildLayer {
-        inherit contents perms;
+        inherit contents perms maxLayers;
         deps = [configFile];
         ignore = configFile;
         layers = layers;
