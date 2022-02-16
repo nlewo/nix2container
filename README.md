@@ -62,6 +62,7 @@ $ podman run -it bash
 - [`nonReproducible`](./examples/non-reproducible.nix): with a non reproducible store path :/
 - [`openbar`](./examples/openbar.nix): set permissions on files (without root nor VM)
 - [`uwsgi`](./examples/uwsgi/default.nix): isolate dependencies in layers
+- [`layered`](./examples/layered.nix): build a layered image as described in [this blog post](https://grahamc.com/blog/nix-and-layered-docker-images)
 
 
 ## Isolate dependencies in dedicated layers

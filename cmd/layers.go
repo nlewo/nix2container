@@ -16,6 +16,7 @@ import (
 
 	"github.com/nlewo/nix2container/nix"
 	"github.com/nlewo/nix2container/types"
+	"github.com/nlewo/nix2container/closure"
 	digest "github.com/opencontainers/go-digest"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -25,18 +26,20 @@ var rewrites rewritePaths
 var ignore string
 var tarDirectory string
 var permsFilepath string
+var maxLayers int
 
 // layerCmd represents the layer command
 var layersReproducibleCmd = &cobra.Command{
-	Use:   "layers-from-reproducible-storepaths OUTPUT-FILENAME.JSON STOREPATHS.lst",
+	Use:   "layers-from-reproducible-storepaths OUTPUT-FILENAME.JSON CLOSURE-GRAPH.JSON",
 	Short: "Generate a layers.json file from a list of reproducible paths",
 	Args:  cobra.MinimumNArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
-		storepaths, err := getStorepaths(args[1])
+		closureGraph, err := closure.ReadClosureGraphFile(args[1])
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s", err)
 			os.Exit(1)
 		}
+		storepaths := closure.SortedPathsByPopularity(closureGraph)
 		parents, err := getLayersFromFiles(args[2:])
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s", err)
@@ -50,7 +53,7 @@ var layersReproducibleCmd = &cobra.Command{
 				os.Exit(1)
 			}
 		}
-		layers, err := nix.NewLayers(storepaths, parents, rewrites, ignore, perms)
+		layers, err := nix.NewLayers(storepaths, maxLayers, parents, rewrites, ignore, perms)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s", err)
 			os.Exit(1)
@@ -65,15 +68,16 @@ var layersReproducibleCmd = &cobra.Command{
 
 // layerCmd represents the layer command
 var layersNonReproducibleCmd = &cobra.Command{
-	Use:   "layers-from-non-reproducible-storepaths OUTPUT-FILENAME.JSON STOREPATHS.lst",
+	Use:   "layers-from-non-reproducible-storepaths OUTPUT-FILENAME.JSON CLOSURE-GRAPH.JSON",
 	Short: "Generate a layers.json file from a list of paths",
 	Args:  cobra.MinimumNArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
-		storepaths, err := getStorepaths(args[1])
+		closureGraph, err := closure.ReadClosureGraphFile(args[1])
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s", err)
 			os.Exit(1)
 		}
+		storepaths := closure.SortedPathsByPopularity(closureGraph)
 		parents, err := getLayersFromFiles(args[2:])
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s", err)
@@ -87,7 +91,7 @@ var layersNonReproducibleCmd = &cobra.Command{
 				os.Exit(1)
 			}
 		}
-		layers, err := nix.NewLayersNonReproducible(storepaths, tarDirectory, parents, rewrites, ignore, perms)
+		layers, err := nix.NewLayersNonReproducible(storepaths, maxLayers, tarDirectory, parents, rewrites, ignore, perms)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s", err)
 			os.Exit(1)
@@ -127,7 +131,7 @@ func layersToJson(outputFilename string, layers []types.Layer) error {
 	if err != nil {
 		return err
 	}
-	logrus.Infof("Layer has been written to %s", outputFilename)
+	logrus.Infof("Layers have been written to %s", outputFilename)
 	return nil
 }
 
@@ -184,10 +188,12 @@ func init() {
 
 	layersNonReproducibleCmd.Flags().Var(&rewrites, "rewrite", "Replace the REGEX part by REPLACEMENT for all files in the tree PATH")
 	layersNonReproducibleCmd.Flags().StringVarP(&permsFilepath, "perms", "", "", "A JSON file containing file permissions")
+	layersNonReproducibleCmd.Flags().IntVarP(&maxLayers, "max-layers", "", 1, "The maximum number of layers")
 
 	rootCmd.AddCommand(layersReproducibleCmd)
 	layersReproducibleCmd.Flags().StringVarP(&ignore, "ignore", "", "", "Ignore the path from the list of storepaths")
 	layersReproducibleCmd.Flags().Var(&rewrites, "rewrite", "Replace the regex part by replacement for all files of the a path")
 	layersReproducibleCmd.Flags().StringVarP(&permsFilepath, "perms", "", "", "A JSON file containing file permissions")
+	layersReproducibleCmd.Flags().IntVarP(&maxLayers, "max-layers", "", 1, "The maximum number of layers")
 
 }

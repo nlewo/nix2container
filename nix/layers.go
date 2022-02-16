@@ -8,6 +8,7 @@ import (
 	"github.com/nlewo/nix2container/types"
 	"github.com/sirupsen/logrus"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
+	godigest "github.com/opencontainers/go-digest"
 )
 
 func getPaths(storePaths []string, parents []types.Layer, rewrites []types.RewritePath, exclude string, permPaths []types.PermPath) types.Paths {
@@ -56,46 +57,57 @@ func getPaths(storePaths []string, parents []types.Layer, rewrites []types.Rewri
 	return paths
 }
 
-func NewLayers(storePaths []string, parents []types.Layer, rewrites []types.RewritePath, exclude string, perms []types.PermPath) (layers []types.Layer, err error) {
-	paths := getPaths(storePaths, parents, rewrites, exclude, perms)
-	d, s, err := TarPathsSum(paths)
-	logrus.Infof("Adding %d paths to layer (size:%d digest:%s)", len(paths), s, d.String())
-	if err != nil {
-		return layers, err
-	}
-	layers = []types.Layer{
-		types.Layer{
-			Digest:    d.String(),
-			DiffIDs:    d.String(),
-			Size: s,
-			Paths:     paths,
+// If tarDirectory is not an empty string, the tar layer is written to
+// the disk. This is useful for layer containing non reproducible
+// store paths.
+func newLayers(paths types.Paths, tarDirectory string, maxLayers int) (layers []types.Layer, err error) {
+	offset := 0
+	for offset < len(paths) {
+		max := offset + 1
+		if offset == maxLayers - 1 {
+			max = len(paths)
+		}
+		layerPaths := paths[offset:max]
+		layerPath := ""
+		var digest godigest.Digest
+		var size int64
+		if tarDirectory == "" {
+			digest, size, err = TarPathsSum(layerPaths)
+		} else {
+			layerPath, digest, size, err = TarPathsWrite(paths, tarDirectory)
+		}
+		if err != nil {
+			return layers, err
+		}
+		logrus.Infof("Adding %d paths to layer (size:%d digest:%s)", len(layerPaths), size, digest.String())
+		layer := types.Layer{
+			Digest:    digest.String(),
+			DiffIDs:    digest.String(),
+			Size: size,
+			Paths:     layerPaths,
 			MediaType: v1.MediaTypeImageLayer,
-		},
+		}
+		if tarDirectory != "" {
+			// TODO: we should use v1.MediaTypeImageLayerGzip instead
+			layer.MediaType = v1.MediaTypeImageLayer
+			layer.LayerPath = layerPath
+		}
+
+		layers = append(layers, layer)
+
+		offset = max
 	}
 	return layers, nil
 }
 
-func NewLayersNonReproducible(storePaths []string, tarDirectory string, parents []types.Layer, rewrites []types.RewritePath, exclude string, perms []types.PermPath) (layers []types.Layer, err error) {
+func NewLayers(storePaths []string, maxLayers int, parents []types.Layer, rewrites []types.RewritePath, exclude string, perms []types.PermPath) ([]types.Layer, error) {
 	paths := getPaths(storePaths, parents, rewrites, exclude, perms)
+	return newLayers(paths, "", maxLayers)
+}
 
-	layerPath := tarDirectory + "/layer.tar"
-	d, s, err := TarPathsWrite(paths, layerPath)
-	logrus.Infof("Adding %d paths to layer (size:%d digest:%s)", len(paths), s, d.String())
-	if err != nil {
-		return layers, err
-	}
-	layers = []types.Layer{
-		types.Layer{
-			Digest:    d.String(),
-			DiffIDs:    d.String(),
-			Size: s,
-			Paths:     paths,
-			// TODO: we should use v1.MediaTypeImageLayerGzip instead
-			MediaType: v1.MediaTypeImageLayer,
-			LayerPath: layerPath,
-		},
-	}
-	return layers, nil
+func NewLayersNonReproducible(storePaths []string, maxLayers int, tarDirectory string, parents []types.Layer, rewrites []types.RewritePath, exclude string, perms []types.PermPath) (layers []types.Layer, err error) {
+	paths := getPaths(storePaths, parents, rewrites, exclude, perms)
+	return newLayers(paths, tarDirectory, maxLayers)
 }
 
 func isPathInLayers(layers []types.Layer, path types.Path) bool {

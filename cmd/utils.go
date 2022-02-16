@@ -3,7 +3,6 @@ package cmd
 import (
 	"encoding/json"
 	"io/ioutil"
-
 	"github.com/nlewo/nix2container/types"
 )
 
