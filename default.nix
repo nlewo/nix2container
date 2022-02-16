@@ -3,7 +3,7 @@ let
   nix2containerUtil = pkgs.buildGoModule rec {
     pname = "nix2container";
     version = "0.0.1";
-    doCheck = false;
+    doCheck = true;
     src = pkgs.lib.cleanSourceWith {
       src = ./.;
       filter = path: type:
