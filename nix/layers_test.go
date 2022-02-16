@@ -18,7 +18,7 @@ func TestPerms(t *testing.T) {
 			Mode: "0641",
 		},
 	}
-	layer, err := NewLayers(paths, []types.Layer{}, []types.RewritePath{}, "", perms)
+	layer, err := NewLayers(paths, 1, []types.Layer{}, []types.RewritePath{}, "", perms)
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -52,7 +52,7 @@ func TestNewLayers(t *testing.T) {
 	paths := []string{
 		"../data/layer1/file1",
 	}
-	layer, err := NewLayers(paths, []types.Layer{}, []types.RewritePath{}, "", []types.PermPath{})
+	layer, err := NewLayers(paths, 1, []types.Layer{}, []types.RewritePath{}, "", []types.PermPath{})
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -74,7 +74,7 @@ func TestNewLayers(t *testing.T) {
 	}
 
 	tmpDir := t.TempDir()
-	layer, err = NewLayersNonReproducible(paths, tmpDir, []types.Layer{}, []types.RewritePath{}, "", []types.PermPath{})
+	layer, err = NewLayersNonReproducible(paths, 1, tmpDir, []types.Layer{}, []types.RewritePath{}, "", []types.PermPath{})
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -89,7 +89,7 @@ func TestNewLayers(t *testing.T) {
 				},
 			},
 			MediaType: "application/vnd.oci.image.layer.v1.tar",
-			LayerPath: tmpDir + "/layer.tar",
+			LayerPath: tmpDir + "/38856f8cd2e336497b6257e891ad860ea77e24193a726125445823618aa16cce.tar",
 		},
 	}
 	if !reflect.DeepEqual(layer, expected) {
