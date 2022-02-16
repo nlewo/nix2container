@@ -37,17 +37,17 @@ let
     '';
   });
 
-  copyToDockerDeamon = image: pkgs.writeScriptBin "copy-to-docker-deamon" ''
+  copyToDockerDeamon = image: pkgs.writeShellScriptBin "copy-to-docker-daemon" ''
     ${skopeo-nix2container}/bin/skopeo --insecure-policy copy nix:${image} docker-daemon:${image.name}:${image.tag}
     ${skopeo-nix2container}/bin/skopeo --insecure-policy inspect docker-daemon:${image.name}:${image.tag}
   '';
 
-  copyToRegistry = image: pkgs.writeScriptBin "copy-to-docker-deamon" ''
+  copyToRegistry = image: pkgs.writeShellScriptBin "copy-to-registry" ''
     ${skopeo-nix2container}/bin/skopeo --insecure-policy copy nix:${image} docker://${image.name}:${image.tag} $@
     echo Docker image ${image.name}:${image.tag} have copied to registry
   '';
 
-  copyTo = image: pkgs.writeScriptBin "copy-to" ''
+  copyTo = image: pkgs.writeShellScriptBin "copy-to" ''
     echo Running skopeo --insecure-policy copy nix:${image} $@
     ${skopeo-nix2container}/bin/skopeo --insecure-policy copy nix:${image} $@
   '';
