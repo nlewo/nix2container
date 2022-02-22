@@ -37,7 +37,7 @@ let
     '';
   });
 
-  copyToDockerDeamon = image: pkgs.writeShellScriptBin "copy-to-docker-daemon" ''
+  copyToDockerDaemon = image: pkgs.writeShellScriptBin "copy-to-docker-daemon" ''
     ${skopeo-nix2container}/bin/skopeo --insecure-policy copy nix:${image} docker-daemon:${image.name}:${image.tag}
     ${skopeo-nix2container}/bin/skopeo --insecure-policy inspect docker-daemon:${image.name}:${image.tag}
   '';
@@ -230,7 +230,7 @@ let
       '';
       namedImage = image // { inherit name tag; };
     in namedImage // {
-        copyToDockerDeamon = copyToDockerDeamon namedImage;
+        copyToDockerDaemon = copyToDockerDaemon namedImage;
         copyToRegistry = copyToRegistry namedImage;
         copyToPodman = copyToPodman namedImage;
         copyTo = copyTo namedImage;

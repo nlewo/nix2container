@@ -41,7 +41,7 @@ post](https://lewo.abesis.fr/posts/nix-build-container-image/).
 This image can then be loaded into Docker with
 
 ```
-$ nix run .#hello.copyToDockerDeamon
+$ nix run .#hello.copyToDockerDaemon
 $ docker run hello:latest
 Hello, world!
 ```
@@ -126,7 +126,7 @@ dockerTools.streamLayeredImage | ~7.5s | `nix build .#example.uwsgi \| docker lo
 dockerTools.buildImage | ~10s | `nix build .#example.uwsgi; skopeo copy docker-archive://./result docker://localhost:5000/uwsgi:latest`
 
 Note we could not compare the same distribution mechanisms because
-- Skopeo is not able to skip already loaded layers by the Docker deamon and
+- Skopeo is not able to skip already loaded layers by the Docker daemon and
 - Skopeo failed to push to the registry an image streamed to stdin.
 
 
