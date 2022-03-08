@@ -224,7 +224,7 @@ let
       };
       fromImageFlag = pkgs.lib.optionalString (fromImage != "") "--from-image ${fromImage}";
       layerPaths = pkgs.lib.concatMapStringsSep " " (l: l + "/layers.json") ([configDepsLayer] ++ layers);
-      image = pkgs.runCommand "image.json"
+      image = pkgs.runCommand "image-${baseNameOf name}.json"
       {
         imageName = pkgs.lib.toLower name;
         passthru = {
