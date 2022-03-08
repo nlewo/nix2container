@@ -38,13 +38,14 @@ let
   });
 
   copyToDockerDaemon = image: pkgs.writeShellScriptBin "copy-to-docker-daemon" ''
-    ${skopeo-nix2container}/bin/skopeo --insecure-policy copy nix:${image} docker-daemon:${image.name}:${image.tag}
-    ${skopeo-nix2container}/bin/skopeo --insecure-policy inspect docker-daemon:${image.name}:${image.tag}
+    echo "Copy to Docker daemon image ${image.imageName}:${image.imageTag}"
+    ${skopeo-nix2container}/bin/skopeo --insecure-policy copy nix:${image} docker-daemon:${image.imageName}:${image.imageTag}
+    ${skopeo-nix2container}/bin/skopeo --insecure-policy inspect docker-daemon:${image.imageName}:${image.imageTag}
   '';
 
   copyToRegistry = image: pkgs.writeShellScriptBin "copy-to-registry" ''
-    ${skopeo-nix2container}/bin/skopeo --insecure-policy copy nix:${image} docker://${image.name}:${image.tag} $@
-    echo Docker image ${image.name}:${image.tag} have copied to registry
+    echo "Copy to Docker registry image ${image.imageName}:${image.imageTag}"
+    ${skopeo-nix2container}/bin/skopeo --insecure-policy copy nix:${image} docker://${image.imageName}:${image.imageTag} $@
   '';
 
   copyTo = image: pkgs.writeShellScriptBin "copy-to" ''
@@ -53,8 +54,9 @@ let
   '';
 
   copyToPodman = image: pkgs.writeShellScriptBin "copy-to-podman" ''
-    ${skopeo-nix2container}/bin/skopeo --insecure-policy copy nix:${image} containers-storage:${image.name}:${image.tag}
-    ${skopeo-nix2container}/bin/skopeo --insecure-policy inspect containers-storage:${image.name}:${image.tag}
+    echo "Copy to podman image ${image.imageName}:${image.imageTag}"
+    ${skopeo-nix2container}/bin/skopeo --insecure-policy copy nix:${image} containers-storage:${image.imageName}:${image.imageTag}
+    ${skopeo-nix2container}/bin/skopeo --insecure-policy inspect containers-storage:${image.imageName}:${image.imageTag}
   '';
 
   # Pull an image from a registry with Skopeo and translate it to a
@@ -122,7 +124,7 @@ let
     reproducible ? true,
     # A list of file permisssions which are set when the tar layer is
     # created: these permissions are not written to the Nix store.
-    # 
+    #
     # Each element of this permission list is a dict such as
     # { path = "a store path";
     #   regex = ".*";
@@ -174,7 +176,8 @@ let
 
   buildImage = {
     name,
-    tag ? "latest",
+    # Image tag, when null then the nix output hash will be used.
+    tag ? null,
     # An attribute set describing an image configuration as defined in
     # https://github.com/opencontainers/image-spec/blob/8b9d41f48198a7d6d0a5c1a12dc2d1f7f47fc97f/specs-go/v1/config.go#L23
     config ? {},
@@ -192,7 +195,7 @@ let
     fromImage ? "",
     # A list of file permisssions which are set when the tar layer is
     # created: these permissions are not written to the Nix store.
-    # 
+    #
     # Each element of this permission list is a dict such as
     # { path = "a store path";
     #   regex = ".*";
@@ -221,20 +224,29 @@ let
       };
       fromImageFlag = pkgs.lib.optionalString (fromImage != "") "--from-image ${fromImage}";
       layerPaths = pkgs.lib.concatMapStringsSep " " (l: l + "/layers.json") ([configDepsLayer] ++ layers);
-      image = pkgs.runCommand "image.json" {} ''
+      image = pkgs.runCommand "image.json"
+      {
+        imageName = pkgs.lib.toLower name;
+        passthru = {
+          imageTag =
+            if tag != null
+            then tag
+            else
+            pkgs.lib.head (pkgs.lib.strings.splitString "-" (baseNameOf image.outPath));
+          copyToDockerDaemon = copyToDockerDaemon image;
+          copyToRegistry = copyToRegistry image;
+          copyToPodman = copyToPodman image;
+          copyTo = copyTo image;
+        };
+      }
+      ''
         ${nix2containerUtil}/bin/nix2container image \
         $out \
         ${fromImageFlag} \
         ${configFile} \
         ${layerPaths}
       '';
-      namedImage = image // { inherit name tag; };
-    in namedImage // {
-        copyToDockerDaemon = copyToDockerDaemon namedImage;
-        copyToRegistry = copyToRegistry namedImage;
-        copyToPodman = copyToPodman namedImage;
-        copyTo = copyTo namedImage;
-    };
+    in image;
 in
 {
   inherit nix2containerUtil skopeo-nix2container;
