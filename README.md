@@ -129,6 +129,24 @@ Note we could not compare the same distribution mechanisms because
 - Skopeo is not able to skip already loaded layers by the Docker daemon and
 - Skopeo failed to push to the registry an image streamed to stdin.
 
+## Run the tests
+
+```
+nix run .#tests.all
+```
+
+This builds several example images with Nix, loads them with Skopeo,
+runs them with Podman, and test output logs.
+
+Not that, unfortunately, these tests are not executed in the Nix
+sandbox because it is currently not possible to run a container in the
+Nix sandbox.
+
+It is also possible to run a specific test:
+
+```
+nix run .#tests.basic
+```
 
 ## The nix2container Go library
 

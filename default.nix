@@ -13,6 +13,7 @@ let
         p == "flake.nix" ||
         p == "flake.lock" ||
         p == "examples" ||
+        p == "tests" ||
         p == "README.md" ||
         p == "default.nix"
       );

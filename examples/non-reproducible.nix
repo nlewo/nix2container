@@ -1,7 +1,8 @@
 { pkgs, nix2container }:
 let
   nonReproducible = pkgs.runCommand "non-reproducible" {} ''
-    date > $out
+    echo -n "A non reproducible image built the " > $out
+    date >> $out
   '';
 in
 nix2container.buildImage {

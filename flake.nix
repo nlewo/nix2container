@@ -15,11 +15,14 @@
           inherit pkgs;
           inherit (nix2container) nix2container;
         };
+        tests = import ./tests {
+          inherit pkgs examples;
+        };
       in
         rec {
           packages = {
             inherit (nix2container) nix2containerUtil skopeo-nix2container nix2container;
-            inherit examples;
+            inherit examples tests;
           };
           defaultPackage = packages.nix2containerUtil;
         });
