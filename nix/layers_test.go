@@ -24,9 +24,9 @@ func TestPerms(t *testing.T) {
 	}
 	expected := []types.Layer{
 		types.Layer{
-			Digest: "sha256:1d93274b1a59eed0a471f601a7f87ae58e2860566ed20313043b1efd983e8baa",
-			DiffIDs: "sha256:1d93274b1a59eed0a471f601a7f87ae58e2860566ed20313043b1efd983e8baa",
-			Size: 1536,
+			Digest: "sha256:7031b24697abf372b252fffb1432f685b364b742212df74787e2a2a8c8d4f66f",
+			DiffIDs: "sha256:7031b24697abf372b252fffb1432f685b364b742212df74787e2a2a8c8d4f66f",
+			Size: 3072,
 			Paths: types.Paths{
 				types.Path{
 					Path: "../data/layer1/file1",
@@ -58,9 +58,9 @@ func TestNewLayers(t *testing.T) {
 	}
 	expected := []types.Layer{
 		types.Layer{
-			Digest: "sha256:38856f8cd2e336497b6257e891ad860ea77e24193a726125445823618aa16cce",
-			DiffIDs: "sha256:38856f8cd2e336497b6257e891ad860ea77e24193a726125445823618aa16cce",
-			Size: 1536,
+			Digest: "sha256:a97d8eab8c8b698b1c5aa10625b30b3b47baf102d1c429d567023a05ebe53480",
+			DiffIDs: "sha256:a97d8eab8c8b698b1c5aa10625b30b3b47baf102d1c429d567023a05ebe53480",
+			Size: 3072,
 			Paths: types.Paths{
 				types.Path{
 					Path: "../data/layer1/file1",
@@ -80,16 +80,16 @@ func TestNewLayers(t *testing.T) {
 	}
 	expected = []types.Layer{
 		types.Layer{
-			Digest: "sha256:38856f8cd2e336497b6257e891ad860ea77e24193a726125445823618aa16cce",
-			DiffIDs: "sha256:38856f8cd2e336497b6257e891ad860ea77e24193a726125445823618aa16cce",
-			Size: 1536,
+			Digest: "sha256:a97d8eab8c8b698b1c5aa10625b30b3b47baf102d1c429d567023a05ebe53480",
+			DiffIDs: "sha256:a97d8eab8c8b698b1c5aa10625b30b3b47baf102d1c429d567023a05ebe53480",
+			Size: 3072,
 			Paths: types.Paths{
 				types.Path{
 					Path: "../data/layer1/file1",
 				},
 			},
 			MediaType: "application/vnd.oci.image.layer.v1.tar",
-			LayerPath: tmpDir + "/38856f8cd2e336497b6257e891ad860ea77e24193a726125445823618aa16cce.tar",
+			LayerPath: tmpDir + "/a97d8eab8c8b698b1c5aa10625b30b3b47baf102d1c429d567023a05ebe53480.tar",
 		},
 	}
 	if !reflect.DeepEqual(layer, expected) {

@@ -52,6 +52,19 @@ let
       image = examples.nonReproducible;
       pattern = "A non reproducible image built the";
     };
+    # The /nix have to be explicitly present in the archive with 755 perms
+    nonRegressionIssue12 = pkgs.runCommand "test-script" { buildInputs = [pkgs.jq pkgs.gnutar]; } ''
+      set -e
+      ${examples.basic.copyTo}/bin/copy-to dir://$PWD/image
+      cd $PWD/image
+      echo "Checking /nix permission are 755 in the tar archive..."
+      cat manifest.json | jq -r '.layers[].digest' | cut -d":" -f2 | xargs tar -tvf | grep "^drwxr-xr-x.*nix$"
+      echo Test passed
+      # TODO: actually this test doesn't need to be run
+      mkdir -p $out/bin
+      echo echo Test passed > $out/bin/test-script
+      chmod a+x $out/bin/test-script
+    '';
   };
   all =
     let scripts = pkgs.lib.concatMapStringsSep "\n" (s: "${s}/bin/test-script") (builtins.attrValues tests);
