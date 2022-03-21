@@ -12,6 +12,7 @@ import (
 	"time"
 	"io/ioutil"
 
+	"github.com/sirupsen/logrus"
 	"github.com/nlewo/nix2container/types"
 	digest "github.com/opencontainers/go-digest"
 )
@@ -54,6 +55,24 @@ func TarPathsSum(paths types.Paths) (digest.Digest, int64, error) {
 	return digester.Digest(), size, nil
 }
 
+func createDirectory(tw *tar.Writer, path string) error {
+	epoch := time.Date(1970, 01, 01, 0, 0, 0, 0, time.UTC)
+	hdr := &tar.Header{
+		Name: path,
+		Typeflag: tar.TypeDir,
+		Uid: 0, Gid: 0,
+		Uname: "root", Gname: "root",
+		ModTime: epoch,
+		AccessTime: epoch,
+		ChangeTime: epoch,
+		Mode: 0755,
+	}
+	if err := tw.WriteHeader(hdr); err != nil {
+		return errors.New(fmt.Sprintf("Could not write hdr '%#v', got error '%s'", hdr, err.Error()))
+	}
+	return nil
+}
+
 func appendFileToTar(tw *tar.Writer, tarHeaders *tarHeaders, path string, info os.FileInfo, opts *types.PathOptions) error {
 	var link string
 	var err error
@@ -92,7 +111,6 @@ func appendFileToTar(tw *tar.Writer, tarHeaders *tarHeaders, path string, info o
 			}
 		}
 	}
-
 
 	hdr.ModTime = time.Date(1970, 01, 01, 0, 0, 0, 0, time.UTC)
 	hdr.AccessTime = time.Date(1970, 01, 01, 0, 0, 0, 0, time.UTC)
@@ -152,6 +170,25 @@ func TarPaths(paths types.Paths) (io.ReadCloser) {
 				return
 			}
 		}
+
+		// We explicitly add all missing directories in the
+		// archive, for instance, the /nix and /nix/store
+		// directories. Note we have to do it once all files
+		// have been written to the tar stream because of
+		// Rewrite directives.
+		paths := []string{}
+		for _, hdr := range tarHeaders {
+			paths = append(paths, hdr.Name)
+		}
+		missingPaths := pathsNotInTar(paths)
+		logrus.Debugf("Adding to the tar missing directories: %v", missingPaths)
+		for _, path := range missingPaths {
+			if err := createDirectory(tw, path); err != nil {
+				w.CloseWithError(err)
+				return
+			}
+		}
+
 		err := tw.Close()
 		if err != nil {
 			w.CloseWithError(err)
