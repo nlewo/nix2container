@@ -14,9 +14,9 @@ import (
 	"os"
 	"strings"
 
+	"github.com/nlewo/nix2container/closure"
 	"github.com/nlewo/nix2container/nix"
 	"github.com/nlewo/nix2container/types"
-	"github.com/nlewo/nix2container/closure"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )

@@ -1,8 +1,8 @@
 package closure
 
 import (
-	"testing"
 	"reflect"
+	"testing"
 )
 
 func TestFindRoots(t *testing.T) {
@@ -37,32 +37,32 @@ func TestBuildGraph(t *testing.T) {
 //       \- G
 func TestPopularities(t *testing.T) {
 	storepaths := []Storepath{
-		Storepath{
-			Path: "A",
+		{
+			Path:       "A",
 			References: []string{"A", "B", "G"},
 		},
-		Storepath{
-			Path: "B",
+		{
+			Path:       "B",
 			References: []string{"B", "C", "E"},
 		},
-		Storepath{
-			Path: "C",
+		{
+			Path:       "C",
 			References: []string{"C", "D", "E"},
 		},
-		Storepath{
-			Path: "D",
+		{
+			Path:       "D",
 			References: []string{"D", "F"},
 		},
-		Storepath{
-			Path: "E",
+		{
+			Path:       "E",
 			References: []string{"E", "F"},
 		},
-		Storepath{
-			Path: "F",
+		{
+			Path:       "F",
 			References: []string{"F"},
 		},
-		Storepath{
-			Path: "G",
+		{
+			Path:       "G",
 			References: []string{"G"},
 		},
 	}

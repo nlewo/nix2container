@@ -1,8 +1,8 @@
 package nix
 
 import (
-	"testing"
 	"github.com/nlewo/nix2container/types"
+	"testing"
 )
 
 func TestTar(t *testing.T) {

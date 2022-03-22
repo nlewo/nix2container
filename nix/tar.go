@@ -4,16 +4,16 @@ import (
 	"archive/tar"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"reflect"
 	"regexp"
 	"time"
-	"io/ioutil"
 
-	"github.com/sirupsen/logrus"
 	"github.com/nlewo/nix2container/types"
 	digest "github.com/opencontainers/go-digest"
+	"github.com/sirupsen/logrus"
 )
 
 func TarPathsWrite(paths types.Paths, destinationDirectory string) (string, digest.Digest, int64, error) {
@@ -57,14 +57,14 @@ func TarPathsSum(paths types.Paths) (digest.Digest, int64, error) {
 func createDirectory(tw *tar.Writer, path string) error {
 	epoch := time.Date(1970, 01, 01, 0, 0, 0, 0, time.UTC)
 	hdr := &tar.Header{
-		Name: path,
+		Name:     path,
 		Typeflag: tar.TypeDir,
-		Uid: 0, Gid: 0,
+		Uid:      0, Gid: 0,
 		Uname: "root", Gname: "root",
-		ModTime: epoch,
+		ModTime:    epoch,
 		AccessTime: epoch,
 		ChangeTime: epoch,
-		Mode: 0755,
+		Mode:       0755,
 	}
 	if err := tw.WriteHeader(hdr); err != nil {
 		return fmt.Errorf("Could not write hdr '%#v', got error '%s'", hdr, err.Error())
@@ -104,7 +104,7 @@ func appendFileToTar(tw *tar.Writer, tarHeaders *tarHeaders, path string, info o
 			re := regexp.MustCompile(opts.Rewrite.Regex)
 			if re.Match([]byte(path)) {
 				_, err := fmt.Sscanf(perms.Mode, "%o", &hdr.Mode)
-				if err != nil{
+				if err != nil {
 					return err
 				}
 			}
@@ -150,7 +150,7 @@ type tarHeaders []*tar.Header
 
 // TarPaths takes a list of paths and return a ReadCloser to the tar
 // archive. If an error occurs, the ReadCloser is closed with the error.
-func TarPaths(paths types.Paths) (io.ReadCloser) {
+func TarPaths(paths types.Paths) io.ReadCloser {
 	r, w := io.Pipe()
 	tw := tar.NewWriter(w)
 	tarHeaders := make(tarHeaders, 0)

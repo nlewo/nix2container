@@ -33,19 +33,19 @@ type RewritePath struct {
 type Perm struct {
 	Regex string `json:"regex"`
 	// Octal representation of file permissions
-	Mode  string `json:"mode"`
+	Mode string `json:"mode"`
 }
 
 type PermPath struct {
 	Path  string `json:"path"`
 	Regex string `json:"regex"`
 	// Octal representation of file permissions
-	Mode  string `json:"mode"`
+	Mode string `json:"mode"`
 }
 
 type PathOptions struct {
 	Rewrite Rewrite `json:"rewrite,omitempty"`
-	Perms []Perm `json:"perms,omitempty"`
+	Perms   []Perm  `json:"perms,omitempty"`
 }
 
 type Path struct {
@@ -56,10 +56,10 @@ type Path struct {
 type Paths []Path
 
 type Layer struct {
-	Digest string `json:"digest"`
-	Size int64 `json:"size"`
+	Digest  string `json:"digest"`
+	Size    int64  `json:"size"`
 	DiffIDs string `json:"diff_ids"`
-	Paths  Paths  `json:"paths,omitempty"`
+	Paths   Paths  `json:"paths,omitempty"`
 	// OCI mediatype
 	// https://github.com/opencontainers/image-spec/blob/8b9d41f48198a7d6d0a5c1a12dc2d1f7f47fc97f/specs-go/v1/mediatype.go
 	MediaType string `json:"mediatype"`

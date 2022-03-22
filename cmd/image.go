@@ -58,7 +58,7 @@ func imageFromDir(outputFilename, directory string) error {
 	return nil
 }
 
-func image(outputFilename, imageConfigPath string, fromImageFilename string, layerPaths []string) error{
+func image(outputFilename, imageConfigPath string, fromImageFilename string, layerPaths []string) error {
 	var imageConfig v1.ImageConfig
 	var image types.Image
 

@@ -13,15 +13,15 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"io"
-	"io/ioutil"
-	"os"
 	"fmt"
 	"github.com/containers/image/v5/manifest"
 	"github.com/nlewo/nix2container/types"
 	godigest "github.com/opencontainers/go-digest"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/sirupsen/logrus"
+	"io"
+	"io/ioutil"
+	"os"
 )
 
 // GetConfigBlob returns the config blog of an image.
@@ -44,7 +44,7 @@ func GetConfigDigest(image types.Image) (d godigest.Digest, size int64, err erro
 		return d, size, err
 	}
 	d = godigest.FromBytes(configBlob)
-	return  d, int64(len(configBlob)), err
+	return d, int64(len(configBlob)), err
 }
 
 // GetBlob gets the layer corresponding to the provided digest.
@@ -134,7 +134,7 @@ func NewImageFromDir(directory string) (image types.Image, err error) {
 	if err != nil {
 		return image, err
 	}
-	
+
 	// TODO: we should also load the configuration in order to
 	// allow configuration merges
 
