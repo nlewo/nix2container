@@ -69,10 +69,10 @@ type Layer struct {
 func NewLayersFromFile(filename string) ([]Layer, error) {
 	var layers []Layer
 	file, err := os.Open(filename)
-	defer file.Close()
 	if err != nil {
 		return nil, err
 	}
+	defer file.Close()
 	content, err := ioutil.ReadAll(file)
 	if err != nil {
 		return nil, err

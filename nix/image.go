@@ -91,10 +91,10 @@ func getV1Image(image types.Image) (imageV1 v1.Image, err error) {
 // nix2container binary.
 func NewImageFromFile(filename string) (image types.Image, err error) {
 	file, err := os.Open(filename)
-	defer file.Close()
 	if err != nil {
 		return image, err
 	}
+	defer file.Close()
 	content, err := ioutil.ReadAll(file)
 	if err != nil {
 		return image, err
@@ -111,10 +111,10 @@ func NewImageFromFile(filename string) (image types.Image, err error) {
 // path since tarball filepaths are referenced in the image Layers.
 func NewImageFromDir(directory string) (image types.Image, err error) {
 	manifestFile, err := os.Open(directory + "/manifest.json")
-	defer manifestFile.Close()
 	if err != nil {
 		return image, err
 	}
+	defer manifestFile.Close()
 	content, err := ioutil.ReadAll(manifestFile)
 	if err != nil {
 		return image, err

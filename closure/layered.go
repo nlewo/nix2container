@@ -121,7 +121,6 @@ func SortedPathsByPopularity(storepaths []Storepath) []string {
 	}
 
 	sort.Sort(p)
-	sort.Reverse(p)
 
 	var paths []string
 	for i := len(p); i > 0; i-- {
