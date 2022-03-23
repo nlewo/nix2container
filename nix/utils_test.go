@@ -1,8 +1,8 @@
 package nix
 
 import (
-	"testing"
 	"reflect"
+	"testing"
 )
 
 func TestPathsNotInTar(t *testing.T) {

@@ -6,7 +6,7 @@ import (
 )
 
 type Storepath struct {
-	Path string `json:"path"`
+	Path       string   `json:"path"`
 	References []string `json:"references"`
 }
 

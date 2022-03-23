@@ -14,10 +14,9 @@ import (
 	"os"
 	"strings"
 
+	"github.com/nlewo/nix2container/closure"
 	"github.com/nlewo/nix2container/nix"
 	"github.com/nlewo/nix2container/types"
-	"github.com/nlewo/nix2container/closure"
-	digest "github.com/opencontainers/go-digest"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
@@ -135,47 +134,13 @@ func layersToJson(outputFilename string, layers []types.Layer) error {
 	return nil
 }
 
-func getStorepaths(pathsFilename string) (paths []string, err error) {
-	content, err := ioutil.ReadFile(pathsFilename)
-	if err != nil {
-		return paths, err
-	}
-	for _, path := range strings.Split(string(content), "\n") {
-		if path != "" {
-			paths = append(paths, path)
-		}
-	}
-	return paths, nil
-}
-
 func getLayersFromFiles(layersPaths []string) (layers []types.Layer, err error) {
 	for _, layersPath := range layersPaths {
 		ls, err := types.NewLayersFromFile(layersPath)
 		if err != nil {
 			return layers, err
 		}
-		for _, l := range ls {
-			layers = append(layers, l)
-		}
-	}
-	return layers, nil
-}
-
-func layerFromTar(filename string) (layers []types.Layer, err error) {
-	f, err := os.Open(filename)
-	defer f.Close()
-	if err != nil {
-		return layers, err
-	}
-	d, err := digest.FromReader(f)
-	if err != nil {
-		return layers, err
-	}
-	layers = []types.Layer{
-		types.Layer{
-			Digest:    d.String(),
-			LayerPath: filename,
-		},
+		layers = append(layers, ls...)
 	}
 	return layers, nil
 }

@@ -12,10 +12,10 @@ func TestPerms(t *testing.T) {
 		"../data/layer1/file1",
 	}
 	perms := []types.PermPath{
-		types.PermPath{
-			Path: "../data/layer1/file1",
+		{
+			Path:  "../data/layer1/file1",
 			Regex: ".*file1",
-			Mode: "0641",
+			Mode:  "0641",
 		},
 	}
 	layer, err := NewLayers(paths, 1, []types.Layer{}, []types.RewritePath{}, "", perms)
@@ -23,18 +23,18 @@ func TestPerms(t *testing.T) {
 		t.Fatalf("%v", err)
 	}
 	expected := []types.Layer{
-		types.Layer{
-			Digest: "sha256:7031b24697abf372b252fffb1432f685b364b742212df74787e2a2a8c8d4f66f",
+		{
+			Digest:  "sha256:7031b24697abf372b252fffb1432f685b364b742212df74787e2a2a8c8d4f66f",
 			DiffIDs: "sha256:7031b24697abf372b252fffb1432f685b364b742212df74787e2a2a8c8d4f66f",
-			Size: 3072,
+			Size:    3072,
 			Paths: types.Paths{
 				types.Path{
 					Path: "../data/layer1/file1",
 					Options: &types.PathOptions{
 						Perms: []types.Perm{
-							types.Perm{
+							{
 								Regex: ".*file1",
-								Mode: "0641",
+								Mode:  "0641",
 							},
 						},
 					},
@@ -57,10 +57,10 @@ func TestNewLayers(t *testing.T) {
 		t.Fatalf("%v", err)
 	}
 	expected := []types.Layer{
-		types.Layer{
-			Digest: "sha256:a97d8eab8c8b698b1c5aa10625b30b3b47baf102d1c429d567023a05ebe53480",
+		{
+			Digest:  "sha256:a97d8eab8c8b698b1c5aa10625b30b3b47baf102d1c429d567023a05ebe53480",
 			DiffIDs: "sha256:a97d8eab8c8b698b1c5aa10625b30b3b47baf102d1c429d567023a05ebe53480",
-			Size: 3072,
+			Size:    3072,
 			Paths: types.Paths{
 				types.Path{
 					Path: "../data/layer1/file1",
@@ -79,10 +79,10 @@ func TestNewLayers(t *testing.T) {
 		t.Fatalf("%v", err)
 	}
 	expected = []types.Layer{
-		types.Layer{
-			Digest: "sha256:a97d8eab8c8b698b1c5aa10625b30b3b47baf102d1c429d567023a05ebe53480",
+		{
+			Digest:  "sha256:a97d8eab8c8b698b1c5aa10625b30b3b47baf102d1c429d567023a05ebe53480",
 			DiffIDs: "sha256:a97d8eab8c8b698b1c5aa10625b30b3b47baf102d1c429d567023a05ebe53480",
-			Size: 3072,
+			Size:    3072,
 			Paths: types.Paths{
 				types.Path{
 					Path: "../data/layer1/file1",

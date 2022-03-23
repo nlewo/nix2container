@@ -2,12 +2,12 @@ package nix
 
 import (
 	"path/filepath"
-	"strings"
 	"sort"
+	"strings"
 )
 
 type Node struct {
-	inTar bool
+	inTar    bool
 	children map[string]*Node
 }
 
@@ -53,11 +53,11 @@ func collectPathsNotInTar(root *Node, base string) []string {
 // function returns ["/nix", "/nix/store"].  Note we don't want to
 // just create "/nix" and "/nix/store" directories because we want to be
 // "nix" specific (think of guix for instance).
-func pathsNotInTar(paths []string) ([]string) {
+func pathsNotInTar(paths []string) []string {
 	root := Node{
 		children: make(map[string]*Node),
 	}
-	for _, path := range(paths) {
+	for _, path := range paths {
 		addPathInGraph(&root, path)
 	}
 	collected := collectPathsNotInTar(&root, "")

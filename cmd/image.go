@@ -58,7 +58,7 @@ func imageFromDir(outputFilename, directory string) error {
 	return nil
 }
 
-func image(outputFilename, imageConfigPath string, fromImageFilename string, layerPaths []string) error{
+func image(outputFilename, imageConfigPath string, fromImageFilename string, layerPaths []string) error {
 	var imageConfig v1.ImageConfig
 	var image types.Image
 
@@ -77,9 +77,8 @@ func image(outputFilename, imageConfigPath string, fromImageFilename string, lay
 		if err != nil {
 			return err
 		}
-		for _, layer := range fromImage.Layers {
-			image.Layers = append(image.Layers, layer)
-		}
+		image.Layers = append(image.Layers, fromImage.Layers...)
+
 		logrus.Infof("Using base image %s containing %d layers", fromImageFilename, len(fromImage.Layers))
 	}
 
@@ -95,9 +94,7 @@ func image(outputFilename, imageConfigPath string, fromImageFilename string, lay
 			return err
 		}
 		logrus.Infof("Adding %d layers from %s", len(layers), path)
-		for _, layer := range layers {
-			image.Layers = append(image.Layers, layer)
-		}
+		image.Layers = append(image.Layers, layers...)
 	}
 	res, err := json.MarshalIndent(image, "", "\t")
 	if err != nil {

@@ -13,15 +13,15 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"io"
-	"io/ioutil"
-	"os"
 	"fmt"
 	"github.com/containers/image/v5/manifest"
 	"github.com/nlewo/nix2container/types"
 	godigest "github.com/opencontainers/go-digest"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/sirupsen/logrus"
+	"io"
+	"io/ioutil"
+	"os"
 )
 
 // GetConfigBlob returns the config blog of an image.
@@ -44,7 +44,7 @@ func GetConfigDigest(image types.Image) (d godigest.Digest, size int64, err erro
 		return d, size, err
 	}
 	d = godigest.FromBytes(configBlob)
-	return  d, int64(len(configBlob)), err
+	return d, int64(len(configBlob)), err
 }
 
 // GetBlob gets the layer corresponding to the provided digest.
@@ -91,10 +91,10 @@ func getV1Image(image types.Image) (imageV1 v1.Image, err error) {
 // nix2container binary.
 func NewImageFromFile(filename string) (image types.Image, err error) {
 	file, err := os.Open(filename)
-	defer file.Close()
 	if err != nil {
 		return image, err
 	}
+	defer file.Close()
 	content, err := ioutil.ReadAll(file)
 	if err != nil {
 		return image, err
@@ -111,10 +111,10 @@ func NewImageFromFile(filename string) (image types.Image, err error) {
 // path since tarball filepaths are referenced in the image Layers.
 func NewImageFromDir(directory string) (image types.Image, err error) {
 	manifestFile, err := os.Open(directory + "/manifest.json")
-	defer manifestFile.Close()
 	if err != nil {
 		return image, err
 	}
+	defer manifestFile.Close()
 	content, err := ioutil.ReadAll(manifestFile)
 	if err != nil {
 		return image, err
@@ -134,7 +134,7 @@ func NewImageFromDir(directory string) (image types.Image, err error) {
 	if err != nil {
 		return image, err
 	}
-	
+
 	// TODO: we should also load the configuration in order to
 	// allow configuration merges
 

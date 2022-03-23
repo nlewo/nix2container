@@ -2,8 +2,8 @@ package cmd
 
 import (
 	"encoding/json"
-	"io/ioutil"
 	"github.com/nlewo/nix2container/types"
+	"io/ioutil"
 )
 
 func readPermsFile(filename string) (permPaths []types.PermPath, err error) {
@@ -15,5 +15,5 @@ func readPermsFile(filename string) (permPaths []types.PermPath, err error) {
 	if err != nil {
 		return permPaths, err
 	}
-	return 
+	return
 }

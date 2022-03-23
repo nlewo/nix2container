@@ -2,27 +2,26 @@ package nix
 
 import (
 	"archive/tar"
-	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"reflect"
 	"regexp"
 	"time"
-	"io/ioutil"
 
-	"github.com/sirupsen/logrus"
 	"github.com/nlewo/nix2container/types"
 	digest "github.com/opencontainers/go-digest"
+	"github.com/sirupsen/logrus"
 )
 
 func TarPathsWrite(paths types.Paths, destinationDirectory string) (string, digest.Digest, int64, error) {
 	f, err := ioutil.TempFile(destinationDirectory, "")
-	defer f.Close()
 	if err != nil {
 		return "", "", 0, err
 	}
+	defer f.Close()
 	reader := TarPaths(paths)
 	defer reader.Close()
 
@@ -58,17 +57,17 @@ func TarPathsSum(paths types.Paths) (digest.Digest, int64, error) {
 func createDirectory(tw *tar.Writer, path string) error {
 	epoch := time.Date(1970, 01, 01, 0, 0, 0, 0, time.UTC)
 	hdr := &tar.Header{
-		Name: path,
+		Name:     path,
 		Typeflag: tar.TypeDir,
-		Uid: 0, Gid: 0,
+		Uid:      0, Gid: 0,
 		Uname: "root", Gname: "root",
-		ModTime: epoch,
+		ModTime:    epoch,
 		AccessTime: epoch,
 		ChangeTime: epoch,
-		Mode: 0755,
+		Mode:       0755,
 	}
 	if err := tw.WriteHeader(hdr); err != nil {
-		return errors.New(fmt.Sprintf("Could not write hdr '%#v', got error '%s'", hdr, err.Error()))
+		return fmt.Errorf("Could not write hdr '%#v', got error '%s'", hdr, err.Error())
 	}
 	return nil
 }
@@ -105,7 +104,7 @@ func appendFileToTar(tw *tar.Writer, tarHeaders *tarHeaders, path string, info o
 			re := regexp.MustCompile(opts.Rewrite.Regex)
 			if re.Match([]byte(path)) {
 				_, err := fmt.Sscanf(perms.Mode, "%o", &hdr.Mode)
-				if err != nil{
+				if err != nil {
 					return err
 				}
 			}
@@ -121,7 +120,7 @@ func appendFileToTar(tw *tar.Writer, tarHeaders *tarHeaders, path string, info o
 			// We don't want to override a file already existing in the archive
 			// by a file with different headers.
 			if !reflect.DeepEqual(hdr, h) {
-				return errors.New(fmt.Sprintf("The file %s overrides a file with different attributes (previous: %#v current: %#v)", hdr.Name, h, hdr))
+				return fmt.Errorf("The file %s overrides a file with different attributes (previous: %#v current: %#v)", hdr.Name, h, hdr)
 			}
 			return nil
 		}
@@ -129,18 +128,18 @@ func appendFileToTar(tw *tar.Writer, tarHeaders *tarHeaders, path string, info o
 	*tarHeaders = append(*tarHeaders, hdr)
 
 	if err := tw.WriteHeader(hdr); err != nil {
-		return errors.New(fmt.Sprintf("Could not write hdr '%#v', got error '%s'", hdr, err.Error()))
+		return fmt.Errorf("Could not write hdr '%#v', got error '%s'", hdr, err.Error())
 	}
 	if link == "" {
 		file, err := os.Open(path)
 		if err != nil {
-			return errors.New(fmt.Sprintf("Could not open file '%s', got error '%s'", path, err.Error()))
+			return fmt.Errorf("Could not open file '%s', got error '%s'", path, err.Error())
 		}
 		defer file.Close()
 		if !info.IsDir() {
 			_, err = io.Copy(tw, file)
 			if err != nil {
-				return errors.New(fmt.Sprintf("Could not copy the file '%s' data to the tarball, got error '%s'", path, err.Error()))
+				return fmt.Errorf("Could not copy the file '%s' data to the tarball, got error '%s'", path, err.Error())
 			}
 		}
 	}
@@ -151,7 +150,7 @@ type tarHeaders []*tar.Header
 
 // TarPaths takes a list of paths and return a ReadCloser to the tar
 // archive. If an error occurs, the ReadCloser is closed with the error.
-func TarPaths(paths types.Paths) (io.ReadCloser) {
+func TarPaths(paths types.Paths) io.ReadCloser {
 	r, w := io.Pipe()
 	tw := tar.NewWriter(w)
 	tarHeaders := make(tarHeaders, 0)
@@ -161,12 +160,14 @@ func TarPaths(paths types.Paths) (io.ReadCloser) {
 			options := path.Options
 			err := filepath.Walk(path.Path, func(path string, info os.FileInfo, err error) error {
 				if err != nil {
-					return errors.New(fmt.Sprintf("Failed accessing path %q: %v", path, err))
+					return fmt.Errorf("Failed accessing path %q: %v", path, err)
 				}
 				return appendFileToTar(tw, &tarHeaders, path, info, options)
 			})
 			if err != nil {
-				w.CloseWithError(err)
+				if err := w.CloseWithError(err); err != nil {
+					return
+				}
 				return
 			}
 		}
@@ -184,14 +185,18 @@ func TarPaths(paths types.Paths) (io.ReadCloser) {
 		logrus.Debugf("Adding to the tar missing directories: %v", missingPaths)
 		for _, path := range missingPaths {
 			if err := createDirectory(tw, path); err != nil {
-				w.CloseWithError(err)
+				if err := w.CloseWithError(err); err != nil {
+					return
+				}
 				return
 			}
 		}
 
 		err := tw.Close()
 		if err != nil {
-			w.CloseWithError(err)
+			if err := w.CloseWithError(err); err != nil {
+				return
+			}
 			return
 		}
 	}()

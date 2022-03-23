@@ -6,9 +6,9 @@ import (
 	"reflect"
 
 	"github.com/nlewo/nix2container/types"
-	"github.com/sirupsen/logrus"
-	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 	godigest "github.com/opencontainers/go-digest"
+	v1 "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/sirupsen/logrus"
 )
 
 func getPaths(storePaths []string, parents []types.Layer, rewrites []types.RewritePath, exclude string, permPaths []types.PermPath) types.Paths {
@@ -64,7 +64,7 @@ func newLayers(paths types.Paths, tarDirectory string, maxLayers int) (layers []
 	offset := 0
 	for offset < len(paths) {
 		max := offset + 1
-		if offset == maxLayers - 1 {
+		if offset == maxLayers-1 {
 			max = len(paths)
 		}
 		layerPaths := paths[offset:max]
@@ -82,8 +82,8 @@ func newLayers(paths types.Paths, tarDirectory string, maxLayers int) (layers []
 		logrus.Infof("Adding %d paths to layer (size:%d digest:%s)", len(layerPaths), size, digest.String())
 		layer := types.Layer{
 			Digest:    digest.String(),
-			DiffIDs:    digest.String(),
-			Size: size,
+			DiffIDs:   digest.String(),
+			Size:      size,
 			Paths:     layerPaths,
 			MediaType: v1.MediaTypeImageLayer,
 		}
