@@ -63,6 +63,17 @@ let
   # Pull an image from a registry with Skopeo and translate it to a
   # nix2container image.json file.
   # This mainly comes from nixpkgs/build-support/docker/default.nix.
+  #
+  # Credentials:
+  # If you use the nix daemon for building, here is how you set up creds:
+  # docker login URL to whatever it is
+  # copy ~/.docker/config.json to /etc/nix/skopeo/auth.json
+  # Make the directory and all the files readable to the nixbld group
+  # sudo chmod -R g+rx /etc/nix/skopeo
+  # sudo chgrp -R nixbld /etc/nix/skopeo
+  # Now, bind mount the file into the nix build sandbox
+  # extra-sandbox-paths = /etc/skopeo/auth.json=/etc/nix/skopeo/auth.json
+  # update /etc/nix/skopeo/auth.json every time you add a new registry auth
   pullImage =
     let
       fixName = name: builtins.replaceStrings [ "/" ":" ] [ "-" "-" ] name;
@@ -77,6 +88,7 @@ let
     , tlsVerify ? true
     , name ? fixName "docker-image-${imageName}"
     }: let
+      authFile = "/etc/skopeo/auth.json";
       dir = pkgs.runCommand name
       {
         inherit imageDigest;
@@ -97,10 +109,18 @@ let
         --override-arch ${arch} \
         copy \
         --src-tls-verify=${pkgs.lib.boolToString tlsVerify} \
-        "$sourceURL" "dir://$out" \
+        $(
+          if test -f "${authFile}"
+          then
+            echo "--authfile=${authFile} $sourceURL"
+          else
+            echo "$sourceURL"
+          fi
+        ) \
+        "dir://$out" \
         | cat  # pipe through cat to force-disable progress bar
       '';
-    in pkgs.runCommand "nix2container-${imageName}.json" {} ''
+    in pkgs.runCommand "nix2container-${imageName}.json" { } ''
       ${nix2containerUtil}/bin/nix2container image-from-dir $out ${dir}
     '';
 
