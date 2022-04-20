@@ -14,14 +14,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"io/ioutil"
+	"os"
+
 	"github.com/containers/image/v5/manifest"
 	"github.com/nlewo/nix2container/types"
 	godigest "github.com/opencontainers/go-digest"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/sirupsen/logrus"
-	"io"
-	"io/ioutil"
-	"os"
 )
 
 // GetConfigBlob returns the config blog of an image.

@@ -12,7 +12,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"strings"
 
 	"github.com/nlewo/nix2container/closure"
 	"github.com/nlewo/nix2container/nix"
@@ -21,10 +20,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var rewrites rewritePaths
 var ignore string
 var tarDirectory string
 var permsFilepath string
+var rewritesFilepath string
 var maxLayers int
 
 // layerCmd represents the layer command
@@ -47,6 +46,14 @@ var layersReproducibleCmd = &cobra.Command{
 		var perms []types.PermPath
 		if permsFilepath != "" {
 			perms, err = readPermsFile(permsFilepath)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "%s", err)
+				os.Exit(1)
+			}
+		}
+		var rewrites []types.RewritePath
+		if rewritesFilepath != "" {
+			rewrites, err = readRewritesFile(rewritesFilepath)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "%s", err)
 				os.Exit(1)
@@ -90,6 +97,14 @@ var layersNonReproducibleCmd = &cobra.Command{
 				os.Exit(1)
 			}
 		}
+		var rewrites []types.RewritePath
+		if rewritesFilepath != "" {
+			rewrites, err = readRewritesFile(rewritesFilepath)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "%s", err)
+				os.Exit(1)
+			}
+		}
 		layers, err := nix.NewLayersNonReproducible(storepaths, maxLayers, tarDirectory, parents, rewrites, ignore, perms)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s", err)
@@ -101,24 +116,6 @@ var layersNonReproducibleCmd = &cobra.Command{
 			os.Exit(1)
 		}
 	},
-}
-
-type rewritePaths []types.RewritePath
-
-func (i *rewritePaths) String() string {
-	return ""
-}
-func (i *rewritePaths) Type() string {
-	return "PATH,REGEX,REPLACEMENT"
-}
-func (i *rewritePaths) Set(value string) error {
-	elts := strings.Split(value, ",")
-	*i = append(*i, types.RewritePath{
-		Path:  elts[0],
-		Regex: elts[1],
-		Repl:  elts[2],
-	})
-	return nil
 }
 
 func layersToJson(outputFilename string, layers []types.Layer) error {
@@ -151,13 +148,13 @@ func init() {
 	// TODO: make this flag required
 	layersNonReproducibleCmd.Flags().StringVarP(&tarDirectory, "tar-directory", "", "", "The directory where tar of layers are created.")
 
-	layersNonReproducibleCmd.Flags().Var(&rewrites, "rewrite", "Replace the REGEX part by REPLACEMENT for all files in the tree PATH")
+	layersNonReproducibleCmd.Flags().StringVarP(&rewritesFilepath, "rewrites", "", "", "A JSON file containing a list of path rewrites. Each element of the list is a JSON object with the attributes path, regex and repl: for a given path, the regex is replaced by repl.")
 	layersNonReproducibleCmd.Flags().StringVarP(&permsFilepath, "perms", "", "", "A JSON file containing file permissions")
 	layersNonReproducibleCmd.Flags().IntVarP(&maxLayers, "max-layers", "", 1, "The maximum number of layers")
 
 	rootCmd.AddCommand(layersReproducibleCmd)
 	layersReproducibleCmd.Flags().StringVarP(&ignore, "ignore", "", "", "Ignore the path from the list of storepaths")
-	layersReproducibleCmd.Flags().Var(&rewrites, "rewrite", "Replace the regex part by replacement for all files of the a path")
+	layersReproducibleCmd.Flags().StringVarP(&rewritesFilepath, "rewrites", "", "", "A JSON file containing path rewrites")
 	layersReproducibleCmd.Flags().StringVarP(&permsFilepath, "perms", "", "", "A JSON file containing file permissions")
 	layersReproducibleCmd.Flags().IntVarP(&maxLayers, "max-layers", "", 1, "The maximum number of layers")
 

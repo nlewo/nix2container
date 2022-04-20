@@ -25,9 +25,9 @@ type Rewrite struct {
 // mainly used to move storepaths from the /nix/store to / in the
 // image.
 type RewritePath struct {
-	Path  string
-	Regex string
-	Repl  string
+	Path  string `json:"path"`
+	Regex string `json:"regex"`
+	Repl  string `json:"repl"`
 }
 
 type Perm struct {
