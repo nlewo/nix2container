@@ -162,7 +162,15 @@ let
     subcommand = if reproducible
               then "layers-from-reproducible-storepaths"
               else "layers-from-non-reproducible-storepaths";
-    rewrites = pkgs.lib.concatMapStringsSep " " (p: "--rewrite '${p},^${p},'") contents;
+    # This is to move all storepaths in the contents attribute to the
+    # image root.
+    rewrites = builtins.map (p: {
+	    path = p;
+	    regex = "^${p}";
+	    repl = "";
+    }) contents;
+    rewritesFile = pkgs.writeText "rewrites.json" (builtins.toJSON rewrites);
+    rewritesFlag = "--rewrites ${rewritesFile}";
     permsFile = pkgs.writeText "perms.json" (builtins.toJSON perms);
     permsFlag = pkgs.lib.optionalString (perms != []) "--perms ${permsFile}";
     allDeps = deps ++ contents;
@@ -174,7 +182,7 @@ let
       $out/layers.json \
       ${closureGraph allDeps} \
       --max-layers ${toString maxLayers} \
-      ${rewrites} \
+      ${rewritesFlag} \
       ${permsFlag} \
       ${tarDirectory} \
       ${pkgs.lib.concatMapStringsSep " "  (l: l + "/layers.json") layers} \
