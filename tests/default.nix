@@ -56,6 +56,21 @@ let
       image = examples.nested;
       pattern = "Hello, world";
     };
+    # Ensure the Nix database is correctly initialized by querying the
+    # closure of the Nix binary.
+    nix = testScript {
+      image = examples.nix;
+      command = "nix-store -qR ${pkgs.nix}";
+      pattern = "${pkgs.nix}";
+    };
+    # Ensure the Nix database is correctly initialized by querying the
+    # closure of the Nix binary.
+    # The store path is in a dedicated layer
+    nixNested = testScript {
+      image = examples.nix;
+      command = "nix-store -qR ${pkgs.hello}";
+      pattern = "${pkgs.hello}";
+    };
     # The /nix have to be explicitly present in the archive with 755 perms
     nonRegressionIssue12 = pkgs.runCommand "test-script" { buildInputs = [pkgs.jq pkgs.gnutar]; } ''
       set -e
