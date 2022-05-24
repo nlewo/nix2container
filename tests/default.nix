@@ -52,6 +52,10 @@ let
       image = examples.nonReproducible;
       pattern = "A non reproducible image built the";
     };
+    nested = testScript {
+      image = examples.nested;
+      pattern = "Hello, world";
+    };
     # The /nix have to be explicitly present in the archive with 755 perms
     nonRegressionIssue12 = pkgs.runCommand "test-script" { buildInputs = [pkgs.jq pkgs.gnutar]; } ''
       set -e
