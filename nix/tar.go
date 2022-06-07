@@ -99,6 +99,12 @@ func appendFileToTar(tw *tar.Writer, tarHeaders *tarHeaders, path string, info o
 	hdr.Uname = "root"
 	hdr.Gname = "root"
 
+	// Force symlink permissions to match Linux ones
+	// see https://github.com/nlewo/nix2container/issues/23
+	if link != "" {
+		hdr.Mode = 0o777
+	}
+
 	if opts != nil {
 		for _, perms := range opts.Perms {
 			re := regexp.MustCompile(opts.Rewrite.Regex)

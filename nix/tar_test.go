@@ -14,12 +14,12 @@ func TestTar(t *testing.T) {
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
-	expectedDigest := "sha256:efccbbe35209d59cfeebd8e73785258d3679fa258f72a7dfbc2eec65695fd5c8"
+	expectedDigest := "sha256:077af73ad0fb226436e92a272318b777b6976b85c3a05d86183274818dd634f8"
 	if digest.String() != expectedDigest {
-		t.Fatalf("Digest is %s while it should be %s", digest.String(), expectedDigest)
+		t.Errorf("Digest is %s while it should be %s", digest.String(), expectedDigest)
 	}
-	expectedSize := int64(3584)
+	expectedSize := int64(4096)
 	if size != expectedSize {
-		t.Fatalf("Size is %d while it should be %d", size, expectedSize)
+		t.Errorf("Size is %d while it should be %d", size, expectedSize)
 	}
 }
