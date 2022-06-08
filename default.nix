@@ -189,6 +189,21 @@ let
       ${pkgs.lib.optionalString (ignore != null) "--ignore ${ignore}"}
     '';
 
+  makeNixDatabase = paths: pkgs.runCommand "nix-database" {} ''
+    mkdir $out
+    echo "Generating the nix database..."
+    export NIX_REMOTE=local?root=$out
+    # A user is required by nix
+    # https://github.com/NixOS/nix/blob/9348f9291e5d9e4ba3c4347ea1b235640f54fd79/src/libutil/util.cc#L478
+    export USER=nobody
+    ${pkgs.nix}/bin/nix-store --load-db < ${pkgs.closureInfo {rootPaths = paths;}}/registration
+
+    mkdir -p $out/nix/var/nix/gcroots/docker/
+    for i in ${pkgs.lib.concatStringsSep " " paths}; do
+      ln -s $i $out/nix/var/nix/gcroots/docker/$(basename $i)
+    done;
+  '';
+
   # Write the references of `path' to a file.
   closureGraph = paths: pkgs.runCommand "closure-graph.json"
   {
@@ -239,20 +254,29 @@ let
     # Note this is applied on the image layers and not on layers added
     # with the buildImage.layers attribute
     maxLayers ? 1,
+    # If set to true, the Nix database is initialized with all store
+    # paths added into the image. Note this is only useful to run nix
+    # commands from the image, for instance to build an image used by
+    # a CI to run Nix builds.
+    initializeNixDatabase ? false,
   }:
     let
       configFile = pkgs.writeText "config.json" (builtins.toJSON config);
+      nixDatabase = makeNixDatabase ([configFile] ++ contents ++ layers);
       # This layer contains all config dependencies. We ignore the
       # configFile because it is already part of the image, as a
       # specific blob.
-      configDepsLayer = buildLayer {
-        inherit contents perms maxLayers;
+      customizationLayer = buildLayer {
+        inherit perms maxLayers;
+        contents = if initializeNixDatabase
+                   then contents ++ [nixDatabase]
+                   else contents;
         deps = [configFile];
         ignore = configFile;
         layers = layers;
       };
       fromImageFlag = pkgs.lib.optionalString (fromImage != "") "--from-image ${fromImage}";
-      layerPaths = pkgs.lib.concatMapStringsSep " " (l: l + "/layers.json") ([configDepsLayer] ++ layers);
+      layerPaths = pkgs.lib.concatMapStringsSep " " (l: l + "/layers.json") ([customizationLayer] ++ layers);
       image = pkgs.runCommand "image-${baseNameOf name}.json"
       {
         imageName = pkgs.lib.toLower name;
