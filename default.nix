@@ -24,8 +24,9 @@ let
   skopeo-nix2container = pkgs.skopeo.overrideAttrs (old: {
     preBuild = let
       patch = pkgs.fetchurl {
-        url = "https://github.com/nlewo/image/commit/7a612c8a2e20ac7937cae14773cad948c6c7d881.patch";
-        sha256 = "sha256-Qeks08itjVuB+fzRxWG7NL27SvZQvD92tAAOO5hpZQs=";
+        url = "https://github.com/Mic92/image/commit/b3cb51066518ed2c6f6c8cf0cb4ae1e84f68b5ce.patch";
+        sha256 = "sha256-GkBVoXUVQbZb8/dYJAbCsUJLDAZ/ORiMg8svACAyrwk=";
+
       };
     in ''
       mkdir -p vendor/github.com/nlewo/nix2container/
