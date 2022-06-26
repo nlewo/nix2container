@@ -6,21 +6,6 @@ import (
 	"gonum.org/v1/gonum/graph/simple"
 )
 
-type Path struct {
-	path string
-	node graph.Node
-}
-
-// Find finds path in a.
-func Find(a []Path, path string) (graph.Node, bool) {
-	for _, n := range a {
-		if path == n.path {
-			return n.node, true
-		}
-	}
-	return nil, false
-}
-
 // SortedPathsByPopularity sorts storepaths by path popularity. It uses the algorithm described in
 // https://grahamc.com/blog/nix-and-layered-docker-images
 func SortedPathsByPopularity(storepaths []Storepath) ([]string, error) {

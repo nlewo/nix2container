@@ -1,9 +1,10 @@
 package closure
 
 import (
+	"sort"
+
 	"gonum.org/v1/gonum/graph"
 	"gonum.org/v1/gonum/graph/topo"
-	"sort"
 )
 
 type ScoredNode struct {
@@ -49,6 +50,10 @@ func Score(g graph.Directed) ([]ScoredNode, error) {
 		scored[i] = ScoredNode{n.ID(), pop[i]}
 	}
 	// sort descending ...
-	sort.SliceStable(scored, func(i, j int) bool { return scored[i].score > scored[j].score })
+	// nodes is unstably sorted, so we explicitly rely on node id in case of popularity peers
+	// this results in emanent stable sorting, so we don't need sort.SliceStable (which is less efficient)
+	sort.Slice(scored, func(i, j int) bool {
+		return scored[i].score > scored[j].score || (scored[i].score == scored[j].score && scored[i].id > scored[j].id)
+	})
 	return scored, nil
 }
