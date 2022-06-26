@@ -37,7 +37,11 @@ var layersReproducibleCmd = &cobra.Command{
 			fmt.Fprintf(os.Stderr, "%s", err)
 			os.Exit(1)
 		}
-		storepaths := closure.SortedPathsByPopularity(closureGraph)
+		storepaths, err := closure.SortedPathsByPopularity(closureGraph)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s", err)
+			os.Exit(1)
+		}
 		parents, err := getLayersFromFiles(args[2:])
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s", err)
@@ -83,7 +87,11 @@ var layersNonReproducibleCmd = &cobra.Command{
 			fmt.Fprintf(os.Stderr, "%s", err)
 			os.Exit(1)
 		}
-		storepaths := closure.SortedPathsByPopularity(closureGraph)
+		storepaths, err := closure.SortedPathsByPopularity(closureGraph)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s", err)
+			os.Exit(1)
+		}
 		parents, err := getLayersFromFiles(args[2:])
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s", err)

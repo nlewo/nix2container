@@ -5,29 +5,6 @@ import (
 	"testing"
 )
 
-func TestFindRoots(t *testing.T) {
-	nodes, err := ReadClosureGraphFile("../data/closure-graph.json")
-	if err != nil {
-		t.Fatal(err)
-	}
-	roots := findRoots(nodes)
-	if len(roots) != 2 {
-		t.Fatalf("The graph should contain %d root nodes (actual %d)", 2, len(roots))
-	}
-
-}
-
-func TestBuildGraph(t *testing.T) {
-	nodes, err := ReadClosureGraphFile("../data/closure-graph.json")
-	if err != nil {
-		t.Fatal(err)
-	}
-	graph := buildGraph(nodes)
-	if len(graph) != 2 {
-		t.Fatalf("The graph should contain %d root nodes (actual %d)", 2, len(graph))
-	}
-}
-
 // A - B - C - D - F
 //  \   \   \
 //   \   \   \- E - F
@@ -66,7 +43,10 @@ func TestPopularities(t *testing.T) {
 			References: []string{"G"},
 		},
 	}
-	popularity := SortedPathsByPopularity(storepaths)
+	popularity, err := SortedPathsByPopularity(storepaths)
+	if err != nil {
+		panic(err)
+	}
 	expected := []string{"F", "E", "D", "C", "G", "B", "A"}
 	if !reflect.DeepEqual(popularity, expected) {
 		t.Fatalf("Popularity should be '%#v' (while it is %#v)", expected, popularity)
