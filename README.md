@@ -3,16 +3,9 @@
 **warning: nix2container is in early development stages and interfaces are not stable**
 
 nix2container provides an efficient container development workflow
-with images built by Nix: it doesn't write tarballs to the Nix
-store and allows to skip already pushed layers (without having to rebuild
+with images built by Nix: it doesn't write tarballs to the Nix store
+and allows to skip already pushed layers (without having to rebuild
 them).
-
-nix2container is
-- a Nix library to build container image manifests
-- a binary (`nix2container`) to create JSON files describing layers and images (this
-  binary is used by the nix2container Nix library)
-- a Go library to produce image configurations and layers from these
-  manifests (currently used by Skopeo)
 
 This is based on ideas developped in [this blog
 post](https://lewo.abesis.fr/posts/nix-build-container-image/).
@@ -65,6 +58,133 @@ $ podman run -it bash
 - [`layered`](./examples/layered.nix): build a layered image as described in [this blog post](https://grahamc.com/blog/nix-and-layered-docker-images)
 
 
+## Functions documentation
+
+### `nix2container.buildImage`
+
+Function arguments are:
+
+- **`name`** (required): the name of the image.
+
+- **`tag`** (defaults to the image output hash): the tag of the image.
+
+- **`config`** (defaults to `{}`): an attribute set describing an image configuration as
+    defined in the [OCI image
+    specification](https://github.com/opencontainers/image-spec/blob/8b9d41f48198a7d6d0a5c1a12dc2d1f7f47fc97f/specs-go/v1/config.go#L23).
+
+- **`contents`** (defaults to `[]`): a list of store paths to include in
+    the layer root directory (store path prefixes
+    `/nix/store/hash-path` are removed, to relocate it at the image
+    `/`).
+
+- **`fromImage`** (defaults to `none`): an image that is used as base
+    image of this image.
+
+- **`maxLayers`** (defaults to `1`): the maximum number of layers to
+    create. This is based on the store path "popularity" as described
+    in this [blog
+    post](https://grahamc.com/blog/nix-and-layered-docker-images). Note
+    this is applied on the image layers and not on layers added with
+    the `buildImage.layers` attribute.
+
+- **`perms`** (defaults to `[]`): a list of file permisssions which are
+    set when the tar layer is created: these permissions are not
+    written to the Nix store.
+
+    Each element of this permission list is a dict such as
+    ```
+    { path = "a store path";
+      regex = ".*";
+      mode = "0664";
+    }
+    ```
+    The mode is applied on a specific path. In this path subtree,
+    the mode is then applied on all files matching the regex.
+
+- **`initializeNixDatabase`** (defaults to `false`): to initialize the
+    Nix database with all store paths added into the image. Note this
+    is only useful to run nix commands from the image, for instance to
+    build an image used by a CI to run Nix builds.
+
+- **`layers`** (defaults to `[]`): a list of layers built with the
+    buildLayer function: if a store path in deps or contents belongs
+    to one of these layers, this store path is skipped. This is pretty
+    useful to isolate store paths that are often updated from more
+    stable store paths, to speed up build and push time.
+
+
+### `nix2container.pullImage`
+
+Function arguments are:
+
+- **`imageName`** (required): the name of the image to pull.
+
+- **`imageDigest`** (required): the digest of the image to pull.
+
+- **`sha256`** (required): the sha256 of the resulting fixed output derivation.
+
+- **`os`** (defaults to `linux`)
+
+- **`arch`** (defaults to `x86_64`)
+
+- **`tlsVerify`** (defaults to `true`)
+
+
+### `nix2container.buildLayer`
+
+For most use cases, this function is not required. However, it could be
+useful to explicitly isolate some parts of the image in dedicated
+layers, for caching (see the "Isolate dependencies in dedicated
+layers" section) or non reproducibility (see the `reproducible`
+argument) purposes.
+
+Function arguments are:
+
+- **`deps`** (defaults to `[]`): a list of store paths to include in the
+    layer.
+
+- **`contents`** (defaults to `[]`): a list of store paths to include in
+    the layer root directory (store path prefixes
+    `/nix/store/hash-path` are removed, to relocate it at the image
+    `/`).
+
+- **`reproducible`** (defaults to `true`): If `false`, the layer tarball
+    is stored in the store path. This is useful when the layer
+    dependencies are not bit reproducible: it allows to have the layer
+    tarball and its hash in the same store path.
+
+- **`maxLayers`** (defaults to `1`): the maximum number of layers to
+    create. This is based on the store path "popularity" as described
+    in this [blog
+    post](https://grahamc.com/blog/nix-and-layered-docker-images). Note
+    this is applied on the image layers and not on layers added with
+    the `buildLayer.layers` attribute.
+
+- **`perms`** (defaults to `[]`): a list of file permisssions which are
+    set when the tar layer is created: these permissions are not
+    written to the Nix store.
+
+    Each element of this permission list is a dict such as
+    ```
+    { path = "a store path";
+      regex = ".*";
+      mode = "0664";
+    }
+    ```
+    The mode is applied on a specific path. In this path subtree,
+    the mode is then applied on all files matching the regex.
+
+- **`layers`** (defaults to `[]`): a list of layers built with the
+    `buildLayer` function: if a store path in deps or contents belongs
+    to one of these layers, this store path is skipped. This is pretty
+    useful to isolate store paths that are often updated from more
+    stable store paths, to speed up build and push time.
+
+- **`ignore`** (defaults to `null`): a store path to ignore when
+    building the layer. This is mainly useful to ignore the
+    configuration file from the container layer.
+
+
 ## Isolate dependencies in dedicated layers
 
 It is possible to isolate application dependencies in a dedicated
@@ -86,7 +206,7 @@ explicitly specify a set of dependencies to isolate.
 { pkgs }:
 let
   application = pkgs.writeScript "conversation" ''
-    ${pkgs.hello}/bin/hello 
+    ${pkgs.hello}/bin/hello
     echo "Haaa aa... I'm dying!!!"
   '';
 in
@@ -129,6 +249,7 @@ Note we could not compare the same distribution mechanisms because
 - Skopeo is not able to skip already loaded layers by the Docker daemon and
 - Skopeo failed to push to the registry an image streamed to stdin.
 
+
 ## Run the tests
 
 ```
@@ -147,6 +268,7 @@ It is also possible to run a specific test:
 ```
 nix run .#tests.basic
 ```
+
 
 ## The nix2container Go library
 
