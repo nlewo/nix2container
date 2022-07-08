@@ -6,9 +6,7 @@ import (
 	"gonum.org/v1/gonum/graph/simple"
 )
 
-// SortedPathsByPopularity sorts storepaths by path popularity. It uses the algorithm described in
-// https://grahamc.com/blog/nix-and-layered-docker-images
-func SortedPathsByPopularity(storepaths []Storepath) ([]string, error) {
+func buildGraph(storepaths []Storepath) (map[string]int64, *simple.DirectedGraph) {
 	g := simple.NewDirectedGraph()
 	paths := make(map[string]int64)
 	for _, p := range storepaths {
@@ -34,6 +32,13 @@ func SortedPathsByPopularity(storepaths []Storepath) ([]string, error) {
 			g.SetEdge(g.NewEdge(u, v))
 		}
 	}
+	return paths, g
+}
+
+// SortedPathsByPopularity sorts storepaths by path popularity. It uses the algorithm described in
+// https://grahamc.com/blog/nix-and-layered-docker-images
+func SortedPathsByPopularity(storepaths []Storepath) ([]string, error) {
+	paths, g := buildGraph(storepaths)
 	scored, err := Score(g)
 	if err != nil {
 		return []string{}, err
