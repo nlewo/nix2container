@@ -18,7 +18,7 @@ let
         p == "default.nix"
       );
     };
-    vendorSha256 = "sha256-o7eE/R8UbuEP0SA+eS0mXb3XeV+gvLfFRDIJ6jvqMuA=";
+    vendorSha256 = "sha256-fKvCnnSjiIuDNdNaTK/L3K5IvkEKWklT1b4wse366F4=";
   };
 
   skopeo-nix2container = pkgs.skopeo.overrideAttrs (old: {
