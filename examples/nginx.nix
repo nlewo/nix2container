@@ -28,7 +28,7 @@ let
 in
   nix2container.buildImage {
     name = "nginx";
-    contents = [
+    copyToRoot = [
       pkgs.dockerTools.fakeNss
       nginxVar
     ];
