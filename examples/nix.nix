@@ -2,10 +2,14 @@
 nix2container.buildImage {
   name = "nix";
   initializeNixDatabase = true;
-  contents = [
+  copyToRoot = [
     # nix-store uses cat program to display results as specified by
     # the image env variable NIX_PAGER.
-    (pkgs.symlinkJoin { name = "root"; paths = [ pkgs.coreutils pkgs.nix pkgs.bash ]; })
+    (pkgs.buildEnv {
+      name = "root";
+      paths = [ pkgs.coreutils pkgs.nix pkgs.bash ];
+      pathsToLink = "/bin";
+    })
   ];
   config = {
     Env = [

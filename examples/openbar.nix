@@ -9,7 +9,7 @@ in
 
 nix2container.buildImage {
   name = "openbar";
-  contents = [ tmp ];
+  copyToRoot = [ tmp ];
   perms = [
     {
       path = tmp;

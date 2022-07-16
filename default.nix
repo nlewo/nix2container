@@ -128,15 +128,15 @@ let
   buildLayer = {
     # A list of store paths to include in the layer.
     deps ? [],
-    # A list of store paths to include in the layer root. The store
-    # path prefix /nix/store/hash-path is removed. The store path
-    # content is then located at the image /.
-    contents ? [],
+    # A derivation (or list of derivations) to include in the layer
+    # root directory. The store path prefix /nix/store/hash-path is
+    # removed. The store path content is then located at the layer /.
+    copyToRoot ? null,
     # A store path to ignore. This is mainly useful to ignore the
     # configuration file from the container layer.
     ignore ? null,
     # A list of layers built with the buildLayer function: if a store
-    # path in deps or contents belongs to one of these layers, this
+    # path in deps or copyToRoot belongs to one of these layers, this
     # store path is skipped. This is pretty useful to
     # isolate store paths that are often updated from more stable
     # store paths, to speed up build and push time.
@@ -159,36 +159,46 @@ let
     # store path "popularity" as described in
     # https://grahamc.com/blog/nix-and-layered-docker-images
     maxLayers ? 1,
+    # Deprecated: will be removed on v1
+    contents ? null,
   }: let
     subcommand = if reproducible
               then "layers-from-reproducible-storepaths"
               else "layers-from-non-reproducible-storepaths";
-    # This is to move all storepaths in the contents attribute to the
+    copyToRootList =
+      let derivations = if !isNull contents then contents else copyToRoot;
+      in if isNull derivations
+         then []
+         else if !builtins.isList derivations
+              then [derivations]
+              else derivations;
+    # This is to move all storepaths in the copyToRoot attribute to the
     # image root.
     rewrites = builtins.map (p: {
 	    path = p;
 	    regex = "^${p}";
 	    repl = "";
-    }) contents;
+    }) copyToRootList;
     rewritesFile = pkgs.writeText "rewrites.json" (builtins.toJSON rewrites);
     rewritesFlag = "--rewrites ${rewritesFile}";
     permsFile = pkgs.writeText "perms.json" (builtins.toJSON perms);
     permsFlag = pkgs.lib.optionalString (perms != []) "--perms ${permsFile}";
-    allDeps = deps ++ contents;
+    allDeps = deps ++ copyToRootList;
     tarDirectory = pkgs.lib.optionalString (! reproducible) "--tar-directory $out";
-  in
-  pkgs.runCommand "layers.json" {} ''
-    mkdir $out
-    ${nix2containerUtil}/bin/nix2container ${subcommand} \
-      $out/layers.json \
-      ${closureGraph allDeps} \
-      --max-layers ${toString maxLayers} \
-      ${rewritesFlag} \
-      ${permsFlag} \
-      ${tarDirectory} \
-      ${pkgs.lib.concatMapStringsSep " "  (l: l + "/layers.json") layers} \
-      ${pkgs.lib.optionalString (ignore != null) "--ignore ${ignore}"}
-    '';
+    layersJSON = pkgs.runCommand "layers.json" {} ''
+      mkdir $out
+      ${nix2containerUtil}/bin/nix2container ${subcommand} \
+        $out/layers.json \
+        ${closureGraph allDeps} \
+        --max-layers ${toString maxLayers} \
+        ${rewritesFlag} \
+        ${permsFlag} \
+        ${tarDirectory} \
+        ${pkgs.lib.concatMapStringsSep " "  (l: l + "/layers.json") layers} \
+        ${pkgs.lib.optionalString (ignore != null) "--ignore ${ignore}"}
+      '';
+  in checked { inherit copyToRoot contents; } layersJSON;
+
 
   makeNixDatabase = paths: pkgs.runCommand "nix-database" {} ''
     mkdir $out
@@ -227,15 +237,15 @@ let
     # https://github.com/opencontainers/image-spec/blob/8b9d41f48198a7d6d0a5c1a12dc2d1f7f47fc97f/specs-go/v1/config.go#L23
     config ? {},
     # A list of layers built with the buildLayer function: if a store
-    # path in deps or contents belongs to one of these layers, this
+    # path in deps or copyToRoot belongs to one of these layers, this
     # store path is skipped. This is pretty useful to
     # isolate store paths that are often updated from more stable
     # store paths, to speed up build and push time.
     layers ? [],
-    # A list of store paths to include in the layer root. The store
-    # path prefix /nix/store/hash-path is removed. The store path
-    # content is then located at the image /.
-    contents ? [],
+    # A derivation (or list of derivation) to include in the layer
+    # root. The store path prefix /nix/store/hash-path is removed. The
+    # store path content is then located at the image /.
+    copyToRoot ? null,
     # An image that is used as base image of this image.
     fromImage ? "",
     # A list of file permisssions which are set when the tar layer is
@@ -260,18 +270,27 @@ let
     # commands from the image, for instance to build an image used by
     # a CI to run Nix builds.
     initializeNixDatabase ? false,
+    # Deprecated: will be removed on v1
+    contents ? null,
   }:
     let
       configFile = pkgs.writeText "config.json" (builtins.toJSON config);
-      nixDatabase = makeNixDatabase ([configFile] ++ contents ++ layers);
+      copyToRootList =
+        let derivations = if !isNull contents then contents else copyToRoot;
+        in if isNull derivations
+           then []
+           else if !builtins.isList derivations
+                then [derivations]
+                else derivations;
+      nixDatabase = makeNixDatabase ([configFile] ++ copyToRootList ++ layers);
       # This layer contains all config dependencies. We ignore the
       # configFile because it is already part of the image, as a
       # specific blob.
       customizationLayer = buildLayer {
         inherit perms maxLayers;
-        contents = if initializeNixDatabase
-                   then contents ++ [nixDatabase]
-                   else contents;
+        copyToRoot = if initializeNixDatabase
+                   then copyToRootList ++ [nixDatabase]
+                   else copyToRootList;
         deps = [configFile];
         ignore = configFile;
         layers = layers;
@@ -300,7 +319,14 @@ let
         ${configFile} \
         ${layerPaths}
       '';
-    in image;
+    in checked { inherit copyToRoot contents; } image;
+
+    checked = { copyToRoot, contents }:
+      pkgs.lib.warnIf (contents != null)
+        "The contents parameter is deprecated. Change to copyToRoot if the contents are designed to be copied to the root filesystem, such as when you use `buildEnv` or similar between contents and your packages. Use copyToRoot = buildEnv { ... }; or similar if you intend to add packages to /bin."
+        pkgs.lib.throwIf (contents != null && copyToRoot != null)
+        "You can not specify both contents and copyToRoot."
+        ;
 in
 {
   inherit nix2containerUtil skopeo-nix2container;

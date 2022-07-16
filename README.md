@@ -72,12 +72,22 @@ Function arguments are:
     defined in the [OCI image
     specification](https://github.com/opencontainers/image-spec/blob/8b9d41f48198a7d6d0a5c1a12dc2d1f7f47fc97f/specs-go/v1/config.go#L23).
 
-- **`contents`** (defaults to `[]`): a list of store paths to include in
-    the layer root directory (store path prefixes
-    `/nix/store/hash-path` are removed, to relocate it at the image
-    `/`).
+- **`copyToRoot`** (defaults to `null`): a derivation (or list of
+    derivations) copied in the image root directory (store path
+    prefixes `/nix/store/hash-path` are removed, in order to relocate
+    them at the image `/`).
 
-- **`fromImage`** (defaults to `none`): an image that is used as base
+    `pkgs.buildEnv` can be used to build a derivation which has to be copied to
+    the image root. For instance, to get bash and coreutils in the image `/bin`:
+    ```
+    copyToRoot = pkgs.buildEnv {
+      name = "root";
+      paths = [ pkgs.bashInteractive pkgs.coreutils ];
+      pathsToLink = [ "/bin" ];
+    };
+    ```
+
+- **`fromImage`** (defaults to `null`): an image that is used as base
     image of this image.
 
 - **`maxLayers`** (defaults to `1`): the maximum number of layers to
@@ -143,10 +153,20 @@ Function arguments are:
 - **`deps`** (defaults to `[]`): a list of store paths to include in the
     layer.
 
-- **`contents`** (defaults to `[]`): a list of store paths to include in
-    the layer root directory (store path prefixes
-    `/nix/store/hash-path` are removed, to relocate it at the image
-    `/`).
+- **`copyToRoot`** (defaults to `null`): a derivation (or list of
+    derivations) copied in the image root directory (store path
+    prefixes `/nix/store/hash-path` are removed, in order to relocate
+    them at the image `/`).
+
+    `pkgs.buildEnv` can be used to build a derivation which has to be copied to
+    the image root. For instance, to get bash and coreutils in the image `/bin`:
+    ```
+    copyToRoot = pkgs.buildEnv {
+      name = "root";
+      paths = [ pkgs.bashInteractive pkgs.coreutils ];
+      pathsToLink = [ "/bin" ];
+    };
+    ```
 
 - **`reproducible`** (defaults to `true`): If `false`, the layer tarball
     is stored in the store path. This is useful when the layer
