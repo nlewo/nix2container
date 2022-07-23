@@ -1,10 +1,12 @@
 { pkgs ? import <nixpkgs> { } }:
 let
+  l = pkgs.lib // builtins;
+
   nix2containerUtil = pkgs.buildGoModule rec {
     pname = "nix2container";
     version = "0.0.1";
     doCheck = true;
-    src = pkgs.lib.cleanSourceWith {
+    src = l.cleanSourceWith {
       src = ./.;
       filter = path: type:
       let
@@ -77,7 +79,7 @@ let
   # update /etc/nix/skopeo/auth.json every time you add a new registry auth
   pullImage =
     let
-      fixName = name: builtins.replaceStrings [ "/" ":" ] [ "-" "-" ] name;
+      fixName = name: l.replaceStrings [ "/" ":" ] [ "-" "-" ] name;
     in
     { imageName
       # To find the digest of an image, you can use skopeo:
@@ -93,12 +95,12 @@ let
       dir = pkgs.runCommand name
       {
         inherit imageDigest;
-        impureEnvVars = pkgs.lib.fetchers.proxyImpureEnvVars;
+        impureEnvVars = l.fetchers.proxyImpureEnvVars;
         outputHashMode = "recursive";
         outputHashAlgo = "sha256";
         outputHash = sha256;
 
-        nativeBuildInputs = pkgs.lib.singleton pkgs.skopeo;
+        nativeBuildInputs = l.singleton pkgs.skopeo;
         SSL_CERT_FILE = "${pkgs.cacert.out}/etc/ssl/certs/ca-bundle.crt";
 
         sourceURL = "docker://${imageName}@${imageDigest}";
@@ -109,7 +111,7 @@ let
         --override-os ${os} \
         --override-arch ${arch} \
         copy \
-        --src-tls-verify=${pkgs.lib.boolToString tlsVerify} \
+        --src-tls-verify=${l.boolToString tlsVerify} \
         $(
           if test -f "${authFile}"
           then
@@ -165,17 +167,17 @@ let
               else "layers-from-non-reproducible-storepaths";
     # This is to move all storepaths in the contents attribute to the
     # image root.
-    rewrites = builtins.map (p: {
+    rewrites = l.map (p: {
 	    path = p;
 	    regex = "^${p}";
 	    repl = "";
     }) contents;
-    rewritesFile = pkgs.writeText "rewrites.json" (builtins.toJSON rewrites);
+    rewritesFile = pkgs.writeText "rewrites.json" (l.toJSON rewrites);
     rewritesFlag = "--rewrites ${rewritesFile}";
-    permsFile = pkgs.writeText "perms.json" (builtins.toJSON perms);
-    permsFlag = pkgs.lib.optionalString (perms != []) "--perms ${permsFile}";
+    permsFile = pkgs.writeText "perms.json" (l.toJSON perms);
+    permsFlag = l.optionalString (perms != []) "--perms ${permsFile}";
     allDeps = deps ++ contents;
-    tarDirectory = pkgs.lib.optionalString (! reproducible) "--tar-directory $out";
+    tarDirectory = l.optionalString (! reproducible) "--tar-directory $out";
   in
   pkgs.runCommand "layers.json" {} ''
     mkdir $out
@@ -186,8 +188,8 @@ let
       ${rewritesFlag} \
       ${permsFlag} \
       ${tarDirectory} \
-      ${pkgs.lib.concatMapStringsSep " "  (l: l + "/layers.json") layers} \
-      ${pkgs.lib.optionalString (ignore != null) "--ignore ${ignore}"}
+      ${l.concatMapStringsSep " "  (l: l + "/layers.json") layers} \
+      ${l.optionalString (ignore != null) "--ignore ${ignore}"}
     '';
 
   makeNixDatabase = paths: pkgs.runCommand "nix-database" {} ''
@@ -200,7 +202,7 @@ let
     ${pkgs.nix}/bin/nix-store --load-db < ${pkgs.closureInfo {rootPaths = paths;}}/registration
 
     mkdir -p $out/nix/var/nix/gcroots/docker/
-    for i in ${pkgs.lib.concatStringsSep " " paths}; do
+    for i in ${l.concatStringsSep " " paths}; do
       ln -s $i $out/nix/var/nix/gcroots/docker/$(basename $i)
     done;
   '';
@@ -211,7 +213,7 @@ let
     exportReferencesGraph.graph = paths;
     __structuredAttrs = true;
     PATH = "${pkgs.jq}/bin";
-    builder = builtins.toFile "builder"
+    builder = l.toFile "builder"
     ''
       . .attrs.sh
       jq .graph .attrs.json > ''${outputs[out]}
@@ -262,7 +264,7 @@ let
     initializeNixDatabase ? false,
   }:
     let
-      configFile = pkgs.writeText "config.json" (builtins.toJSON config);
+      configFile = pkgs.writeText "config.json" (l.toJSON config);
       nixDatabase = makeNixDatabase ([configFile] ++ contents ++ layers);
       # This layer contains all config dependencies. We ignore the
       # configFile because it is already part of the image, as a
@@ -276,17 +278,17 @@ let
         ignore = configFile;
         layers = layers;
       };
-      fromImageFlag = pkgs.lib.optionalString (fromImage != "") "--from-image ${fromImage}";
-      layerPaths = pkgs.lib.concatMapStringsSep " " (l: l + "/layers.json") ([customizationLayer] ++ layers);
+      fromImageFlag = l.optionalString (fromImage != "") "--from-image ${fromImage}";
+      layerPaths = l.concatMapStringsSep " " (l: l + "/layers.json") ([customizationLayer] ++ layers);
       image = pkgs.runCommand "image-${baseNameOf name}.json"
       {
-        imageName = pkgs.lib.toLower name;
+        imageName = l.toLower name;
         passthru = {
           imageTag =
             if tag != null
             then tag
             else
-            pkgs.lib.head (pkgs.lib.strings.splitString "-" (baseNameOf image.outPath));
+            l.head (l.strings.splitString "-" (baseNameOf image.outPath));
           copyToDockerDaemon = copyToDockerDaemon image;
           copyToRegistry = copyToRegistry image;
           copyToPodman = copyToPodman image;
