@@ -299,15 +299,22 @@ let
       };
       fromImageFlag = l.optionalString (fromImage != "") "--from-image ${fromImage}";
       layerPaths = l.concatMapStringsSep " " (l: l + "/layers.json") ([customizationLayer] ++ layers);
-      image = pkgs.runCommand "image-${baseNameOf name}.json"
-      {
+      image = let
         imageName = l.toLower name;
+        imageTag =
+          if tag != null
+          then tag
+          else
+          l.head (l.strings.splitString "-" (baseNameOf image.outPath));
+      in pkgs.runCommand "image-${baseNameOf name}.json"
+      {
+        inherit imageName;
         passthru = {
-          imageTag =
-            if tag != null
-            then tag
-            else
-            l.head (l.strings.splitString "-" (baseNameOf image.outPath));
+          inherit imageTag;
+          # provide a cheap to evaluate image reference for use with external tools like docker
+          # DO NOT use as an input to other derivations, as there is no guarantee that the image
+          # reference will exist in the store.
+          imageRefUnsafe = builtins.unsafeDiscardStringContext "${imageName}:${imageTag}";
           copyToDockerDaemon = copyToDockerDaemon image;
           copyToRegistry = copyToRegistry image;
           copyToPodman = copyToPodman image;
