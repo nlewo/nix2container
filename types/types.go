@@ -11,6 +11,7 @@ import (
 type Image struct {
 	ImageConfig v1.ImageConfig `json:"image-config"`
 	Layers      []Layer        `json:"layers"`
+	Arch        string         `json:"arch"`
 }
 
 type Rewrite struct {

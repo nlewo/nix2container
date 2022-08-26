@@ -72,7 +72,7 @@ func GetBlob(image types.Image, digest godigest.Digest) (io.ReadCloser, int64, e
 
 func getV1Image(image types.Image) (imageV1 v1.Image, err error) {
 	imageV1.OS = "linux"
-	imageV1.Architecture = "amd64"
+	imageV1.Architecture = image.Arch
 	imageV1.Config = image.ImageConfig
 
 	for _, layer := range image.Layers {
