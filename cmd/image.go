@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"runtime"
 
 	"github.com/nlewo/nix2container/nix"
 	"github.com/nlewo/nix2container/types"
@@ -81,6 +82,8 @@ func image(outputFilename, imageConfigPath string, fromImageFilename string, lay
 
 		logrus.Infof("Using base image %s containing %d layers", fromImageFilename, len(fromImage.Layers))
 	}
+
+	image.Arch = runtime.GOARCH
 
 	image.ImageConfig = imageConfig
 	for _, path := range layerPaths {
