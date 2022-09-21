@@ -26,6 +26,10 @@ func getPaths(storePaths []string, parents []types.Layer, rewrites []types.Rewri
 				perms = append(perms, types.Perm{
 					Regex: perm.Regex,
 					Mode:  perm.Mode,
+					Uid:   perm.Uid,
+					Gid:   perm.Gid,
+					Uname: perm.Uname,
+					Gname: perm.Gname,
 				})
 			}
 		}
