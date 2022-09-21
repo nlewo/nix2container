@@ -24,3 +24,21 @@ func TestTar(t *testing.T) {
 		t.Errorf("Size is %d while it should be %d", size, expectedSize)
 	}
 }
+
+func TestRemoveNixCaseHackSuffix(t *testing.T) {
+	ret := removeNixCaseHackSuffix("filename~nix~case~hack~1")
+	expected := "filename"
+	if ret != expected {
+		t.Errorf("%s should be %s", ret, expected)
+	}
+	ret = removeNixCaseHackSuffix("/path~nix~case~hack~1/filename")
+	expected = "/path/filename"
+	if ret != expected {
+		t.Errorf("%s should be %s", ret, expected)
+	}
+	ret = removeNixCaseHackSuffix("filename~nix~")
+	expected = "filename~nix~"
+	if ret != expected {
+		t.Errorf("%s should be %s", ret, expected)
+	}
+}

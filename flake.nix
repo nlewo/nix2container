@@ -9,7 +9,7 @@
       let
         pkgs = nixpkgs.legacyPackages.${system};
         nix2container = import ./. {
-          inherit pkgs;
+          inherit pkgs system;
         };
         examples = import ./examples {
           inherit pkgs;

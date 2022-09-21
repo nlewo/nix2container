@@ -9,6 +9,11 @@ import (
 	"sort"
 )
 
+// On case insensitive FS (adfs on MacOS for instance), Nix adds a
+// suffix to avoid filename collisions.
+// See https://github.com/NixOS/nix/blob/ba9e69cdcd8022f37e344f2c86e60ee2b9da493f/src/libutil/archive.cc#L90
+var useNixCaseHack string
+
 type fileNode struct {
 	// The file name on the FS
 	srcPath  string
@@ -35,15 +40,21 @@ func initGraph() *fileNode {
 // file tree read on the FS. This means transformations are done during
 // the graph construction.
 func addFileToGraph(root *fileNode, path string, info *os.FileInfo, options *types.PathOptions) error {
-	pathInTar := filePathToTarPath(path, options)
+
+	dstPath := path
+	if useNixCaseHack != "" {
+		dstPath = removeNixCaseHackSuffix(dstPath)
+	}
+
+	dstPath = filePathToTarPath(dstPath, options)
 	// A regex in the options could make the path becoming the
 	// empty string. In this case, we don't want to create
 	// anything in the graph.
-	if pathInTar == "" {
+	if dstPath == "" {
 		return nil
 	}
 
-	parts := splitPath(pathInTar)
+	parts := splitPath(dstPath)
 	current := root
 	for _, part := range parts {
 		if node, exists := current.contents[part]; exists {
@@ -59,18 +70,18 @@ func addFileToGraph(root *fileNode, path string, info *os.FileInfo, options *typ
 	if current.info != nil {
 		if (*current.info).Mode() != (*info).Mode() {
 			return fmt.Errorf("The file '%s' already exists in the graph with mode '%v' from '%s' while it is added again with mode '%v' by '%s'",
-				pathInTar, (*current.info).Mode(), current.srcPath, (*info).Mode(), path)
+				dstPath, (*current.info).Mode(), current.srcPath, (*info).Mode(), path)
 		}
 		if (*current.info).Size() != (*info).Size() {
 			return fmt.Errorf("The file '%s' already exists in the graph with size '%d' from '%s' while it is added again with size '%d' by '%s'",
-				pathInTar, (*current.info).Size(), current.srcPath, (*info).Size(), path)
+				dstPath, (*current.info).Size(), current.srcPath, (*info).Size(), path)
 		}
 	}
 	current.info = info
 
 	if current.options != nil && !reflect.DeepEqual(current.options.Perms, options.Perms) {
 		return fmt.Errorf("The file '%s' already exists in the tar with perms %#v but is overriden with perms %#v",
-			pathInTar, current.options.Perms, options.Perms)
+			dstPath, current.options.Perms, options.Perms)
 	}
 	current.options = options
 
