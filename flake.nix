@@ -17,6 +17,7 @@
         };
         tests = import ./tests {
           inherit pkgs examples;
+          inherit (nix2container) nix2container;
         };
       in
         rec {
