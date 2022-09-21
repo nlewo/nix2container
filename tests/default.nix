@@ -1,4 +1,4 @@
-{ pkgs, examples }:
+{ pkgs, nix2container, examples }:
 
 let
   testScript = {
@@ -84,6 +84,29 @@ let
       echo echo Test passed > $out/bin/test-script
       chmod a+x $out/bin/test-script
     '';
+    nonRegressionIssue45 = testScript {
+      image = let
+        test = pkgs.runCommand "test" { } ''
+          mkdir -p $out/tmp
+          touch $out/tmp/test1.txt
+          touch $out/tmp/test2.txt
+        '';
+      in nix2container.buildImage {
+        name = "perms";
+        config.entrypoint = ["${pkgs.coreutils}/bin/ls" "-l" "/tmp/"];
+        copyToRoot = [ test ];
+        perms = [
+          {
+            path = test;
+            regex = "test1.txt";
+            mode = "0777";
+          }
+        ];
+      };
+      # The file test2.txt should not have 777 perms
+      pattern = "^-r--r--r-- 1 0 0 0 Jan  1  1970 test2.txt";
+    };
+
   };
   all =
     let scripts = pkgs.lib.concatMapStringsSep "\n" (s: "${s}/bin/test-script") (builtins.attrValues tests);
