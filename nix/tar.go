@@ -107,7 +107,7 @@ func appendFileToTar(tw *tar.Writer, tarHeaders *tarHeaders, path string, info o
 
 	if opts != nil {
 		for _, perms := range opts.Perms {
-			re := regexp.MustCompile(opts.Rewrite.Regex)
+			re := regexp.MustCompile(perms.Regex)
 			if re.Match([]byte(path)) {
 				_, err := fmt.Sscanf(perms.Mode, "%o", &hdr.Mode)
 				if err != nil {
