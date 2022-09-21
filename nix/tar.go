@@ -121,9 +121,11 @@ func appendFileToTar(tw *tar.Writer, tarHeaders *tarHeaders, path string, info o
 					hdr.Gname = perms.Uname
 				}
 
-				_, err := fmt.Sscanf(perms.Mode, "%o", &hdr.Mode)
-				if err != nil {
-					return err
+				if perms.Mode != "" {
+					_, err := fmt.Sscanf(perms.Mode, "%o", &hdr.Mode)
+					if err != nil {
+						return err
+					}
 				}
 			}
 		}
