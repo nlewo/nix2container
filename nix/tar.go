@@ -109,9 +109,23 @@ func appendFileToTar(tw *tar.Writer, tarHeaders *tarHeaders, path string, info o
 		for _, perms := range opts.Perms {
 			re := regexp.MustCompile(perms.Regex)
 			if re.Match([]byte(path)) {
-				_, err := fmt.Sscanf(perms.Mode, "%o", &hdr.Mode)
-				if err != nil {
-					return err
+				// Zero value is same as root ID (0)
+				hdr.Uid = perms.Uid
+				hdr.Gid = perms.Gid
+
+				if perms.Uname != "" {
+					hdr.Uname = perms.Uname
+				}
+
+				if perms.Gname != "" {
+					hdr.Gname = perms.Uname
+				}
+
+				if perms.Mode != "" {
+					_, err := fmt.Sscanf(perms.Mode, "%o", &hdr.Mode)
+					if err != nil {
+						return err
+					}
 				}
 			}
 		}

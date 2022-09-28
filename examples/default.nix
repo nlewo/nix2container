@@ -10,4 +10,5 @@
   layered = pkgs.callPackage ./layered.nix { inherit nix2container; };
   nested = pkgs.callPackage ./nested.nix { inherit nix2container; };
   nix = pkgs.callPackage ./nix.nix { inherit nix2container; };
+  ownership = pkgs.callPackage ./ownership.nix { inherit nix2container; };
 }

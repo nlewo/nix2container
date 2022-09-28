@@ -34,14 +34,22 @@ type RewritePath struct {
 type Perm struct {
 	Regex string `json:"regex"`
 	// Octal representation of file permissions
-	Mode string `json:"mode"`
+	Mode  string `json:"mode"`
+	Uid   int    `json:"uid"`
+	Gid   int    `json:"gid"`
+	Uname string `json:"uname"`
+	Gname string `json:"gname"`
 }
 
 type PermPath struct {
 	Path  string `json:"path"`
 	Regex string `json:"regex"`
 	// Octal representation of file permissions
-	Mode string `json:"mode"`
+	Mode  string `json:"mode"`
+	Uid   int    `json:"uid"`
+	Gid   int    `json:"gid"`
+	Uname string `json:"uname"`
+	Gname string `json:"gname"`
 }
 
 type PathOptions struct {
