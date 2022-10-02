@@ -272,6 +272,10 @@ let
     # commands from the image, for instance to build an image used by
     # a CI to run Nix builds.
     initializeNixDatabase ? false,
+    # If initializeNixDatabase is set to true, the uid/gid of /nix can be
+    # controlled using nixUid/nixGid.
+    nixUid ? 0,
+    nixGid ? 0,
     # Deprecated: will be removed on v1
     contents ? null,
   }:
@@ -288,8 +292,21 @@ let
       # This layer contains all config dependencies. We ignore the
       # configFile because it is already part of the image, as a
       # specific blob.
+
+      perms' = perms ++ l.optionals initializeNixDatabase 
+      [
+        {
+          path = nixDatabase;
+          regex = ".*";
+          mode = "0700";
+          uid = nixUid;
+          gid = nixGid;
+        }
+      ];
+
       customizationLayer = buildLayer {
-        inherit perms maxLayers;
+        inherit maxLayers;
+        perms = perms';
         copyToRoot = if initializeNixDatabase
                    then copyToRootList ++ [nixDatabase]
                    else copyToRootList;
@@ -298,7 +315,7 @@ let
         layers = layers;
       };
       fromImageFlag = l.optionalString (fromImage != "") "--from-image ${fromImage}";
-      layerPaths = l.concatMapStringsSep " " (l: l + "/layers.json") ([customizationLayer] ++ layers);
+      layerPaths = l.concatMapStringsSep " " (l: l + "/layers.json") (layers ++ [customizationLayer]);
       image = let
         imageName = l.toLower name;
         imageTag =
