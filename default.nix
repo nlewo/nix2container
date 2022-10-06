@@ -298,7 +298,7 @@ let
         {
           path = nixDatabase;
           regex = ".*";
-          mode = "0700";
+          mode = "0755";
           uid = nixUid;
           gid = nixGid;
         }
