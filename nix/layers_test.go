@@ -1,10 +1,10 @@
 package nix
 
 import (
-	"reflect"
 	"testing"
 
 	"github.com/nlewo/nix2container/types"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestPerms(t *testing.T) {
@@ -24,8 +24,8 @@ func TestPerms(t *testing.T) {
 	}
 	expected := []types.Layer{
 		{
-			Digest:  "sha256:7031b24697abf372b252fffb1432f685b364b742212df74787e2a2a8c8d4f66f",
-			DiffIDs: "sha256:7031b24697abf372b252fffb1432f685b364b742212df74787e2a2a8c8d4f66f",
+			Digest:  "sha256:6123adfc04c22915c112368b802af161b921fbf7ef1c5f7283191ee552b46e27",
+			DiffIDs: "sha256:6123adfc04c22915c112368b802af161b921fbf7ef1c5f7283191ee552b46e27",
 			Size:    3072,
 			Paths: types.Paths{
 				types.Path{
@@ -43,9 +43,7 @@ func TestPerms(t *testing.T) {
 			MediaType: "application/vnd.oci.image.layer.v1.tar",
 		},
 	}
-	if !reflect.DeepEqual(layer, expected) {
-		t.Fatalf("Layers should be '%#v' (while it is %#v)", expected, layer)
-	}
+	assert.Equal(t, expected, layer)
 }
 
 func TestNewLayers(t *testing.T) {
@@ -58,8 +56,8 @@ func TestNewLayers(t *testing.T) {
 	}
 	expected := []types.Layer{
 		{
-			Digest:  "sha256:a97d8eab8c8b698b1c5aa10625b30b3b47baf102d1c429d567023a05ebe53480",
-			DiffIDs: "sha256:a97d8eab8c8b698b1c5aa10625b30b3b47baf102d1c429d567023a05ebe53480",
+			Digest:  "sha256:f2c0df36c223df52ef1ccc9d5979b39fb03fecae111f908fc9c2bdd50d477acd",
+			DiffIDs: "sha256:f2c0df36c223df52ef1ccc9d5979b39fb03fecae111f908fc9c2bdd50d477acd",
 			Size:    3072,
 			Paths: types.Paths{
 				types.Path{
@@ -69,9 +67,7 @@ func TestNewLayers(t *testing.T) {
 			MediaType: "application/vnd.oci.image.layer.v1.tar",
 		},
 	}
-	if !reflect.DeepEqual(layer, expected) {
-		t.Fatalf("Layers should be '%#v' (while it is %#v)", expected, layer)
-	}
+	assert.Equal(t, expected, layer)
 
 	tmpDir := t.TempDir()
 	layer, err = NewLayersNonReproducible(paths, 1, tmpDir, []types.Layer{}, []types.RewritePath{}, "", []types.PermPath{})
@@ -80,8 +76,8 @@ func TestNewLayers(t *testing.T) {
 	}
 	expected = []types.Layer{
 		{
-			Digest:  "sha256:a97d8eab8c8b698b1c5aa10625b30b3b47baf102d1c429d567023a05ebe53480",
-			DiffIDs: "sha256:a97d8eab8c8b698b1c5aa10625b30b3b47baf102d1c429d567023a05ebe53480",
+			Digest:  "sha256:f2c0df36c223df52ef1ccc9d5979b39fb03fecae111f908fc9c2bdd50d477acd",
+			DiffIDs: "sha256:f2c0df36c223df52ef1ccc9d5979b39fb03fecae111f908fc9c2bdd50d477acd",
 			Size:    3072,
 			Paths: types.Paths{
 				types.Path{
@@ -89,10 +85,8 @@ func TestNewLayers(t *testing.T) {
 				},
 			},
 			MediaType: "application/vnd.oci.image.layer.v1.tar",
-			LayerPath: tmpDir + "/a97d8eab8c8b698b1c5aa10625b30b3b47baf102d1c429d567023a05ebe53480.tar",
+			LayerPath: tmpDir + "/f2c0df36c223df52ef1ccc9d5979b39fb03fecae111f908fc9c2bdd50d477acd.tar",
 		},
 	}
-	if !reflect.DeepEqual(layer, expected) {
-		t.Fatalf("Layers should be '%#v' (while it is %#v)", expected, layer)
-	}
+	assert.Equal(t, expected, layer)
 }
