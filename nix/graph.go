@@ -56,19 +56,25 @@ func addFileToGraph(root *fileNode, path string, info *os.FileInfo, options *typ
 		}
 	}
 
-	if current.srcPath != "" && current.srcPath != path {
-		return fmt.Errorf("The file '%s' already exists in the tar with source path %s but is added again with the source path %s",
-			pathInTar, current.srcPath, path)
+	if current.info != nil {
+		if (*current.info).Mode() != (*info).Mode() {
+			return fmt.Errorf("The file '%s' already exists in the graph with mode '%v' from '%s' while it is added again with mode '%v' by '%s'",
+				pathInTar, (*current.info).Mode(), current.srcPath, (*info).Mode(), path)
+		}
+		if (*current.info).Size() != (*info).Size() {
+			return fmt.Errorf("The file '%s' already exists in the graph with size '%d' from '%s' while it is added again with size '%d' by '%s'",
+				pathInTar, (*current.info).Size(), current.srcPath, (*info).Size(), path)
+		}
 	}
-	current.srcPath = path
+	current.info = info
 
-	if current.options != nil && !reflect.DeepEqual(current.options, options) {
-		return fmt.Errorf("The file '%s' already exists in the tar with options %#v but is overriden with options %#v",
-			pathInTar, current.options, options)
+	if current.options != nil && !reflect.DeepEqual(current.options.Perms, options.Perms) {
+		return fmt.Errorf("The file '%s' already exists in the tar with perms %#v but is overriden with perms %#v",
+			pathInTar, current.options.Perms, options.Perms)
 	}
 	current.options = options
 
-	current.info = info
+	current.srcPath = path
 	return nil
 }
 
