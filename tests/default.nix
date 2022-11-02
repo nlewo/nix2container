@@ -11,6 +11,12 @@ let
     ret=$?
     if [ $ret -ne 0 ];
     then
+      echo "Actual output:"
+      ${pkgs.podman}/bin/podman run ${image.imageName}:${image.imageTag} ${command}
+      echo
+      echo "Expected pattern:"
+      echo '${pattern}'
+      echo
       echo "Error: test failed"
       exit $ret
     else
