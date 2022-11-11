@@ -12,6 +12,12 @@ let
     ret=$?
     if [ $ret -ne 0 ];
     then
+      echo "Actual output:"
+      ${pkgs.podman}/bin/podman run ${image.imageName}:${image.imageTag} ${command}
+      echo
+      echo "Expected pattern:"
+      echo '${pattern}'
+      echo
       echo "Error: test failed"
       exit $ret
     else
@@ -117,6 +123,14 @@ let
       pattern = "^-r--r--r-- 1 0 0 0 Jan  1  1970 test2.txt";
     };
 
+    copyToRoot = testScript {
+      image = nix2container.buildImage {
+        name = "copy-to-root";
+        copyToRoot = [ pkgs.hello pkgs.bash ];
+        config.entrypoint = ["/bin/bash" "-c" "/bin/hello"];
+      };
+      pattern = "Hello, world!";
+    };
   };
   all =
     let scripts = pkgs.lib.concatMapStringsSep "\n" (s: "${s}/bin/test-script") (builtins.attrValues tests);

@@ -7,7 +7,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"reflect"
 	"regexp"
 	"time"
 
@@ -72,11 +71,11 @@ func createDirectory(tw *tar.Writer, path string) error {
 	return nil
 }
 
-func appendFileToTar(tw *tar.Writer, tarHeaders *tarHeaders, path string, info os.FileInfo, opts *types.PathOptions) error {
+func appendFileToTar(tw *tar.Writer, srcPath, dstPath string, info os.FileInfo, opts *types.PathOptions) error {
 	var link string
 	var err error
 	if info.Mode()&os.ModeSymlink != 0 {
-		link, err = os.Readlink(path)
+		link, err = os.Readlink(srcPath)
 		if err != nil {
 			return err
 		}
@@ -85,15 +84,9 @@ func appendFileToTar(tw *tar.Writer, tarHeaders *tarHeaders, path string, info o
 	if err != nil {
 		return err
 	}
-	if opts != nil && opts.Rewrite.Regex != "" {
-		re := regexp.MustCompile(opts.Rewrite.Regex)
-		hdr.Name = string(re.ReplaceAll([]byte(path), []byte(opts.Rewrite.Repl)))
-	} else {
-		hdr.Name = path
-	}
-	if hdr.Name == "" {
-		return nil
-	}
+
+	hdr.Name = dstPath
+
 	hdr.Uid = 0
 	hdr.Gid = 0
 	hdr.Uname = "root"
@@ -108,7 +101,7 @@ func appendFileToTar(tw *tar.Writer, tarHeaders *tarHeaders, path string, info o
 	if opts != nil {
 		for _, perms := range opts.Perms {
 			re := regexp.MustCompile(perms.Regex)
-			if re.Match([]byte(path)) {
+			if re.Match([]byte(srcPath)) {
 				// Zero value is same as root ID (0)
 				hdr.Uid = perms.Uid
 				hdr.Gid = perms.Gid
@@ -135,54 +128,46 @@ func appendFileToTar(tw *tar.Writer, tarHeaders *tarHeaders, path string, info o
 	hdr.AccessTime = time.Date(1970, 01, 01, 0, 0, 0, 0, time.UTC)
 	hdr.ChangeTime = time.Date(1970, 01, 01, 0, 0, 0, 0, time.UTC)
 
-	for _, h := range *tarHeaders {
-		if hdr.Name == h.Name {
-			// We don't want to override a file already existing in the archive
-			// by a file with different headers.
-			if !reflect.DeepEqual(hdr, h) {
-				return fmt.Errorf("The file %s overrides a file with different attributes (previous: %#v current: %#v)", hdr.Name, h, hdr)
-			}
-			return nil
-		}
-	}
-	*tarHeaders = append(*tarHeaders, hdr)
-
 	if err := tw.WriteHeader(hdr); err != nil {
 		return fmt.Errorf("Could not write hdr '%#v', got error '%s'", hdr, err.Error())
 	}
 	if link == "" {
-		file, err := os.Open(path)
+		file, err := os.Open(srcPath)
 		if err != nil {
-			return fmt.Errorf("Could not open file '%s', got error '%s'", path, err.Error())
+			return fmt.Errorf("Could not open file '%s', got error '%s'", srcPath, err.Error())
 		}
 		defer file.Close()
 		if !info.IsDir() {
 			_, err = io.Copy(tw, file)
 			if err != nil {
-				return fmt.Errorf("Could not copy the file '%s' data to the tarball, got error '%s'", path, err.Error())
+				return fmt.Errorf("Could not copy the file '%s' data to the tarball, got error '%s'", srcPath, err.Error())
 			}
 		}
 	}
 	return nil
 }
 
-type tarHeaders []*tar.Header
-
 // TarPaths takes a list of paths and return a ReadCloser to the tar
 // archive. If an error occurs, the ReadCloser is closed with the error.
 func TarPaths(paths types.Paths) io.ReadCloser {
 	r, w := io.Pipe()
 	tw := tar.NewWriter(w)
-	tarHeaders := make(tarHeaders, 0)
+	graph := initGraph()
+
 	go func() {
 		defer w.Close()
+		// First, we build a graph representing all files that
+		// has to be added to the layer. This graph allows to
+		// transform the file tree without having to write
+		// anything to the tar stream.
 		for _, path := range paths {
 			options := path.Options
 			err := filepath.Walk(path.Path, func(path string, info os.FileInfo, err error) error {
 				if err != nil {
 					return fmt.Errorf("Failed accessing path %q: %v", path, err)
 				}
-				return appendFileToTar(tw, &tarHeaders, path, info, options)
+				logrus.Debugf("Walking filesystem: %s", path)
+				return addFileToGraph(graph, path, &info, options)
 			})
 			if err != nil {
 				if err := w.CloseWithError(err); err != nil {
@@ -192,27 +177,23 @@ func TarPaths(paths types.Paths) io.ReadCloser {
 			}
 		}
 
-		// We explicitly add all missing directories in the
-		// archive, for instance, the /nix and /nix/store
-		// directories. Note we have to do it once all files
-		// have been written to the tar stream because of
-		// Rewrite directives.
-		paths := []string{}
-		for _, hdr := range tarHeaders {
-			paths = append(paths, hdr.Name)
-		}
-		missingPaths := pathsNotInTar(paths)
-		logrus.Debugf("Adding to the tar missing directories: %v", missingPaths)
-		for _, path := range missingPaths {
-			if err := createDirectory(tw, path); err != nil {
-				if err := w.CloseWithError(err); err != nil {
-					return
-				}
+		// Once the graph of file has been built, it is walked
+		// in order to generate the tar stream.
+		err := walkGraph(graph, func(srcPath, dstPath string, info *os.FileInfo, options *types.PathOptions) error {
+			// This file is a directory
+			if info == nil {
+				return createDirectory(tw, dstPath)
+			}
+			return appendFileToTar(tw, srcPath, dstPath, *info, options)
+		})
+		if err != nil {
+			if err := w.CloseWithError(err); err != nil {
 				return
 			}
+			return
 		}
 
-		err := tw.Close()
+		err = tw.Close()
 		if err != nil {
 			if err := w.CloseWithError(err); err != nil {
 				return
