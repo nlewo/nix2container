@@ -1,4 +1,4 @@
-{ pkgs ? import <nixpkgs> { } }:
+{ pkgs ? import <nixpkgs> { }, system }:
 let
   l = pkgs.lib // builtins;
 
@@ -21,9 +21,14 @@ let
       );
     };
     vendorSha256 = "sha256-/j4ZHOwU5Xi8CE/fHha+2iZhsLd/y2ovzVhvg8HDV78=";
+    ldflags = pkgs.lib.optional pkgs.stdenv.isDarwin [
+      "-X github.com/nlewo/nix2container/nix.useNixCaseHack=true"
+    ];
+
   };
 
   skopeo-nix2container = pkgs.skopeo.overrideAttrs (old: {
+    EXTRA_LDFLAGS = pkgs.lib.optionalString pkgs.stdenv.isDarwin "-X github.com/nlewo/nix2container/nix.useNixCaseHack=true";
     preBuild = let
       patch = pkgs.fetchurl {
         url = "https://github.com/Mic92/image/commit/b3cb51066518ed2c6f6c8cf0cb4ae1e84f68b5ce.patch";
