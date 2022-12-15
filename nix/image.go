@@ -15,7 +15,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 
 	"github.com/containers/image/v5/manifest"
@@ -105,7 +104,7 @@ func NewImageFromFile(filename string) (image types.Image, err error) {
 		return image, err
 	}
 	defer file.Close()
-	content, err := ioutil.ReadAll(file)
+	content, err := io.ReadAll(file)
 	if err != nil {
 		return image, err
 	}
@@ -125,7 +124,7 @@ func NewImageFromDir(directory string) (image types.Image, err error) {
 		return image, err
 	}
 	defer manifestFile.Close()
-	content, err := ioutil.ReadAll(manifestFile)
+	content, err := io.ReadAll(manifestFile)
 	if err != nil {
 		return image, err
 	}
@@ -135,7 +134,7 @@ func NewImageFromDir(directory string) (image types.Image, err error) {
 		return image, err
 	}
 
-	content, err = ioutil.ReadFile(directory + "/" + v1Manifest.Config.Digest.Encoded())
+	content, err = os.ReadFile(directory + "/" + v1Manifest.Config.Digest.Encoded())
 	if err != nil {
 		return image, err
 	}

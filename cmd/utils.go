@@ -2,13 +2,13 @@ package cmd
 
 import (
 	"encoding/json"
-	"io/ioutil"
+	"os"
 
 	"github.com/nlewo/nix2container/types"
 )
 
 func readPermsFile(filename string) (permPaths []types.PermPath, err error) {
-	content, err := ioutil.ReadFile(filename)
+	content, err := os.ReadFile(filename)
 	if err != nil {
 		return permPaths, err
 	}
@@ -20,7 +20,7 @@ func readPermsFile(filename string) (permPaths []types.PermPath, err error) {
 }
 
 func readRewritesFile(filename string) (rewritePaths []types.RewritePath, err error) {
-	content, err := ioutil.ReadFile(filename)
+	content, err := os.ReadFile(filename)
 	if err != nil {
 		return rewritePaths, err
 	}

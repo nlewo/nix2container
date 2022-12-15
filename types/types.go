@@ -2,7 +2,7 @@ package types
 
 import (
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"os"
 
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
@@ -82,7 +82,7 @@ func NewLayersFromFile(filename string) ([]Layer, error) {
 		return nil, err
 	}
 	defer file.Close()
-	content, err := ioutil.ReadAll(file)
+	content, err := io.ReadAll(file)
 	if err != nil {
 		return nil, err
 	}

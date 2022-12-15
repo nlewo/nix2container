@@ -3,7 +3,6 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"runtime"
 
@@ -51,7 +50,7 @@ func imageFromDir(outputFilename, directory string) error {
 	if err != nil {
 		return err
 	}
-	err = ioutil.WriteFile(outputFilename, []byte(res), 0666)
+	err = os.WriteFile(outputFilename, []byte(res), 0666)
 	if err != nil {
 		return err
 	}
@@ -64,7 +63,7 @@ func image(outputFilename, imageConfigPath string, fromImageFilename string, lay
 	var image types.Image
 
 	logrus.Infof("Getting image configuration from %s", imageConfigPath)
-	imageConfigJson, err := ioutil.ReadFile(imageConfigPath)
+	imageConfigJson, err := os.ReadFile(imageConfigPath)
 	if err != nil {
 		return err
 	}
@@ -88,7 +87,7 @@ func image(outputFilename, imageConfigPath string, fromImageFilename string, lay
 	image.ImageConfig = imageConfig
 	for _, path := range layerPaths {
 		var layers []types.Layer
-		layerJson, err := ioutil.ReadFile(path)
+		layerJson, err := os.ReadFile(path)
 		if err != nil {
 			return err
 		}
@@ -103,7 +102,7 @@ func image(outputFilename, imageConfigPath string, fromImageFilename string, lay
 	if err != nil {
 		return err
 	}
-	err = ioutil.WriteFile(outputFilename, []byte(res), 0666)
+	err = os.WriteFile(outputFilename, []byte(res), 0666)
 	if err != nil {
 		return err
 	}
