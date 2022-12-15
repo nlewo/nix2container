@@ -17,6 +17,9 @@ nix2container.buildImage {
       # A user is required by nix
       # https://github.com/NixOS/nix/blob/9348f9291e5d9e4ba3c4347ea1b235640f54fd79/src/libutil/util.cc#L478
       "USER=nobody"
+      # When running in podman on the GitHub CI, Nix fails to find the
+      # user home dir for an unkonwn reason...
+      "HOME=/"
     ];
   };
   # This is to check store path in nested layers are also added to the
