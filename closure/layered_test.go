@@ -5,13 +5,16 @@ import (
 	"testing"
 )
 
-// A - B - C - D - F
-//  \   \   \
-//   \   \   \- E - F
-//    \   \
-//     \   \- E - F
-//      \
-//       \- G
+// The graph looks like:
+//
+// --- A - B - C - D - F
+//
+//	\   \   \
+//	 \   \   \- E - F
+//	  \   \
+//	   \   \- E - F
+//	    \
+//	     \- G
 func TestPopularities(t *testing.T) {
 	storepaths := []Storepath{
 		{

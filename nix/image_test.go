@@ -33,7 +33,7 @@ func TestNewImageFromDir(t *testing.T) {
 func TestGetV1Image(t *testing.T) {
 	image := types.Image{
 		Layers: []types.Layer{
-			types.Layer{
+			{
 				Digest:    "sha256:6123adfc04c22915c112368b802af161b921fbf7ef1c5f7283191ee552b46e27",
 				DiffIDs:   "sha256:6123adfc04c22915c112368b802af161b921fbf7ef1c5f7283191ee552b46e27",
 				Size:      10,
@@ -50,7 +50,7 @@ func TestGetV1Image(t *testing.T) {
 				"sha256:6123adfc04c22915c112368b802af161b921fbf7ef1c5f7283191ee552b46e27"},
 		},
 		History: []v1.History{
-			v1.History{
+			{
 				CreatedBy: "nix2container",
 			},
 		},
