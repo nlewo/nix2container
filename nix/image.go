@@ -83,6 +83,15 @@ func getV1Image(image types.Image) (imageV1 v1.Image, err error) {
 		imageV1.RootFS.DiffIDs = append(
 			imageV1.RootFS.DiffIDs,
 			digest)
+		imageV1.History = append(
+			imageV1.History,
+			v1.History{
+				// Even if optional in the spec, we
+				// need to add an history otherwise
+				// some toolings can complain:
+				// https://github.com/nlewo/nix2container/issues/57
+				CreatedBy: "nix2container",
+			})
 	}
 	return
 }
