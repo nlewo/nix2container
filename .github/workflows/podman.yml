@@ -10,4 +10,7 @@ jobs:
     steps:
     - uses: actions/checkout@v2.4.0
     - uses: cachix/install-nix-action@v15
-    - run: nix run -L '.#tests.all'
+    - run: |
+        # See https://github.com/containers/podman/issues/5114#issuecomment-779406347
+        rm -rf ~/.local/share/containers/
+        nix run -L '.#tests.all'

@@ -2,7 +2,7 @@ package closure
 
 import (
 	"encoding/json"
-	"io/ioutil"
+	"os"
 )
 
 type Storepath struct {
@@ -11,7 +11,7 @@ type Storepath struct {
 }
 
 func ReadClosureGraphFile(filename string) (storepaths []Storepath, err error) {
-	content, err := ioutil.ReadFile(filename)
+	content, err := os.ReadFile(filename)
 	if err != nil {
 		return
 	}

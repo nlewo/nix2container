@@ -4,7 +4,6 @@ import (
 	"archive/tar"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -16,7 +15,7 @@ import (
 )
 
 func TarPathsWrite(paths types.Paths, destinationDirectory string) (string, digest.Digest, int64, error) {
-	f, err := ioutil.TempFile(destinationDirectory, "")
+	f, err := os.CreateTemp(destinationDirectory, "")
 	if err != nil {
 		return "", "", 0, err
 	}

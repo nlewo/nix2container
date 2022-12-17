@@ -12,6 +12,9 @@ let
     ret=$?
     if [ $ret -ne 0 ];
     then
+      echo "image list"
+      ${pkgs.podman}/bin/podman image list
+      echo ""
       echo "Actual output:"
       ${pkgs.podman}/bin/podman run ${image.imageName}:${image.imageTag} ${command}
       echo
@@ -133,7 +136,10 @@ let
     };
   };
   all =
-    let scripts = pkgs.lib.concatMapStringsSep "\n" (s: "${s}/bin/test-script") (builtins.attrValues tests);
+    let scripts =
+      pkgs.lib.concatStringsSep
+      "\n"
+      (pkgs.lib.mapAttrsToList (n: v: "echo Running test '${n}'\n${v}/bin/test-script") tests);
     in pkgs.writeScriptBin "all-test-scripts" ''
       set -e
       ${scripts}

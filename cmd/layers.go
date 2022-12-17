@@ -10,7 +10,6 @@ import (
 	_ "crypto/sha512"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 
 	"github.com/nlewo/nix2container/closure"
@@ -131,7 +130,7 @@ func layersToJson(outputFilename string, layers []types.Layer) error {
 	if err != nil {
 		return err
 	}
-	err = ioutil.WriteFile(outputFilename, []byte(res), 0666)
+	err = os.WriteFile(outputFilename, []byte(res), 0666)
 	if err != nil {
 		return err
 	}
