@@ -48,8 +48,7 @@ let
 
   copyToDockerDaemon = image: pkgs.writeShellScriptBin "copy-to-docker-daemon" ''
     echo "Copy to Docker daemon image ${image.imageName}:${image.imageTag}"
-    ${skopeo-nix2container}/bin/skopeo --insecure-policy copy nix:${image} docker-daemon:${image.imageName}:${image.imageTag}
-    ${skopeo-nix2container}/bin/skopeo --insecure-policy inspect docker-daemon:${image.imageName}:${image.imageTag}
+    ${skopeo-nix2container}/bin/skopeo --insecure-policy copy nix:${image} docker-daemon:${image.imageName}:${image.imageTag} $@
   '';
 
   copyToRegistry = image: pkgs.writeShellScriptBin "copy-to-registry" ''
