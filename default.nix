@@ -282,6 +282,7 @@ let
     nixGid ? 0,
     # Deprecated: will be removed on v1
     contents ? null,
+    meta ? {},
   }:
     let
       configFile = pkgs.writeText "config.json" (l.toJSON config);
@@ -329,7 +330,7 @@ let
           l.head (l.strings.splitString "-" (baseNameOf image.outPath));
       in pkgs.runCommand "image-${baseNameOf name}.json"
       {
-        inherit imageName;
+        inherit imageName meta;
         passthru = {
           inherit imageTag;
           # provide a cheap to evaluate image reference for use with external tools like docker
