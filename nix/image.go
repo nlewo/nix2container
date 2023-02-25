@@ -160,8 +160,14 @@ func NewImageFromDir(directory string) (image types.Image, err error) {
 			layer.MediaType = v1.MediaTypeImageLayer
 		case "application/vnd.docker.image.rootfs.diff.tar.gzip":
 			layer.MediaType = v1.MediaTypeImageLayerGzip
+		case "application/vnd.oci.image.layer.v1.tar":
+			layer.MediaType = l.MediaType
+		case "application/vnd.oci.image.layer.v1.tar+gzip":
+			layer.MediaType = l.MediaType
+		case "application/vnd.oci.image.layer.v1.tar+zstd":
+			layer.MediaType = l.MediaType
 		default:
-			return image, fmt.Errorf("Unknown media type: %q", l.MediaType)
+			return image, fmt.Errorf("Unsupported media type: %q", l.MediaType)
 		}
 		image.Layers = append(image.Layers, layer)
 	}
