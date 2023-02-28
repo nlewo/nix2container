@@ -62,6 +62,8 @@ func image(outputFilename, imageConfigPath string, fromImageFilename string, lay
 	var imageConfig v1.ImageConfig
 	var image types.Image
 
+	image.Version = types.ImageVersion
+
 	logrus.Infof("Getting image configuration from %s", imageConfigPath)
 	imageConfigJson, err := os.ReadFile(imageConfigPath)
 	if err != nil {

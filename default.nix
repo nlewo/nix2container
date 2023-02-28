@@ -2,10 +2,9 @@
 let
   l = pkgs.lib // builtins;
 
-  nix2containerUtil = pkgs.buildGoModule rec {
+  nix2container-bin = pkgs.buildGoModule rec {
     pname = "nix2container";
-    version = "0.0.1";
-    doCheck = false;
+    version = "1.0.0";
     src = l.cleanSourceWith {
       src = ./.;
       filter = path: type:
@@ -24,20 +23,19 @@ let
     ldflags = pkgs.lib.optional pkgs.stdenv.isDarwin [
       "-X github.com/nlewo/nix2container/nix.useNixCaseHack=true"
     ];
-
   };
 
   skopeo-nix2container = pkgs.skopeo.overrideAttrs (old: {
     EXTRA_LDFLAGS = pkgs.lib.optionalString pkgs.stdenv.isDarwin "-X github.com/nlewo/nix2container/nix.useNixCaseHack=true";
     preBuild = let
       patch = pkgs.fetchurl {
-        url = "https://github.com/Mic92/image/commit/b3cb51066518ed2c6f6c8cf0cb4ae1e84f68b5ce.patch";
-        sha256 = "sha256-GkBVoXUVQbZb8/dYJAbCsUJLDAZ/ORiMg8svACAyrwk=";
+        url = "https://github.com/nlewo/image/commit/c2254c998433cf02af60bf0292042bd80b96a77e.patch";
+        sha256 = "sha256-dKEObfZY2fdsza/kObCLhv4l2snuzAbpDi4fGmtTPUQ=";
 
       };
     in ''
       mkdir -p vendor/github.com/nlewo/nix2container/
-      cp -r ${nix2containerUtil.src}/* vendor/github.com/nlewo/nix2container/
+      cp -r ${nix2container-bin.src}/* vendor/github.com/nlewo/nix2container/
       cd vendor/github.com/containers/image/v5
       mkdir nix/
       touch nix/transport.go
@@ -128,7 +126,7 @@ let
         | cat  # pipe through cat to force-disable progress bar
       '';
     in pkgs.runCommand "nix2container-${imageName}.json" { } ''
-      ${nix2containerUtil}/bin/nix2container image-from-dir $out ${dir}
+      ${nix2container-bin}/bin/nix2container image-from-dir $out ${dir}
     '';
 
   buildLayer = {
@@ -193,7 +191,7 @@ let
     tarDirectory = l.optionalString (! reproducible) "--tar-directory $out";
     layersJSON = pkgs.runCommand "layers.json" {} ''
       mkdir $out
-      ${nix2containerUtil}/bin/nix2container ${subcommand} \
+      ${nix2container-bin}/bin/nix2container ${subcommand} \
         $out/layers.json \
         ${closureGraph allDeps} \
         --max-layers ${toString maxLayers} \
@@ -280,7 +278,7 @@ let
     # controlled using nixUid/nixGid.
     nixUid ? 0,
     nixGid ? 0,
-    # Deprecated: will be removed on v1
+    # Deprecated: will be removed
     contents ? null,
     meta ? {},
   }:
@@ -344,7 +342,7 @@ let
         };
       }
       ''
-        ${nix2containerUtil}/bin/nix2container image \
+        ${nix2container-bin}/bin/nix2container image \
         $out \
         ${fromImageFlag} \
         ${configFile} \
@@ -360,6 +358,6 @@ let
         ;
 in
 {
-  inherit nix2containerUtil skopeo-nix2container;
+  inherit nix2container-bin skopeo-nix2container;
   nix2container = { inherit buildImage buildLayer pullImage; };
 }

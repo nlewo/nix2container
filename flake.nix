@@ -1,5 +1,5 @@
 {
-  description = "nix2container";
+  description = "nix2container: build container image with Nix";
 
   inputs.flake-utils.url = "github:numtide/flake-utils";
   inputs.nixpkgs.url = "github:NixOS/nixpkgs";
@@ -22,9 +22,9 @@
       in
         rec {
           packages = {
-            inherit (nix2container) nix2containerUtil skopeo-nix2container nix2container;
+            inherit (nix2container) nix2container-bin skopeo-nix2container nix2container;
             inherit examples tests;
           };
-          defaultPackage = packages.nix2containerUtil;
+          defaultPackage = packages.nix2container-bin;
         });
 }
