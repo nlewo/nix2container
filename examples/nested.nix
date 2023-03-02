@@ -8,7 +8,7 @@ nix2container.buildImage {
     deps = [pkgs.bashInteractive];
     layers = [
       (nix2container.buildLayer {
-        deps = [pkgs.readline81];
+        deps = [pkgs.readline];
       })
     ];
   })];

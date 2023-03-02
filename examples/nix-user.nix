@@ -63,7 +63,9 @@ nix2container.buildImage {
   }];
 
   config = {
-    entrypoint = [ "${entrypoint}/bin/entrypoint" ];
+    Entrypoint = [ "${entrypoint}/bin/entrypoint" ];
+    User = "user";
+    WorkingDir = "/home/user";
     Env = [
       "HOME=/home/user"
       "NIX_PAGER=cat"

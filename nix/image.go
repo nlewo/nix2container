@@ -119,6 +119,8 @@ func NewImageFromFile(filename string) (image types.Image, err error) {
 // the Skopeo dir transport. The directory needs to be a absolute
 // path since tarball filepaths are referenced in the image Layers.
 func NewImageFromDir(directory string) (image types.Image, err error) {
+	image.Version = types.ImageVersion
+
 	manifestFile, err := os.Open(directory + "/manifest.json")
 	if err != nil {
 		return image, err

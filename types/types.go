@@ -8,7 +8,13 @@ import (
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
+const ImageVersion = 1
+
+// Image represent the JSON image file produced by nix2container. This
+// JSON file can then be used by the Skopeo Nix transport to actually
+// build the container image.
 type Image struct {
+	Version     int            `json:"version"`
 	ImageConfig v1.ImageConfig `json:"image-config"`
 	Layers      []Layer        `json:"layers"`
 	Arch        string         `json:"arch"`

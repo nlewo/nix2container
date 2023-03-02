@@ -1,7 +1,5 @@
 # nix2container
 
-**warning: nix2container is in early development stages and interfaces are not stable**
-
 nix2container provides an efficient container development workflow
 with images built by Nix: it doesn't write tarballs to the Nix store
 and allows to skip already pushed layers (without having to rebuild
@@ -138,6 +136,27 @@ Function arguments are:
 - **`arch`** (defaults to `x86_64`)
 
 - **`tlsVerify`** (defaults to `true`)
+
+
+#### Authentication
+
+If the Nix daemon is used for building, here is how to set up registry
+authentication.
+
+1. `docker login URL` to whatever it is
+2. Copy `~/.docker/config.json` to `/etc/nix/skopeo/auth.json`
+3. Make the directory and all the files readable to the `nixbld` group:
+   ```
+   sudo chmod -R g+rx /etc/nix/skopeo
+   sudo chgrp -R nixbld /etc/nix/skopeo
+   ```
+4. Bind mount the file into the Nix build sandbox
+   ```
+   extra-sandbox-paths = /etc/skopeo/auth.json=/etc/nix/skopeo/auth.json
+   ```
+
+Every time a new registry authentication has to be added, update
+`/etc/nix/skopeo/auth.json` file.
 
 
 ### `nix2container.buildLayer`
