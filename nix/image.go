@@ -82,6 +82,7 @@ func getV1Image(image types.Image) (imageV1 v1.Image, err error) {
 		imageV1.RootFS.DiffIDs = append(
 			imageV1.RootFS.DiffIDs,
 			digest)
+		imageV1.RootFS.Type = "layers"
 		imageV1.History = append(
 			imageV1.History,
 			v1.History{
