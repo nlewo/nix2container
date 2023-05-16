@@ -55,7 +55,7 @@ let
   '';
 
   copyTo = image: pkgs.writeShellScriptBin "copy-to" ''
-    echo Running skopeo --insecure-policy copy nix:${image} $@
+    echo Running skopeo --insecure-policy copy nix:${image} '$@'
     ${skopeo-nix2container}/bin/skopeo --insecure-policy copy nix:${image} $@
   '';
 
