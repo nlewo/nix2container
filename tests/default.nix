@@ -54,6 +54,10 @@ let
       image = examples.fromImage;
       pattern = "/etc/alpine-release$";
     };
+    fromImageManifest = testScript {
+      image = examples.fromImageManifest;
+      pattern = "/etc/alpine-release$";
+    };
     layered = testScript {
       image = examples.layered;
       pattern = "Hello, world";

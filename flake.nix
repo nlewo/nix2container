@@ -13,7 +13,7 @@
         };
         examples = import ./examples {
           inherit pkgs;
-          inherit (nix2container) nix2container;
+          inherit (nix2container) nix2container skopeo-nix2container;
         };
         tests = import ./tests {
           inherit pkgs examples;

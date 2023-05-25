@@ -129,6 +129,49 @@ let
       ${nix2container-bin}/bin/nix2container image-from-dir $out ${dir}
     '';
 
+  pullImageByManifest =
+    { imagePath
+    , imageManifest
+    , tlsVerify ? true
+    , registryApiUrl ? "registry.hub.docker.com/v2"
+    }: let
+      manifest = l.fromJSON (l.readFile imageManifest);
+
+      buildImageBlob = digest:
+        let
+          blobUrl = "https://${registryApiUrl}/${imagePath}/blobs/${digest}";
+          plainDigest = l.replaceStrings ["sha256:"] [""] digest;
+          insecureFlag = l.strings.optionalString (!tlsVerify) "--insecure";
+        in (pkgs.runCommand plainDigest {} ''
+          SSL_CERT_FILE="${pkgs.cacert.out}/etc/ssl/certs/ca-bundle.crt";
+
+          # This initial access is expected to fail as we don't have a token.
+          ${pkgs.curl}/bin/curl ${insecureFlag} "${blobUrl}" --head --silent --write-out '%header{www-authenticate}' --output /dev/null > bearer.txt
+          tokenUrl=$(sed -n 's/Bearer realm="\(.*\)",service="\(.*\)",scope="\(.*\)"/\1?service=\2\&scope=\3/p' bearer.txt)
+
+          echo "Token URL: $tokenUrl"
+          ${pkgs.curl}/bin/curl ${insecureFlag} --fail --silent "$tokenUrl" --output token.json
+          token="$(${pkgs.jq}/bin/jq --raw-output .token token.json)"
+
+          echo "Blob URL: ${blobUrl}"
+          ${pkgs.curl}/bin/curl ${insecureFlag} --fail -H "Authorization: Bearer $token" "${blobUrl}" --location --output $out
+        '').overrideAttrs(_: {
+          outputHash = plainDigest;
+          outputHashMode = "flat";
+          outputHashAlgo = "sha256";
+        });
+
+      # Pull the blobs (archives) for all layers, as well as the one for the image's config JSON.
+      layerBlobs = map (layerManifest: buildImageBlob layerManifest.digest) manifest.layers;
+      configBlob = buildImageBlob manifest.config.digest;
+
+      # Write the blob map out to a JSON file for the GO executable to consume.
+      blobMap = l.listToAttrs(map (drv: { name = drv.name; value = drv; }) (layerBlobs ++ [configBlob]));
+      blobMapFile = pkgs.writeText "${imagePath}-blobs.json" (l.toJSON blobMap);
+    in pkgs.runCommand "nix2container-${imagePath}.json" { } ''
+      ${nix2container-bin}/bin/nix2container image-from-manifest $out ${imageManifest} ${blobMapFile}
+    '';
+
   buildLayer = {
     # A list of store paths to include in the layer.
     deps ? [],
@@ -359,5 +402,5 @@ let
 in
 {
   inherit nix2container-bin skopeo-nix2container;
-  nix2container = { inherit buildImage buildLayer pullImage; };
+  nix2container = { inherit buildImage buildLayer pullImage pullImageByManifest; };
 }
