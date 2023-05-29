@@ -1,7 +1,7 @@
 { pkgs, nix2container }: let
   alpine = nix2container.pullImageByManifest {
-    imagePath = "library/alpine";
-    # nix run .#examples.update-manifests to update this to the latest.
+    imageName = "library/alpine";
+    # nix run .#examples.fromImageManifest.fromImage.getManifest > examples/alpine-manifest.json
     imageManifest = ./alpine-manifest.json;
   };
 in

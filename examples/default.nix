@@ -1,4 +1,4 @@
-{ pkgs, nix2container, skopeo-nix2container }: {
+{ pkgs, nix2container }: {
   hello = pkgs.callPackage ./hello.nix { inherit nix2container; };
   nginx = pkgs.callPackage ./nginx.nix { inherit nix2container; };
   bash = pkgs.callPackage ./bash.nix { inherit nix2container; };
@@ -13,15 +13,4 @@
   nix = pkgs.callPackage ./nix.nix { inherit nix2container; };
   nix-user = pkgs.callPackage ./nix-user.nix { inherit nix2container; };
   ownership = pkgs.callPackage ./ownership.nix { inherit nix2container; };
-
-  update-manifests = let
-    image = "library/alpine";
-    skopeo = "${skopeo-nix2container}/bin/skopeo";
-    jq = "${pkgs.jq}/bin/jq";
-    filter = ''.manifests[] | select((.platform.os=="linux") and (.platform.architecture=="amd64")) | .digest'';
-  in pkgs.writeShellScriptBin "update-manifests" ''
-    set -e
-    hash=$(${skopeo} inspect docker://${image} --raw | ${jq} -r '${filter}')
-    ${skopeo} inspect docker://${image}@$hash --raw | ${jq} > examples/alpine-manifest.json
-  '';
 }

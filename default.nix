@@ -130,19 +130,29 @@ let
     '';
 
   pullImageByManifest =
-    { imagePath
+    { imageName
     , imageManifest
+    # The manifest dictates what is pulled; these three are only used for
+    # the supplied manifest-updating scripts.
+    , imageTag ? "latest"
+    , os ? "linux"
+    , arch ? pkgs.go.GOARCH
     , tlsVerify ? true
     , registryApiUrl ? "registry.hub.docker.com/v2"
+    , meta ? {}
     }: let
       manifest = l.fromJSON (l.readFile imageManifest);
 
       buildImageBlob = digest:
         let
-          blobUrl = "https://${registryApiUrl}/${imagePath}/blobs/${digest}";
+          blobUrl = "https://${registryApiUrl}/${imageName}/blobs/${digest}";
           plainDigest = l.replaceStrings ["sha256:"] [""] digest;
           insecureFlag = l.strings.optionalString (!tlsVerify) "--insecure";
-        in (pkgs.runCommand plainDigest {} ''
+        in pkgs.runCommand plainDigest {
+          outputHash = plainDigest;
+          outputHashMode = "flat";
+          outputHashAlgo = "sha256";
+        } ''
           SSL_CERT_FILE="${pkgs.cacert.out}/etc/ssl/certs/ca-bundle.crt";
 
           # This initial access is expected to fail as we don't have a token.
@@ -155,11 +165,7 @@ let
 
           echo "Blob URL: ${blobUrl}"
           ${pkgs.curl}/bin/curl ${insecureFlag} --fail -H "Authorization: Bearer $token" "${blobUrl}" --location --output $out
-        '').overrideAttrs(_: {
-          outputHash = plainDigest;
-          outputHashMode = "flat";
-          outputHashAlgo = "sha256";
-        });
+        '';
 
       # Pull the blobs (archives) for all layers, as well as the one for the image's config JSON.
       layerBlobs = map (layerManifest: buildImageBlob layerManifest.digest) manifest.layers;
@@ -167,8 +173,24 @@ let
 
       # Write the blob map out to a JSON file for the GO executable to consume.
       blobMap = l.listToAttrs(map (drv: { name = drv.name; value = drv; }) (layerBlobs ++ [configBlob]));
-      blobMapFile = pkgs.writeText "${imagePath}-blobs.json" (l.toJSON blobMap);
-    in pkgs.runCommand "nix2container-${imagePath}.json" { } ''
+      blobMapFile = pkgs.writeText "${imageName}-blobs.json" (l.toJSON blobMap);
+
+      # Convenience scripts for manifest-updating.
+      filter = ''.manifests[] | select((.platform.os=="${os}") and (.platform.architecture=="${arch}")) | .digest'';
+      getManifest = pkgs.writeShellApplication {
+        name = "get-manifest";
+        runtimeInputs = [ pkgs.jq skopeo-nix2container ];
+        text = ''
+          set -e
+          hash=$(skopeo inspect docker://${imageName} --raw | jq -r '${filter}')
+          skopeo inspect "docker://${imageName}@$hash" --raw | jq
+        '';
+      };
+      updateManifest = pkgs.writeShellScriptBin "update-manifest" ''
+        ${getManifest}/bin/get-manifest > ?????
+      '';
+
+    in pkgs.runCommand "nix2container-${imageName}.json" { inherit getManifest updateManifest; } ''
       ${nix2container-bin}/bin/nix2container image-from-manifest $out ${imageManifest} ${blobMapFile}
     '';
 
@@ -373,7 +395,7 @@ let
       {
         inherit imageName meta;
         passthru = {
-          inherit imageTag;
+          inherit fromImage imageTag;
           # provide a cheap to evaluate image reference for use with external tools like docker
           # DO NOT use as an input to other derivations, as there is no guarantee that the image
           # reference will exist in the store.
