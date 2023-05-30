@@ -138,14 +138,14 @@ let
     , os ? "linux"
     , arch ? pkgs.go.GOARCH
     , tlsVerify ? true
-    , registryApiUrl ? "registry.hub.docker.com/v2"
+    , registryUrl ? "registry.hub.docker.com"
     , meta ? {}
     }: let
       manifest = l.fromJSON (l.readFile imageManifest);
 
       buildImageBlob = digest:
         let
-          blobUrl = "https://${registryApiUrl}/${imageName}/blobs/${digest}";
+          blobUrl = "https://${registryUrl}/v2/${imageName}/blobs/${digest}";
           plainDigest = l.replaceStrings ["sha256:"] [""] digest;
           insecureFlag = l.strings.optionalString (!tlsVerify) "--insecure";
         in pkgs.runCommand plainDigest {
@@ -182,8 +182,15 @@ let
         runtimeInputs = [ pkgs.jq skopeo-nix2container ];
         text = ''
           set -e
-          hash=$(skopeo inspect docker://${imageName} --raw | jq -r '${filter}')
-          skopeo inspect "docker://${imageName}@$hash" --raw | jq
+          manifest=$(skopeo inspect docker://${registryUrl}/${imageName}:${imageTag} --raw | jq)
+          if echo "$manifest" | jq -e .manifests >/dev/null; then
+            # Multi-arch image, pick the one that matches the supplied platform details.
+            hash=$(echo "$manifest" | jq -r '${filter}')
+            skopeo inspect "docker://${registryUrl}/${imageName}@$hash" --raw | jq
+          else
+            # Single-arch image, return the initial response.
+            echo "$manifest"
+          fi
         '';
       };
       updateManifest = pkgs.writeShellScriptBin "update-manifest" ''

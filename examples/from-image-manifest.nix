@@ -2,6 +2,8 @@
   alpine = nix2container.pullImageByManifest {
     imageName = "library/alpine";
     # nix run .#examples.fromImageManifest.fromImage.getManifest > examples/alpine-manifest.json
+    os = "linux";
+    arch = "amd64";
     imageManifest = ./alpine-manifest.json;
   };
 in
