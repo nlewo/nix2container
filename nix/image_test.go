@@ -48,6 +48,7 @@ func TestGetV1Image(t *testing.T) {
 		RootFS: v1.RootFS{
 			DiffIDs: []digest.Digest{
 				"sha256:6123adfc04c22915c112368b802af161b921fbf7ef1c5f7283191ee552b46e27"},
+			Type: "layers",
 		},
 		History: []v1.History{
 			{
