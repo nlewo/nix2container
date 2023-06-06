@@ -86,7 +86,8 @@ Function arguments are:
     ```
 
 - **`fromImage`** (defaults to `null`): an image that is used as base
-    image of this image.
+    image of this image; use `pullImage` or `pullImageByManifest` to
+    supply this.
 
 - **`maxLayers`** (defaults to `1`): the maximum number of layers to
     create. This is based on the store path "popularity" as described
@@ -136,6 +137,32 @@ Function arguments are:
 - **`arch`** (defaults to `x86_64`)
 
 - **`tlsVerify`** (defaults to `true`)
+
+
+### `nix2container.pullImageByManifest`
+
+Function arguments are:
+
+- **`imageName`** (required): the name of the image to pull.
+
+- **`imageManifest`** (required): the manifest file of the image to pull.
+
+- **`imageTag`** (defaults to `latest`)
+
+- **`os`** (defaults to `linux`)
+
+- **`arch`** (defaults to `x86_64`)
+
+- **`tlsVerify`** (defaults to `true`)
+
+- **`registryUrl`** (defaults to `registry.hub.docker.com`)
+
+Note that `imageTag`, `os`, and `arch` do not affect the pulled image; that is
+governed entirely by the supplied `manifest.json` file. These arguments are
+used for the manifest-selection logic in the included `getManifest` script.
+
+In this usage, the `manifest.json` functions as a lockfile meant to be stored
+in source control alongside the Nix container definitions.
 
 
 #### Authentication
