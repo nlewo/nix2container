@@ -1,10 +1,14 @@
 { pkgs, nix2container }: let
+  # nix run .#examples.fromImageManifest.fromImage.getManifest > examples/alpine-manifest.json
   alpine = nix2container.pullImageByManifest {
     imageName = "library/alpine";
-    # nix run .#examples.fromImageManifest.fromImage.getManifest > examples/alpine-manifest.json
+    imageManifest = ./alpine-manifest.json;
+
+    # These attributes aren't checked against the manifest; they are only
+    # used to populate the supplied getManifest script.
+    imageTag = "latest";
     os = "linux";
     arch = "amd64";
-    imageManifest = ./alpine-manifest.json;
   };
 in
 nix2container.buildImage {

@@ -131,9 +131,9 @@ let
 
   pullImageByManifest =
     { imageName
-    , imageManifest
+    , imageManifest ? null
     # The manifest dictates what is pulled; these three are only used for
-    # the supplied manifest-updating scripts.
+    # the supplied manifest-pulling script.
     , imageTag ? "latest"
     , os ? "linux"
     , arch ? pkgs.go.GOARCH
@@ -194,7 +194,7 @@ let
         '';
       };
 
-    in pkgs.runCommand "nix2container-${imageName}.json" { inherit getManifest; } ''
+    in pkgs.runCommand "nix2container-${imageName}.json" { passthru = { inherit getManifest; }; } ''
       ${nix2container-bin}/bin/nix2container image-from-manifest $out ${imageManifest} ${blobMapFile}
     '';
 

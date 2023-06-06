@@ -129,7 +129,6 @@ let
       # The file test2.txt should not have 777 perms
       pattern = "^-r--r--r-- 1 0 0 0 Jan  1  1970 test2.txt";
     };
-
     copyToRoot = testScript {
       image = nix2container.buildImage {
         name = "copy-to-root";
@@ -138,7 +137,18 @@ let
       };
       pattern = "Hello, world!";
     };
-  };
+  } //
+  (pkgs.lib.mapAttrs' (name: drv: {
+    name = "${name}GetManifest";
+    value = pkgs.writeScriptBin "test-script" ''
+      set -e
+      # Don't pipe directly here, as we don't want to swallow a return code.
+      manifest=$(${drv.getManifest}/bin/get-manifest)
+      echo "$manifest" | ${pkgs.jq}/bin/jq -e 'has("layers")' > /dev/null
+      echo "Test Passed"
+    '';
+  }) examples.getManifest.images);
+
   all =
     let scripts =
       pkgs.lib.concatStringsSep
