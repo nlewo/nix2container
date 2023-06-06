@@ -193,11 +193,8 @@ let
           fi
         '';
       };
-      updateManifest = pkgs.writeShellScriptBin "update-manifest" ''
-        ${getManifest}/bin/get-manifest > ?????
-      '';
 
-    in pkgs.runCommand "nix2container-${imageName}.json" { inherit getManifest updateManifest; } ''
+    in pkgs.runCommand "nix2container-${imageName}.json" { inherit getManifest; } ''
       ${nix2container-bin}/bin/nix2container image-from-manifest $out ${imageManifest} ${blobMapFile}
     '';
 
