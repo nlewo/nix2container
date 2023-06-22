@@ -72,7 +72,9 @@ func addFileToGraph(root *fileNode, path string, info *os.FileInfo, options *typ
 			return fmt.Errorf("The file '%s' already exists in the graph with mode '%v' from '%s' while it is added again with mode '%v' by '%s'",
 				dstPath, (*current.info).Mode(), current.srcPath, (*info).Mode(), path)
 		}
-		if (*current.info).Size() != (*info).Size() {
+		// .Size() is only meaningful for regular files
+		// See https://pkg.go.dev/io/fs#FileInfo
+		if (*current.info).Mode().IsRegular() && (*current.info).Size() != (*info).Size() {
 			return fmt.Errorf("The file '%s' already exists in the graph with size '%d' from '%s' while it is added again with size '%d' by '%s'",
 				dstPath, (*current.info).Size(), current.srcPath, (*info).Size(), path)
 		}
