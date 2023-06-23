@@ -124,6 +124,10 @@ Function arguments are:
 
 ### `nix2container.pullImage`
 
+Pull an image from a container registry by name and tag/digest, storing the
+entirety of the image (manifest and layer tarballs) in a single store path.
+The supplied `sha256` is the narhash of that store path.
+
 Function arguments are:
 
 - **`imageName`** (required): the name of the image to pull.
@@ -140,6 +144,18 @@ Function arguments are:
 
 
 ### `nix2container.pullImageByManifest`
+
+Pull a base image from a container registry using a supplied manifest file, and the
+hashes contained within it. The advantages of this over the basic `pullImage`:
+
+- Each layer archive is in its own store path, which means each will download just once
+  and naturally deduplicate for multiple base images that share layers.
+- There is no Nix-specific hash, so it's possible update the base image by simply
+  re-fetching the `manifest.json` from the registry; no need to actually pull the whole
+  image just to compute a new narhash for it.
+
+With this function the `manifest.json` functions as a lockfile meant to be stored in
+source control alongside the Nix container definitions.
 
 Function arguments are:
 
@@ -160,9 +176,6 @@ Function arguments are:
 Note that `imageTag`, `os`, and `arch` do not affect the pulled image; that is
 governed entirely by the supplied `manifest.json` file. These arguments are
 used for the manifest-selection logic in the included `getManifest` script.
-
-In this usage, the `manifest.json` functions as a lockfile meant to be stored
-in source control alongside the Nix container definitions.
 
 
 #### Authentication
