@@ -129,7 +129,7 @@ let
       ${nix2container-bin}/bin/nix2container image-from-dir $out ${dir}
     '';
 
-  pullImageByManifest =
+  pullImageFromManifest =
     { imageName
     , imageManifest ? null
     # The manifest dictates what is pulled; these three are only used for
@@ -428,5 +428,5 @@ let
 in
 {
   inherit nix2container-bin skopeo-nix2container;
-  nix2container = { inherit buildImage buildLayer pullImage pullImageByManifest; };
+  nix2container = { inherit buildImage buildLayer pullImage pullImageFromManifest; };
 }

@@ -1,6 +1,6 @@
 { pkgs, nix2container }: let
   # nix run .#examples.fromImageManifest.fromImage.getManifest > examples/alpine-manifest.json
-  alpine = nix2container.pullImageByManifest {
+  alpine = nix2container.pullImageFromManifest {
     imageName = "library/alpine";
     imageManifest = ./alpine-manifest.json;
 

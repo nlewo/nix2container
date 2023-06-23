@@ -86,7 +86,7 @@ Function arguments are:
     ```
 
 - **`fromImage`** (defaults to `null`): an image that is used as base
-    image of this image; use `pullImage` or `pullImageByManifest` to
+    image of this image; use `pullImage` or `pullImageFromManifest` to
     supply this.
 
 - **`maxLayers`** (defaults to `1`): the maximum number of layers to
@@ -143,7 +143,7 @@ Function arguments are:
 - **`tlsVerify`** (defaults to `true`)
 
 
-### `nix2container.pullImageByManifest`
+### `nix2container.pullImageFromManifest`
 
 Pull a base image from a container registry using a supplied manifest file, and the
 hashes contained within it. The advantages of this over the basic `pullImage`:
