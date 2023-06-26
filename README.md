@@ -155,7 +155,7 @@ hashes contained within it. The advantages of this over the basic `pullImage`:
   re-fetching the `manifest.json` from the registry; no need to actually pull the whole
   image just to compute a new narhash for it.
 
-With this function the `manifest.json` functions as a lockfile meant to be stored in
+With this function the `manifest.json` acts as a lockfile meant to be stored in
 source control alongside the Nix container definitions. As a convenience, the manifest
 can be fetched/updated using the supplied passthru script, eg:
 
