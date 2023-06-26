@@ -49,6 +49,7 @@ $ podman run -it bash
 
 - [`bash`](./examples/bash.nix): Bash in `/bin/`
 - [`fromImage`](./examples/from-image.nix): Alpine as base image
+- [`fromImageManifest`](./examples/from-image-manifest.nix): Alpine as base image, from a stored `manifest.json`.
 - [`nginx`](./examples/nginx.nix)
 - [`nonReproducible`](./examples/non-reproducible.nix): with a non reproducible store path :/
 - [`openbar`](./examples/openbar.nix): set permissions on files (without root nor VM)
