@@ -155,7 +155,12 @@ hashes contained within it. The advantages of this over the basic `pullImage`:
   image just to compute a new narhash for it.
 
 With this function the `manifest.json` functions as a lockfile meant to be stored in
-source control alongside the Nix container definitions.
+source control alongside the Nix container definitions. As a convenience, the manifest
+can be fetched/updated using the supplied passthru script, eg:
+
+```
+nix run .#examples.fromImageManifest.fromImage.getManifest > examples/alpine-manifest.json
+```
 
 Function arguments are:
 
