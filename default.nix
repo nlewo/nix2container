@@ -129,6 +129,75 @@ let
       ${nix2container-bin}/bin/nix2container image-from-dir $out ${dir}
     '';
 
+  pullImageFromManifest =
+    { imageName
+    , imageManifest ? null
+    # The manifest dictates what is pulled; these three are only used for
+    # the supplied manifest-pulling script.
+    , imageTag ? "latest"
+    , os ? "linux"
+    , arch ? pkgs.go.GOARCH
+    , tlsVerify ? true
+    , registryUrl ? "registry.hub.docker.com"
+    , meta ? {}
+    }: let
+      manifest = l.fromJSON (l.readFile imageManifest);
+
+      buildImageBlob = digest:
+        let
+          blobUrl = "https://${registryUrl}/v2/${imageName}/blobs/${digest}";
+          plainDigest = l.replaceStrings ["sha256:"] [""] digest;
+          insecureFlag = l.strings.optionalString (!tlsVerify) "--insecure";
+        in pkgs.runCommand plainDigest {
+          outputHash = plainDigest;
+          outputHashMode = "flat";
+          outputHashAlgo = "sha256";
+        } ''
+          SSL_CERT_FILE="${pkgs.cacert.out}/etc/ssl/certs/ca-bundle.crt";
+
+          # This initial access is expected to fail as we don't have a token.
+          ${pkgs.curl}/bin/curl ${insecureFlag} "${blobUrl}" --head --silent --write-out '%header{www-authenticate}' --output /dev/null > bearer.txt
+          tokenUrl=$(sed -n 's/Bearer realm="\(.*\)",service="\(.*\)",scope="\(.*\)"/\1?service=\2\&scope=\3/p' bearer.txt)
+
+          echo "Token URL: $tokenUrl"
+          ${pkgs.curl}/bin/curl ${insecureFlag} --fail --silent "$tokenUrl" --output token.json
+          token="$(${pkgs.jq}/bin/jq --raw-output .token token.json)"
+
+          echo "Blob URL: ${blobUrl}"
+          ${pkgs.curl}/bin/curl ${insecureFlag} --fail -H "Authorization: Bearer $token" "${blobUrl}" --location --output $out
+        '';
+
+      # Pull the blobs (archives) for all layers, as well as the one for the image's config JSON.
+      layerBlobs = map (layerManifest: buildImageBlob layerManifest.digest) manifest.layers;
+      configBlob = buildImageBlob manifest.config.digest;
+
+      # Write the blob map out to a JSON file for the GO executable to consume.
+      blobMap = l.listToAttrs(map (drv: { name = drv.name; value = drv; }) (layerBlobs ++ [configBlob]));
+      blobMapFile = pkgs.writeText "${imageName}-blobs.json" (l.toJSON blobMap);
+
+      # Convenience scripts for manifest-updating.
+      filter = ''.manifests[] | select((.platform.os=="${os}") and (.platform.architecture=="${arch}")) | .digest'';
+      getManifest = pkgs.writeShellApplication {
+        name = "get-manifest";
+        runtimeInputs = [ pkgs.jq skopeo-nix2container ];
+        text = ''
+          set -e
+          manifest=$(skopeo inspect docker://${registryUrl}/${imageName}:${imageTag} --raw | jq)
+          if echo "$manifest" | jq -e .manifests >/dev/null; then
+            # Multi-arch image, pick the one that matches the supplied platform details.
+            hash=$(echo "$manifest" | jq -r '${filter}')
+            skopeo inspect "docker://${registryUrl}/${imageName}@$hash" --raw | jq
+          else
+            # Single-arch image, return the initial response.
+            echo "$manifest"
+          fi
+        '';
+      };
+
+    in pkgs.runCommand "nix2container-${imageName}.json" { passthru = { inherit getManifest; }; } ''
+      ${nix2container-bin}/bin/nix2container image-from-manifest $out ${imageManifest} ${blobMapFile}
+    '';
+
   buildLayer = {
     # A list of store paths to include in the layer.
     deps ? [],
@@ -330,7 +399,7 @@ let
       {
         inherit imageName meta;
         passthru = {
-          inherit imageTag;
+          inherit fromImage imageTag;
           # provide a cheap to evaluate image reference for use with external tools like docker
           # DO NOT use as an input to other derivations, as there is no guarantee that the image
           # reference will exist in the store.
@@ -359,5 +428,5 @@ let
 in
 {
   inherit nix2container-bin skopeo-nix2container;
-  nix2container = { inherit buildImage buildLayer pullImage; };
+  nix2container = { inherit buildImage buildLayer pullImage pullImageFromManifest; };
 }

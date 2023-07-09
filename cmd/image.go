@@ -58,6 +58,36 @@ func imageFromDir(outputFilename, directory string) error {
 	return nil
 }
 
+var imageFromManifestCmd = &cobra.Command{
+	Use:   "image-from-manifest OUTPUT-FILENAME MANIFEST.JSON BLOBS.JSON",
+	Short: "Write an image.json file to OUTPUT-FILENAME from a skopeo raw manifest and blobs JSON.",
+	Args:  cobra.MinimumNArgs(3),
+	Run: func(cmd *cobra.Command, args []string) {
+		err := imageFromManifest(args[0], args[1], args[2])
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s", err)
+			os.Exit(1)
+		}
+	},
+}
+
+func imageFromManifest(outputFilename, manifestFilename string, blobsFilename string) error {
+	image, err := nix.NewImageFromManifest(manifestFilename, blobsFilename)
+	if err != nil {
+		return err
+	}
+	res, err := json.MarshalIndent(image, "", "\t")
+	if err != nil {
+		return err
+	}
+	err = os.WriteFile(outputFilename, []byte(res), 0666)
+	if err != nil {
+		return err
+	}
+	logrus.Infof("Image has been written to %s", outputFilename)
+	return nil
+}
+
 func image(outputFilename, imageConfigPath string, fromImageFilename string, layerPaths []string) error {
 	var imageConfig v1.ImageConfig
 	var image types.Image
@@ -116,4 +146,5 @@ func init() {
 	rootCmd.AddCommand(imageCmd)
 	imageCmd.Flags().StringVarP(&fromImageFilename, "from-image", "", "", "A JSON file describing the base image")
 	rootCmd.AddCommand(imageFromDirCmd)
+	rootCmd.AddCommand(imageFromManifestCmd)
 }

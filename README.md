@@ -49,6 +49,7 @@ $ podman run -it bash
 
 - [`bash`](./examples/bash.nix): Bash in `/bin/`
 - [`fromImage`](./examples/from-image.nix): Alpine as base image
+- [`fromImageManifest`](./examples/from-image-manifest.nix): Alpine as base image, from a stored `manifest.json`.
 - [`nginx`](./examples/nginx.nix)
 - [`nonReproducible`](./examples/non-reproducible.nix): with a non reproducible store path :/
 - [`openbar`](./examples/openbar.nix): set permissions on files (without root nor VM)
@@ -86,7 +87,8 @@ Function arguments are:
     ```
 
 - **`fromImage`** (defaults to `null`): an image that is used as base
-    image of this image.
+    image of this image; use `pullImage` or `pullImageFromManifest` to
+    supply this.
 
 - **`maxLayers`** (defaults to `1`): the maximum number of layers to
     create. This is based on the store path "popularity" as described
@@ -123,6 +125,10 @@ Function arguments are:
 
 ### `nix2container.pullImage`
 
+Pull an image from a container registry by name and tag/digest, storing the
+entirety of the image (manifest and layer tarballs) in a single store path.
+The supplied `sha256` is the narhash of that store path.
+
 Function arguments are:
 
 - **`imageName`** (required): the name of the image to pull.
@@ -136,6 +142,46 @@ Function arguments are:
 - **`arch`** (defaults to `x86_64`)
 
 - **`tlsVerify`** (defaults to `true`)
+
+
+### `nix2container.pullImageFromManifest`
+
+Pull a base image from a container registry using a supplied manifest file, and the
+hashes contained within it. The advantages of this over the basic `pullImage`:
+
+- Each layer archive is in its own store path, which means each will download just once
+  and naturally deduplicate for multiple base images that share layers.
+- There is no Nix-specific hash, so it's possible update the base image by simply
+  re-fetching the `manifest.json` from the registry; no need to actually pull the whole
+  image just to compute a new narhash for it.
+
+With this function the `manifest.json` acts as a lockfile meant to be stored in
+source control alongside the Nix container definitions. As a convenience, the manifest
+can be fetched/updated using the supplied passthru script, eg:
+
+```
+nix run .#examples.fromImageManifest.fromImage.getManifest > examples/alpine-manifest.json
+```
+
+Function arguments are:
+
+- **`imageName`** (required): the name of the image to pull.
+
+- **`imageManifest`** (required): the manifest file of the image to pull.
+
+- **`imageTag`** (defaults to `latest`)
+
+- **`os`** (defaults to `linux`)
+
+- **`arch`** (defaults to `x86_64`)
+
+- **`tlsVerify`** (defaults to `true`)
+
+- **`registryUrl`** (defaults to `registry.hub.docker.com`)
+
+Note that `imageTag`, `os`, and `arch` do not affect the pulled image; that is
+governed entirely by the supplied `manifest.json` file. These arguments are
+used for the manifest-selection logic in the included `getManifest` script.
 
 
 #### Authentication

@@ -96,7 +96,7 @@ func getV1Image(image types.Image) (imageV1 v1.Image, err error) {
 	return
 }
 
-// NewImageFromDir creates an Image from a JSON file describing an
+// NewImageFromFile creates an Image from a JSON file describing an
 // image. This file has usually been created by Nix through the
 // nix2container binary.
 func NewImageFromFile(filename string) (image types.Image, err error) {
@@ -152,6 +152,70 @@ func NewImageFromDir(directory string) (image types.Image, err error) {
 
 	for i, l := range v1Manifest.Layers {
 		layerFilename := directory + "/" + l.Digest.Encoded()
+		logrus.Infof("Adding tar file '%s' as image layer", layerFilename)
+		layer := types.Layer{
+			LayerPath: layerFilename,
+			Digest:    l.Digest.String(),
+			DiffIDs:   v1ImageConfig.RootFS.DiffIDs[i].String(),
+		}
+		switch l.MediaType {
+		case "application/vnd.docker.image.rootfs.diff.tar":
+			layer.MediaType = v1.MediaTypeImageLayer
+		case "application/vnd.docker.image.rootfs.diff.tar.gzip":
+			layer.MediaType = v1.MediaTypeImageLayerGzip
+		case "application/vnd.oci.image.layer.v1.tar":
+			layer.MediaType = l.MediaType
+		case "application/vnd.oci.image.layer.v1.tar+gzip":
+			layer.MediaType = l.MediaType
+		case "application/vnd.oci.image.layer.v1.tar+zstd":
+			layer.MediaType = l.MediaType
+		default:
+			return image, fmt.Errorf("Unsupported media type: %q", l.MediaType)
+		}
+		image.Layers = append(image.Layers, layer)
+	}
+	return image, nil
+}
+
+// NewImageFromManifest builds an Image based on a registry manifest
+// and a separate JSON mapping pointing to the locations of the
+// associated blobs (layer archives).
+func NewImageFromManifest(manifestFilename string, blobMapFilename string) (image types.Image, err error) {
+	image.Version = types.ImageVersion
+
+	content, err := os.ReadFile(manifestFilename)
+	if err != nil {
+		return image, err
+	}
+	var v1Manifest v1.Manifest
+	err = json.Unmarshal(content, &v1Manifest)
+	if err != nil {
+		return image, err
+	}
+
+	var blobMap map[string]string
+	content, err = os.ReadFile(blobMapFilename)
+	if err != nil {
+		return image, err
+	}
+	err = json.Unmarshal(content, &blobMap)
+	if err != nil {
+		return image, err
+	}
+
+	var configFilename = blobMap[v1Manifest.Config.Digest.Encoded()]
+	content, err = os.ReadFile(configFilename)
+	if err != nil {
+		return image, err
+	}
+	var v1ImageConfig manifest.Schema2Image
+	err = json.Unmarshal(content, &v1ImageConfig)
+	if err != nil {
+		return image, err
+	}
+
+	for i, l := range v1Manifest.Layers {
+		layerFilename := blobMap[l.Digest.Encoded()]
 		logrus.Infof("Adding tar file '%s' as image layer", layerFilename)
 		layer := types.Layer{
 			LayerPath: layerFilename,
