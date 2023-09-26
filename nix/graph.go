@@ -82,7 +82,7 @@ func addFileToGraph(root *fileNode, path string, info *os.FileInfo, options *typ
 	current.info = info
 
 	if current.options != nil && !reflect.DeepEqual(current.options.Perms, options.Perms) {
-		return fmt.Errorf("The file '%s' already exists in the tar with perms %#v but is overriden with perms %#v",
+		return fmt.Errorf("The file '%s' already exists in the tar with perms %#v but is overridden with perms %#v",
 			dstPath, current.options.Perms, options.Perms)
 	}
 	current.options = options
