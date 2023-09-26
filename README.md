@@ -5,7 +5,7 @@ with images built by Nix: it doesn't write tarballs to the Nix store
 and allows to skip already pushed layers (without having to rebuild
 them).
 
-This is based on ideas developped in [this blog
+This is based on ideas developed in [this blog
 post](https://lewo.abesis.fr/posts/nix-build-container-image/).
 
 
