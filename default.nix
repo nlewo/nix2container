@@ -125,9 +125,11 @@ let
         "dir://$out" \
         | cat  # pipe through cat to force-disable progress bar
       '';
-    in pkgs.runCommand "nix2container-${imageName}.json" { } ''
-      ${nix2container-bin}/bin/nix2container image-from-dir $out ${dir}
-    '';
+    in l.lazyDerivation {
+      derivation = pkgs.runCommand "nix2container-${imageName}.json" { } ''
+        ${nix2container-bin}/bin/nix2container image-from-dir $out ${dir}
+      '';
+    };
 
   pullImageFromManifest =
     { imageName
@@ -194,9 +196,11 @@ let
         '';
       };
 
-    in pkgs.runCommand "nix2container-${imageName}.json" { passthru = { inherit getManifest; }; } ''
-      ${nix2container-bin}/bin/nix2container image-from-manifest $out ${imageManifest} ${blobMapFile}
-    '';
+    in l.lazyDerivation {
+      derivation = pkgs.runCommand "nix2container-${imageName}.json" { passthru = { inherit getManifest; }; } ''
+        ${nix2container-bin}/bin/nix2container image-from-manifest $out ${imageManifest} ${blobMapFile}
+      '';
+    };
 
   buildLayer = {
     # A list of store paths to include in the layer.
@@ -258,18 +262,20 @@ let
     permsFlag = l.optionalString (perms != []) "--perms ${permsFile}";
     allDeps = deps ++ copyToRootList;
     tarDirectory = l.optionalString (! reproducible) "--tar-directory $out";
-    layersJSON = pkgs.runCommand "layers.json" {} ''
-      mkdir $out
-      ${nix2container-bin}/bin/nix2container ${subcommand} \
-        $out/layers.json \
-        ${closureGraph allDeps} \
-        --max-layers ${toString maxLayers} \
-        ${rewritesFlag} \
-        ${permsFlag} \
-        ${tarDirectory} \
-        ${l.concatMapStringsSep " "  (l: l + "/layers.json") layers} \
-        ${l.optionalString (ignore != null) "--ignore ${ignore}"}
-      '';
+    layersJSON = l.lazyDerivation {
+      derivation = pkgs.runCommand "layers.json" {} ''
+        mkdir $out
+        ${nix2container-bin}/bin/nix2container ${subcommand} \
+          $out/layers.json \
+          ${closureGraph allDeps} \
+          --max-layers ${toString maxLayers} \
+          ${rewritesFlag} \
+          ${permsFlag} \
+          ${tarDirectory} \
+          ${l.concatMapStringsSep " "  (l: l + "/layers.json") layers} \
+          ${l.optionalString (ignore != null) "--ignore ${ignore}"}
+        '';
+      };
   in checked { inherit copyToRoot contents; } layersJSON;
 
 
@@ -395,28 +401,30 @@ let
           then tag
           else
           l.head (l.strings.splitString "-" (baseNameOf image.outPath));
-      in pkgs.runCommand "image-${baseNameOf name}.json"
-      {
-        inherit imageName meta;
-        passthru = {
-          inherit fromImage imageTag;
-          # provide a cheap to evaluate image reference for use with external tools like docker
-          # DO NOT use as an input to other derivations, as there is no guarantee that the image
-          # reference will exist in the store.
-          imageRefUnsafe = builtins.unsafeDiscardStringContext "${imageName}:${imageTag}";
-          copyToDockerDaemon = copyToDockerDaemon image;
-          copyToRegistry = copyToRegistry image;
-          copyToPodman = copyToPodman image;
-          copyTo = copyTo image;
-        };
-      }
-      ''
-        ${nix2container-bin}/bin/nix2container image \
-        $out \
-        ${fromImageFlag} \
-        ${configFile} \
-        ${layerPaths}
-      '';
+      in l.lazyDerivation {
+        derivation = pkgs.runCommand "image-${baseNameOf name}.json"
+        {
+          inherit imageName meta;
+          passthru = {
+            inherit fromImage imageTag;
+            # provide a cheap to evaluate image reference for use with external tools like docker
+            # DO NOT use as an input to other derivations, as there is no guarantee that the image
+            # reference will exist in the store.
+            imageRefUnsafe = builtins.unsafeDiscardStringContext "${imageName}:${imageTag}";
+            copyToDockerDaemon = copyToDockerDaemon image;
+            copyToRegistry = copyToRegistry image;
+            copyToPodman = copyToPodman image;
+            copyTo = copyTo image;
+          };
+        }
+        ''
+          ${nix2container-bin}/bin/nix2container image \
+          $out \
+          ${fromImageFlag} \
+          ${configFile} \
+          ${layerPaths}
+        '';
+      };
     in checked { inherit copyToRoot contents; } image;
 
     checked = { copyToRoot, contents }:
