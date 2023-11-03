@@ -25,6 +25,14 @@ let
 
     touch $out/etc/login.defs
     mkdir -p $out/home/${user}
+
+    mkdir -p $out/tmp
+
+    mkdir -p $out/etc/nix
+    cat > $out/etc/nix/nix.conf <<EOF
+    sandbox = false
+    experimental-features = nix-command flakes repl-flake
+    EOF
   '';
 
   entrypoint = pkgs.writeShellApplication
@@ -32,6 +40,13 @@ let
       name = "entrypoint";
       text = ''
         (nix doctor && ls -la /nix) >out 2>&1 && cat out
+
+        # Without arguements, run bash
+        if [ $# -eq 0 ]; then
+          exec ${pkgs.bash}/bin/bash
+        fi
+
+        exec "$@"
       '';
     };
 in
@@ -54,7 +69,7 @@ nix2container.buildImage {
 
   perms = [{
     path = mkUser;
-    regex = "/home/${user}";
+    regex = "/home/${user}|/tmp|/etc/nix";
     mode = "0744";
     uid = l.toInt uid;
     gid = l.toInt gid;
@@ -70,6 +85,7 @@ nix2container.buildImage {
       "HOME=/home/user"
       "NIX_PAGER=cat"
       "USER=user"
+      "SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
     ];
   };
 }
