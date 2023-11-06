@@ -262,45 +262,66 @@ let
       mkdir $out
       ${nix2container-bin}/bin/nix2container ${subcommand} \
         $out/layers.json \
-        ${closureGraph allDeps} \
+        ${closureGraph allDeps ignore} \
         --max-layers ${toString maxLayers} \
         ${rewritesFlag} \
         ${permsFlag} \
         ${tarDirectory} \
         ${l.concatMapStringsSep " "  (l: l + "/layers.json") layers} \
-        ${l.optionalString (ignore != null) "--ignore ${ignore}"}
       '';
   in checked { inherit copyToRoot contents; } layersJSON;
 
+  # Create a nix database from all paths contained in the given closureGraphJson.
+  # Also makes all these paths store roots to prevent them from being garbage collected.
+  makeNixDatabase = closureGraphJson:
+    assert l.isDerivation closureGraphJson;
+    pkgs.runCommand "nix-database" {}''
+      mkdir $out
+      echo "Generating the nix database from ${closureGraphJson}..."
+      export NIX_REMOTE=local?root=$out
+      # A user is required by nix
+      # https://github.com/NixOS/nix/blob/9348f9291e5d9e4ba3c4347ea1b235640f54fd79/src/libutil/util.cc#L478
+      export USER=nobody
+      export PATH=${pkgs.jq.bin}/bin:"$PATH"
+      # Avoid including the closureGraph derivation itself.
+      # Transformation taken from https://github.com/NixOS/nixpkgs/blob/e7f49215422317c96445e0263f21e26e0180517e/pkgs/build-support/closure-info.nix#L33
+      jq -r 'map([.path, .narHash, .narSize, "", (.references | length)] + .references) | add | map("\(.)\n") | add' ${closureGraphJson} \
+        | head -n -1 \
+        | ${pkgs.nix}/bin/nix-store --load-db
 
-  makeNixDatabase = paths: pkgs.runCommand "nix-database" {} ''
-    mkdir $out
-    echo "Generating the nix database..."
-    export NIX_REMOTE=local?root=$out
-    # A user is required by nix
-    # https://github.com/NixOS/nix/blob/9348f9291e5d9e4ba3c4347ea1b235640f54fd79/src/libutil/util.cc#L478
-    export USER=nobody
-    ${pkgs.nix}/bin/nix-store --load-db < ${pkgs.closureInfo {rootPaths = paths;}}/registration
-
-    mkdir -p $out/nix/var/nix/gcroots/docker/
-    for i in ${l.concatStringsSep " " paths}; do
-      ln -s $i $out/nix/var/nix/gcroots/docker/$(basename $i)
-    done;
-  '';
-
-  # Write the references of `path' to a file.
-  closureGraph = paths: pkgs.runCommand "closure-graph.json"
-  {
-    exportReferencesGraph.graph = paths;
-    __structuredAttrs = true;
-    PATH = "${pkgs.jq}/bin";
-    builder = l.toFile "builder"
-    ''
-      . .attrs.sh
-      jq .graph .attrs.json > ''${outputs[out]}
+      mkdir -p $out/nix/var/nix/gcroots/docker/
+      for i in $(jq -r 'map("\(.path)\n") | add' ${closureGraphJson}); do
+        ln -s $i $out/nix/var/nix/gcroots/docker/$(basename $i)
+      done;
     '';
-  }
-  "";
+
+  # Write the references of `path' to a file but do not include `ignore' itself if non-null.
+  closureGraph = paths: ignore:
+    let ignoreList =
+      if ignore == null
+      then []
+      else if !(builtins.isList ignore)
+      then [ignore]
+      else ignore;
+    in pkgs.runCommand "closure-graph.json"
+    {
+      exportReferencesGraph.graph = paths;
+      __structuredAttrs = true;
+      PATH = "${pkgs.jq}/bin";
+      ignoreListJson = builtins.toJSON (builtins.map builtins.toString ignoreList);
+      outputChecks.out = {
+        disallowedReferences = ignoreList;
+      };
+      builder = l.toFile "builder"
+      ''
+        . .attrs.sh
+        jq --argjson ignore "$ignoreListJson" \
+          '.graph|map(select(.path as $p | $ignore | index($p) | not))' \
+          .attrs.json \
+          > ''${outputs[out]}
+      '';
+    }
+    "";
 
   buildImage = {
     name,
@@ -360,12 +381,21 @@ let
            else if !builtins.isList derivations
                 then [derivations]
                 else derivations;
-      nixDatabase = makeNixDatabase ([configFile] ++ copyToRootList ++ layers);
+
+      # Expand the given list of layers to include all their transitive layer dependencies.
+      layersWithNested = layers:
+        let layerWithNested = layer: [layer] ++ (builtins.concatMap layerWithNested (layer.layers or []));
+        in builtins.concatMap layerWithNested layers;
+      explodedLayers = layersWithNested layers;
+      ignore = [configFile]++explodedLayers;
+
+      closureGraphForAllLayers = closureGraph ([configFile] ++ copyToRootList ++ layers) ignore;
+      nixDatabase = makeNixDatabase closureGraphForAllLayers;
       # This layer contains all config dependencies. We ignore the
       # configFile because it is already part of the image, as a
       # specific blob.
 
-      perms' = perms ++ l.optionals initializeNixDatabase 
+      perms' = perms ++ l.optionals initializeNixDatabase
       [
         {
           path = nixDatabase;
