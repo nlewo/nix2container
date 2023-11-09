@@ -14,18 +14,21 @@ post](https://lewo.abesis.fr/posts/nix-build-container-image/).
 ```nix
 {
   inputs.nix2container.url = "github:nlewo/nix2container";
+  inputs.flake-utils.url = "github:numtide/flake-utils";
+  inputs.nixpkgs.url = "github:NixOS/nixpkgs";
 
-  outputs = { self, nixpkgs, nix2container }: let
-    pkgs = import nixpkgs { system = "x86_64-linux"; };
-    nix2containerPkgs = nix2container.packages.x86_64-linux;
-  in {
-    packages.x86_64-linux.hello = nix2containerPkgs.nix2container.buildImage {
+  outputs = inputs: inputs.flake-utils.lib.eachDefaultSystem (system:
+  let 
+    pkgs = import inputs.nixpkgs { inherit system; overlays = [ inputs.nix2container.overlays.default ] ;};
+    packages.hello = pkgs.nix2container.buildImage {
       name = "hello";
       config = {
         entrypoint = ["${pkgs.hello}/bin/hello"];
       };
     };
-  };
+  in 
+    { inherit packages; }
+  )
 }
 ```
 
