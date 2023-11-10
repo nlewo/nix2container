@@ -278,16 +278,24 @@ let
     pkgs.runCommand "nix-database" {}''
       mkdir $out
       echo "Generating the nix database from ${closureGraphJson}..."
-      export NIX_REMOTE=local?root=$out
+      export NIX_REMOTE=local?root=$PWD
       # A user is required by nix
       # https://github.com/NixOS/nix/blob/9348f9291e5d9e4ba3c4347ea1b235640f54fd79/src/libutil/util.cc#L478
       export USER=nobody
-      export PATH=${pkgs.jq.bin}/bin:"$PATH"
+      export PATH=${pkgs.jq.bin}/bin:${pkgs.sqlite}/bin:"$PATH"
       # Avoid including the closureGraph derivation itself.
       # Transformation taken from https://github.com/NixOS/nixpkgs/blob/e7f49215422317c96445e0263f21e26e0180517e/pkgs/build-support/closure-info.nix#L33
       jq -r 'map([.path, .narHash, .narSize, "", (.references | length)] + .references) | add | map("\(.)\n") | add' ${closureGraphJson} \
         | head -n -1 \
-        | ${pkgs.nix}/bin/nix-store --load-db
+        | ${pkgs.nix}/bin/nix-store --load-db -j 1
+
+      sqlite3 $PWD/nix/var/nix/db/db.sqlite \
+        'UPDATE ValidPaths SET registrationTime = 0;';
+
+      sqlite3 $PWD/nix/var/nix/db/db.sqlite '.dump' > db.dump
+      mkdir -p $out/nix/var/nix/db/
+      sqlite3 $out/nix/var/nix/db/db.sqlite '.read db.dump'
+      mkdir -p $out/nix/store/.links
 
       mkdir -p $out/nix/var/nix/gcroots/docker/
       for i in $(jq -r 'map("\(.path)\n") | add' ${closureGraphJson}); do
@@ -316,7 +324,7 @@ let
       ''
         . .attrs.sh
         jq --argjson ignore "$ignoreListJson" \
-          '.graph|map(select(.path as $p | $ignore | index($p) | not))' \
+          '.graph|map(select(.path as $p | $ignore | index($p) | not))|map(.references|=sort_by(.))|sort_by(.path)' \
           .attrs.json \
           > ''${outputs[out]}
       '';
