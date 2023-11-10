@@ -289,9 +289,11 @@ let
         | head -n -1 \
         | ${pkgs.nix}/bin/nix-store --load-db -j 1
 
+      # Sanitize time stamps
       sqlite3 $PWD/nix/var/nix/db/db.sqlite \
         'UPDATE ValidPaths SET registrationTime = 0;';
 
+      # Dump and reimport to ensure that the update order doesn't somehow change the DB.
       sqlite3 $PWD/nix/var/nix/db/db.sqlite '.dump' > db.dump
       mkdir -p $out/nix/var/nix/db/
       sqlite3 $out/nix/var/nix/db/db.sqlite '.read db.dump'
