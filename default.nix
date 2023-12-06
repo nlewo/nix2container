@@ -27,6 +27,7 @@ let
 
   skopeo-nix2container = pkgs.skopeo.overrideAttrs (old: {
     EXTRA_LDFLAGS = pkgs.lib.optionalString pkgs.stdenv.isDarwin "-X github.com/nlewo/nix2container/nix.useNixCaseHack=true";
+    nativeBuildInputs = old.nativeBuildInputs ++ [ pkgs.patchutils ];
     preBuild = let
       patch = pkgs.fetchurl {
         url = "https://github.com/nlewo/image/commit/c2254c998433cf02af60bf0292042bd80b96a77e.patch";
@@ -39,7 +40,10 @@ let
       cd vendor/github.com/containers/image/v5
       mkdir nix/
       touch nix/transport.go
-      patch -p1 < ${patch}
+      # The patch for alltransports.go does not apply cleanly to skopeo > 1.14,
+      # filter the patch and insert the import manually here instead.
+      filterdiff -x '*/alltransports.go' ${patch} | patch -p1
+      sed -i '\#_ "github.com/containers/image/v5/tarball"#a _ "github.com/containers/image/v5/nix"' transports/alltransports/alltransports.go
       cd -
     '';
   });
