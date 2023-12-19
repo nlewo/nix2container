@@ -160,15 +160,22 @@ let
           SSL_CERT_FILE="${pkgs.cacert.out}/etc/ssl/certs/ca-bundle.crt";
 
           # This initial access is expected to fail as we don't have a token.
-          ${pkgs.curl}/bin/curl ${insecureFlag} "${blobUrl}" --head --silent --write-out '%header{www-authenticate}' --output /dev/null > bearer.txt
+          ${pkgs.curl}/bin/curl --location ${insecureFlag} "${blobUrl}" --head --silent --write-out '%header{www-authenticate}' --output /dev/null > bearer.txt
           tokenUrl=$(sed -n 's/Bearer realm="\(.*\)",service="\(.*\)",scope="\(.*\)"/\1?service=\2\&scope=\3/p' bearer.txt)
 
-          echo "Token URL: $tokenUrl"
-          ${pkgs.curl}/bin/curl ${insecureFlag} --fail --silent "$tokenUrl" --output token.json
-          token="$(${pkgs.jq}/bin/jq --raw-output .token token.json)"
+          declare -a auth_args
+          if [ -n "$tokenUrl" ]; then
+            echo "Token URL: $tokenUrl"
+            ${pkgs.curl}/bin/curl --location ${insecureFlag} --fail --silent "$tokenUrl" --output token.json
+            token="$(${pkgs.jq}/bin/jq --raw-output .token token.json)"
+            auth_args=(-H "Authorization: Bearer $token")
+          else
+            echo "No token URL found, trying without authentication"
+            auth_args=()
+          fi
 
           echo "Blob URL: ${blobUrl}"
-          ${pkgs.curl}/bin/curl ${insecureFlag} --fail -H "Authorization: Bearer $token" "${blobUrl}" --location --output $out
+          ${pkgs.curl}/bin/curl ${insecureFlag} --fail "''${auth_args[@]}" "${blobUrl}" --location --output $out
         '';
 
       # Pull the blobs (archives) for all layers, as well as the one for the image's config JSON.
