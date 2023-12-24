@@ -312,6 +312,10 @@ and a second layer containing the script only.
 In real life, the isolated layer can contains a Python environment or
 Node modules.
 
+See
+[Nix & Docker: Layer explicitly without duplicate packages!](https://blog.eigenvalue.net/2023-nix2container-everything-once/)
+for learning how to avoid duplicate store paths in your explicitly layered
+images.
 
 ## Quick and dirty benchmarks
 
