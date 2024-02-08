@@ -55,17 +55,17 @@ let
 
   copyToDockerDaemon = image: writeSkopeoApplication "copy-to-docker-daemon" ''
     echo "Copy to Docker daemon image ${image.imageName}:${image.imageTag}"
-    skopeo --insecure-policy copy nix:${image} docker-daemon:${image.imageName}:${image.imageTag} $@
+    skopeo --insecure-policy copy nix:${image} docker-daemon:${image.imageName}:${image.imageTag} "$@"
   '';
 
   copyToRegistry = image: writeSkopeoApplication "copy-to-registry" ''
     echo "Copy to Docker registry image ${image.imageName}:${image.imageTag}"
-    skopeo --insecure-policy copy nix:${image} docker://${image.imageName}:${image.imageTag} $@
+    skopeo --insecure-policy copy nix:${image} docker://${image.imageName}:${image.imageTag} "$@"
   '';
 
   copyTo = image: writeSkopeoApplication "copy-to" ''
-    echo Running skopeo --insecure-policy copy nix:${image} '$@'
-    skopeo --insecure-policy copy nix:${image} $@
+    echo Running skopeo --insecure-policy copy nix:${image} "$@"
+    skopeo --insecure-policy copy nix:${image} "$@"
   '';
 
   copyToPodman = image: writeSkopeoApplication "copy-to-podman" ''
