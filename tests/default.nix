@@ -1,4 +1,4 @@
-{ pkgs, nix2container, examples }:
+{ pkgs, examples, nix2container }:
 
 let
   testScript = {
