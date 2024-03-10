@@ -116,7 +116,6 @@ let
 
         XDG_RUNTIME_DIR = TMPDIR;
 
-
         sourceURL = "docker://${imageName}@${imageDigest}";
       } ''
       skopeo \
