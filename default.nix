@@ -19,7 +19,7 @@ let
         p == "default.nix"
       );
     };
-    vendorSha256 = "sha256-/j4ZHOwU5Xi8CE/fHha+2iZhsLd/y2ovzVhvg8HDV78=";
+    vendorHash = "sha256-/j4ZHOwU5Xi8CE/fHha+2iZhsLd/y2ovzVhvg8HDV78=";
     ldflags = pkgs.lib.optionals pkgs.stdenv.isDarwin [
       "-X github.com/nlewo/nix2container/nix.useNixCaseHack=true"
     ];
