@@ -5,10 +5,11 @@ let
     image,
     command ? "",
     grepFlags ? "",
+    runFlags ? "",
     pattern,
   }: pkgs.writeScriptBin "test-script" ''
     ${image.copyToPodman}/bin/copy-to-podman
-    ${pkgs.podman}/bin/podman run ${image.imageName}:${image.imageTag} ${command} | ${pkgs.gnugrep}/bin/grep ${grepFlags} '${pattern}'
+    ${pkgs.podman}/bin/podman run ${runFlags} ${image.imageName}:${image.imageTag} ${command} | ${pkgs.gnugrep}/bin/grep ${grepFlags} '${pattern}'
     ret=$?
     if [ $ret -ne 0 ];
     then
@@ -85,6 +86,17 @@ let
       image = examples.nix-user;
       grepFlags = "-Pz";
       pattern = "(?s)\[PASS].*\[PASS].*\[PASS].*drwxr-xr-x \\d+ user user 4096 Jan  1  1970 store";
+    };
+    shadow-somebody = testScript {
+      image = examples.shadow;
+      command = "id";
+      pattern = "uid=1000(somebody) gid=1000(somebody) groups=1000(somebody)";
+    };
+    shadow-root = testScript {
+      image = examples.shadow;
+      runFlags = "-u root";
+      command = "id";
+      pattern = "uid=0(root) gid=0(root) groups=0(root)";
     };
     # Ensure the Nix database is correctly initialized by querying the
     # closure of the Nix binary.
