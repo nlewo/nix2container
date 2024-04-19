@@ -298,6 +298,11 @@ Function arguments:
     groups to create in the image and add to the user. Valid keys are `gid`
     (optional) and `gname`.
 
+### `nix2container.layers.tmp`
+
+This prebuilt layer will help you to add a working `/tmp` dir to your image.
+[Usage example here](./examples/tmp.nix).
+
 ## Isolate dependencies in dedicated layers
 
 It is possible to isolate application dependencies in a dedicated

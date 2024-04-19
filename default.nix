@@ -1,4 +1,4 @@
-{ pkgs ? import <nixpkgs> { }, system }:
+{ pkgs ? import <nixpkgs> { }, system ? pkgs.system }:
 let
   l = pkgs.lib // builtins;
 
@@ -556,6 +556,20 @@ let
       copyToRoot = shadowSetup;
       perms = l.forEach allUsers userPerms;
     };
+
+  layers.tmp = buildLayer {
+    copyToRoot = pkgs.runCommand "tmp-dir" {
+      outputHash = "sha256-AVwrjJdGCmzJ8JlT6x69JkHlFlRvOJ4hcqNt10YNoAU=";
+      outputHashAlgo = "sha256";
+      outputHashMode = "recursive";
+      preferLocalBuild = true;
+    } ''
+      mkdir -p $out/tmp
+    '';
+    perms = [
+      { path = "/tmp"; regex = ".*"; mode = "a=rwxt"; }
+    ];
+  };
 in {
   inherit nix2container-bin skopeo-nix2container;
   nix2container = {
@@ -564,7 +578,7 @@ in {
       buildLayer
       pullImage
       pullImageFromManifest
-      layers.shadow
+      layers
       ;
   };
 }

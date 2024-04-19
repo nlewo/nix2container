@@ -14,5 +14,5 @@
   nix = pkgs.callPackage ./nix.nix { inherit nix2container; };
   nix-user = pkgs.callPackage ./nix-user.nix { inherit nix2container; };
   ownership = pkgs.callPackage ./ownership.nix { inherit nix2container; };
-  shadow = pkgs.callPackage ./shadow.nix { inherit nix2container; };
+  shadow-tmp = pkgs.callPackage ./shadow-tmp.nix { inherit nix2container; };
 }
