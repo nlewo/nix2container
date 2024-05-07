@@ -24,6 +24,7 @@ var tarDirectory string
 var permsFilepath string
 var rewritesFilepath string
 var maxLayers int
+var traceFilename string
 
 // layerCmd represents the layer command
 var layersReproducibleCmd = &cobra.Command{
@@ -31,6 +32,8 @@ var layersReproducibleCmd = &cobra.Command{
 	Short: "Generate a layers.json file from a list of reproducible paths",
 	Args:  cobra.MinimumNArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
+		var err error
+		var layers []types.Layer
 		closureGraph, err := closure.ReadClosureGraphFile(args[1])
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s", err)
@@ -62,7 +65,11 @@ var layersReproducibleCmd = &cobra.Command{
 				os.Exit(1)
 			}
 		}
-		layers, err := nix.NewLayers(storepaths, maxLayers, parents, rewrites, ignore, perms)
+		if traceFilename == "" {
+			layers, err = nix.NewLayers(storepaths, maxLayers, parents, rewrites, ignore, perms)
+		} else {
+			layers, err = nix.NewLayersWithTrace(storepaths, maxLayers, parents, rewrites, ignore, perms, traceFilename)
+		}
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s", err)
 			os.Exit(1)
@@ -164,5 +171,6 @@ func init() {
 	layersReproducibleCmd.Flags().StringVarP(&rewritesFilepath, "rewrites", "", "", "A JSON file containing path rewrites")
 	layersReproducibleCmd.Flags().StringVarP(&permsFilepath, "perms", "", "", "A JSON file containing file permissions")
 	layersReproducibleCmd.Flags().IntVarP(&maxLayers, "max-layers", "", 1, "The maximum number of layers")
+	layersReproducibleCmd.Flags().StringVarP(&traceFilename, "trace-filename", "", "", "When set, generates a trace (be careful, it slows down the process)")
 
 }
