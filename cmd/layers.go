@@ -27,7 +27,7 @@ var maxLayers int
 
 // layerCmd represents the layer command
 var layersReproducibleCmd = &cobra.Command{
-	Use:   "layers-from-reproducible-storepaths OUTPUT-FILENAME.JSON CLOSURE-GRAPH.JSON",
+	Use:   "layers-from-reproducible-storepaths OUTPUT-FILENAME.JSON CLOSURE-GRAPH.JSON LAYER-1.JSON LAYER-2.json ...",
 	Short: "Generate a layers.json file from a list of reproducible paths",
 	Args:  cobra.MinimumNArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
@@ -77,7 +77,7 @@ var layersReproducibleCmd = &cobra.Command{
 
 // layerCmd represents the layer command
 var layersNonReproducibleCmd = &cobra.Command{
-	Use:   "layers-from-non-reproducible-storepaths OUTPUT-FILENAME.JSON CLOSURE-GRAPH.JSON",
+	Use:   "layers-from-non-reproducible-storepaths OUTPUT-FILENAME.JSON CLOSURE-GRAPH.JSON LAYER-1.JSON LAYER-2.json ...",
 	Short: "Generate a layers.json file from a list of paths",
 	Args:  cobra.MinimumNArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
