@@ -3,6 +3,7 @@ package nix
 import (
 	_ "crypto/sha256"
 	_ "crypto/sha512"
+	"os"
 	"reflect"
 
 	"github.com/nlewo/nix2container/types"
@@ -64,7 +65,7 @@ func getPaths(storePaths []string, parents []types.Layer, rewrites []types.Rewri
 // If tarDirectory is not an empty string, the tar layer is written to
 // the disk. This is useful for layer containing non reproducible
 // store paths.
-func newLayers(paths types.Paths, tarDirectory string, maxLayers int) (layers []types.Layer, err error) {
+func newLayers(paths types.Paths, tarDirectory string, traceFilename string, maxLayers int) (layers []types.Layer, err error) {
 	offset := 0
 	for offset < len(paths) {
 		max := offset + 1
@@ -79,6 +80,14 @@ func newLayers(paths types.Paths, tarDirectory string, maxLayers int) (layers []
 			digest, size, err = TarPathsSum(layerPaths)
 		} else {
 			layerPath, digest, size, err = TarPathsWrite(paths, tarDirectory)
+		}
+		if traceFilename != "" {
+			file, err := os.Create(traceFilename)
+			if err != nil {
+				return layers, err
+			}
+			defer file.Close()
+			TarPathsTrace(layerPaths, file)
 		}
 		if err != nil {
 			return layers, err
@@ -104,14 +113,19 @@ func newLayers(paths types.Paths, tarDirectory string, maxLayers int) (layers []
 	return layers, nil
 }
 
+func NewLayersWithTrace(storePaths []string, maxLayers int, parents []types.Layer, rewrites []types.RewritePath, exclude string, perms []types.PermPath, traceFilename string) ([]types.Layer, error) {
+	paths := getPaths(storePaths, parents, rewrites, exclude, perms)
+	return newLayers(paths, "", traceFilename, maxLayers)
+}
+
 func NewLayers(storePaths []string, maxLayers int, parents []types.Layer, rewrites []types.RewritePath, exclude string, perms []types.PermPath) ([]types.Layer, error) {
 	paths := getPaths(storePaths, parents, rewrites, exclude, perms)
-	return newLayers(paths, "", maxLayers)
+	return newLayers(paths, "", "", maxLayers)
 }
 
 func NewLayersNonReproducible(storePaths []string, maxLayers int, tarDirectory string, parents []types.Layer, rewrites []types.RewritePath, exclude string, perms []types.PermPath) (layers []types.Layer, err error) {
 	paths := getPaths(storePaths, parents, rewrites, exclude, perms)
-	return newLayers(paths, tarDirectory, maxLayers)
+	return newLayers(paths, tarDirectory, "", maxLayers)
 }
 
 func isPathInLayers(layers []types.Layer, path types.Path) bool {

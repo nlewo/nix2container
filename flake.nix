@@ -26,5 +26,12 @@
             inherit examples tests;
           };
           defaultPackage = packages.nix2container-bin;
+          devShells.default = let
+            pkgs = nixpkgs.legacyPackages.x86_64-linux;
+          in pkgs.mkShell {
+            buildInputs = [
+              pkgs.go pkgs.godef pkgs.gopls
+            ];
+          };
         });
 }
