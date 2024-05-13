@@ -73,6 +73,7 @@ func getV1Image(image types.Image) (imageV1 v1.Image, err error) {
 	imageV1.OS = "linux"
 	imageV1.Architecture = image.Arch
 	imageV1.Config = image.ImageConfig
+	imageV1.Created = image.Created
 
 	for _, layer := range image.Layers {
 		digest, err := godigest.Parse(layer.DiffIDs)
