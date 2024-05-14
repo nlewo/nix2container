@@ -4,27 +4,34 @@
   inputs.flake-utils.url = "github:numtide/flake-utils";
   inputs.nixpkgs.url = "github:NixOS/nixpkgs";
 
-  outputs = { self, nixpkgs, flake-utils }:
-    flake-utils.lib.eachDefaultSystem (system:
-      let
-        pkgs = nixpkgs.legacyPackages.${system};
-        nix2container = import ./. {
-          inherit pkgs system;
-        };
-        examples = import ./examples {
-          inherit pkgs;
-          inherit (nix2container) nix2container;
-        };
-        tests = import ./tests {
-          inherit pkgs examples;
-          inherit (nix2container) nix2container;
-        };
-      in
-        rec {
+  outputs = inputs:
+    inputs.flake-utils.lib.eachDefaultSystem
+      (system:
+        let
+          pkgs = import inputs.nixpkgs { inherit system; overlays = [ inputs.self.overlays.default ]; };
+
+          examples = pkgs.callPackage ./examples { };
+          tests = pkgs.callPackage ./tests { inherit examples; };
+
           packages = {
-            inherit (nix2container) nix2container-bin skopeo-nix2container nix2container;
+            inherit (pkgs.nix2container) nix2container-bin skopeo-nix2container;
             inherit examples tests;
+            default = packages.nix2container-bin;
+            hello = pkgs.nix2container.buildImage {
+              name = "hello";
+              config = {
+                entrypoint = [ "${pkgs.hello}/bin/hello" ];
+              };
+            };
           };
-          defaultPackage = packages.nix2container-bin;
-        });
+        in
+        {
+          inherit packages;
+          inherit (pkgs) nix2container;
+        })
+    // {
+      overlays.default = final: prev: {
+        nix2container = import ./. { system = final.system; pkgs = prev; };
+      };
+    };
 }
