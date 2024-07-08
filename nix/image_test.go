@@ -34,8 +34,8 @@ func TestGetV1Image(t *testing.T) {
 	image := types.Image{
 		Layers: []types.Layer{
 			{
-				Digest:    "sha256:6123adfc04c22915c112368b802af161b921fbf7ef1c5f7283191ee552b46e27",
-				DiffIDs:   "sha256:6123adfc04c22915c112368b802af161b921fbf7ef1c5f7283191ee552b46e27",
+				Digest:    "sha256:adf74a52f9e1bcd7dab77193455fa06743b979cf5955148010e5becedba4f72d",
+				DiffIDs:   "sha256:adf74a52f9e1bcd7dab77193455fa06743b979cf5955148010e5becedba4f72d",
 				Size:      10,
 				MediaType: "application/vnd.oci.image.layer.v1.tar",
 			},
@@ -47,7 +47,7 @@ func TestGetV1Image(t *testing.T) {
 		OS: "linux",
 		RootFS: v1.RootFS{
 			DiffIDs: []digest.Digest{
-				"sha256:6123adfc04c22915c112368b802af161b921fbf7ef1c5f7283191ee552b46e27"},
+				"sha256:adf74a52f9e1bcd7dab77193455fa06743b979cf5955148010e5becedba4f72d"},
 			Type: "layers",
 		},
 		History: []v1.History{
