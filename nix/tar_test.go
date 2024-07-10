@@ -1,6 +1,8 @@
 package nix
 
 import (
+	"bytes"
+	"strings"
 	"testing"
 
 	"github.com/nlewo/nix2container/types"
@@ -23,6 +25,17 @@ func TestTar(t *testing.T) {
 	if size != expectedSize {
 		t.Errorf("Size is %d while it should be %d", size, expectedSize)
 	}
+}
+
+func TestTarWithTrace(t *testing.T) {
+	path := types.Path{
+		Path: "../data/tar-directory",
+	}
+	w := bytes.NewBuffer(nil)
+	err := TarPathsTrace(types.Paths{path}, w)
+	assert.Nil(t, err)
+	lines := strings.Split(w.String(), "\n")
+	assert.Equal(t, 6, len(lines))
 }
 
 func TestRemoveNixCaseHackSuffix(t *testing.T) {

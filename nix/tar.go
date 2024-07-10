@@ -14,7 +14,69 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-func TarPathsWrite(paths types.Paths, destinationDirectory string) (string, digest.Digest, int64, error) {
+type Tarer interface {
+	WriteHeader(header *tar.Header) error
+	WriteContent(r io.Reader) error
+	Close() error
+}
+
+type Tar struct {
+	tw *tar.Writer
+}
+
+func NewTar(w io.Writer) Tar {
+	return Tar{
+		tw: tar.NewWriter(w),
+	}
+}
+
+func (t Tar) WriteHeader(h *tar.Header) error {
+	return t.tw.WriteHeader(h)
+}
+
+func (t Tar) WriteContent(r io.Reader) (err error) {
+	_, err = io.Copy(t.tw, r)
+	return
+}
+
+func (t Tar) Close() error {
+	return t.tw.Close()
+}
+
+type Trace struct {
+	file io.Writer
+}
+
+func NewTrace(w io.Writer) (t Trace, err error) {
+	t.file = w
+	return
+}
+
+func (t Trace) WriteHeader(h *tar.Header) error {
+	str := fmt.Sprintf("\n%#v", h)
+	b := make([]byte, len(str))
+	copy(b, str)
+	_, err := t.file.Write(b)
+	return err
+}
+
+func (t Trace) WriteContent(r io.Reader) (err error) {
+	d, err := digest.FromReader(r)
+	if err != nil {
+		return
+	}
+	str := " " + d.String()
+	b := make([]byte, len(str))
+	copy(b, str)
+	_, err = t.file.Write(b)
+	return err
+}
+
+func (t Trace) Close() error {
+	return nil
+}
+
+func TarPathsWrite(paths types.Paths, destinationDirectory string) (filename string, dgst digest.Digest, size int64, err error) {
 	f, err := os.CreateTemp(destinationDirectory, "")
 	if err != nil {
 		return "", "", 0, err
@@ -26,18 +88,27 @@ func TarPathsWrite(paths types.Paths, destinationDirectory string) (string, dige
 	r := io.TeeReader(reader, f)
 
 	digester := digest.Canonical.Digester()
-	size, err := io.Copy(digester.Hash(), r)
+	size, err = io.Copy(digester.Hash(), r)
 	if err != nil {
 		return "", "", 0, err
 	}
-	digest := digester.Digest()
+	dgst = digester.Digest()
 
-	filename := destinationDirectory + "/" + digest.Encoded() + ".tar"
+	filename = destinationDirectory + "/" + dgst.Encoded() + ".tar"
 	err = os.Rename(f.Name(), filename)
 	if err != nil {
 		return "", "", 0, err
 	}
-	return filename, digest, size, nil
+	return filename, dgst, size, nil
+}
+
+func TarPathsTrace(paths types.Paths, w io.Writer) (err error) {
+	trace, err := NewTrace(w)
+	if err != nil {
+		return
+	}
+	err = tarPaths(paths, trace)
+	return
 }
 
 func TarPathsSum(paths types.Paths) (digest.Digest, int64, error) {
@@ -52,7 +123,7 @@ func TarPathsSum(paths types.Paths) (digest.Digest, int64, error) {
 	return digester.Digest(), size, nil
 }
 
-func createDirectory(tw *tar.Writer, path string) error {
+func createDirectory(tw Tarer, path string) error {
 	epoch := time.Date(1970, 01, 01, 0, 0, 0, 0, time.UTC)
 	hdr := &tar.Header{
 		Name:     path,
@@ -73,7 +144,7 @@ func createDirectory(tw *tar.Writer, path string) error {
 	return nil
 }
 
-func appendFileToTar(tw *tar.Writer, srcPath, dstPath string, info os.FileInfo, opts *types.PathOptions) error {
+func appendFileToTar(t Tarer, srcPath, dstPath string, info os.FileInfo, opts *types.PathOptions) error {
 	var link string
 	var err error
 	if info.Mode()&os.ModeSymlink != 0 {
@@ -130,7 +201,7 @@ func appendFileToTar(tw *tar.Writer, srcPath, dstPath string, info os.FileInfo, 
 	hdr.AccessTime = time.Date(1970, 01, 01, 0, 0, 0, 0, time.UTC)
 	hdr.ChangeTime = time.Date(1970, 01, 01, 0, 0, 0, 0, time.UTC)
 
-	if err := tw.WriteHeader(hdr); err != nil {
+	if err := t.WriteHeader(hdr); err != nil {
 		return fmt.Errorf("Could not write hdr '%#v', got error '%s'", hdr, err.Error())
 	}
 	if link == "" {
@@ -140,7 +211,7 @@ func appendFileToTar(tw *tar.Writer, srcPath, dstPath string, info os.FileInfo, 
 		}
 		defer file.Close()
 		if !info.IsDir() {
-			_, err = io.Copy(tw, file)
+			err = t.WriteContent(file)
 			if err != nil {
 				return fmt.Errorf("Could not copy the file '%s' data to the tarball, got error '%s'", srcPath, err.Error())
 			}
@@ -149,59 +220,58 @@ func appendFileToTar(tw *tar.Writer, srcPath, dstPath string, info os.FileInfo, 
 	return nil
 }
 
+func tarPaths(paths types.Paths, tarer Tarer) (err error) {
+	graph := initGraph()
+	// First, we build a graph representing all files that
+	// has to be added to the layer. This graph allows to
+	// transform the file tree without having to write
+	// anything to the tar stream.
+	for _, path := range paths {
+		options := path.Options
+		err = filepath.Walk(path.Path, func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				return fmt.Errorf("Failed accessing path %q: %v", path, err)
+			}
+			logrus.Debugf("Walking filesystem: %s", path)
+			return addFileToGraph(graph, path, &info, options)
+		})
+		if err != nil {
+			return
+		}
+	}
+
+	// Once the graph of file has been built, it is walked
+	// in order to generate the tar stream.
+	err = walkGraph(graph, func(srcPath, dstPath string, info *os.FileInfo, options *types.PathOptions) error {
+		// This file is a directory
+		if info == nil {
+			return createDirectory(tarer, dstPath)
+		}
+		return appendFileToTar(tarer, srcPath, dstPath, *info, options)
+	})
+	if err != nil {
+		return
+	}
+
+	err = tarer.Close()
+	if err != nil {
+		return
+	}
+	return
+}
+
 // TarPaths takes a list of paths and return a ReadCloser to the tar
 // archive. If an error occurs, the ReadCloser is closed with the error.
 func TarPaths(paths types.Paths) io.ReadCloser {
 	r, w := io.Pipe()
-	tw := tar.NewWriter(w)
-	graph := initGraph()
-
+	t := NewTar(w)
 	go func() {
 		defer w.Close()
-		// First, we build a graph representing all files that
-		// has to be added to the layer. This graph allows to
-		// transform the file tree without having to write
-		// anything to the tar stream.
-		for _, path := range paths {
-			options := path.Options
-			err := filepath.Walk(path.Path, func(path string, info os.FileInfo, err error) error {
-				if err != nil {
-					return fmt.Errorf("Failed accessing path %q: %v", path, err)
-				}
-				logrus.Debugf("Walking filesystem: %s", path)
-				return addFileToGraph(graph, path, &info, options)
-			})
-			if err != nil {
-				if err := w.CloseWithError(err); err != nil {
-					return
-				}
-				return
-			}
-		}
-
-		// Once the graph of file has been built, it is walked
-		// in order to generate the tar stream.
-		err := walkGraph(graph, func(srcPath, dstPath string, info *os.FileInfo, options *types.PathOptions) error {
-			// This file is a directory
-			if info == nil {
-				return createDirectory(tw, dstPath)
-			}
-			return appendFileToTar(tw, srcPath, dstPath, *info, options)
-		})
-		if err != nil {
-			if err := w.CloseWithError(err); err != nil {
-				return
-			}
+		err := tarPaths(paths, t)
+		if err := w.CloseWithError(err); err != nil {
 			return
 		}
 
-		err = tw.Close()
-		if err != nil {
-			if err := w.CloseWithError(err); err != nil {
-				return
-			}
-			return
-		}
 	}()
 	return r
 }

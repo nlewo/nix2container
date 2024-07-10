@@ -366,3 +366,25 @@ in [this branch](https://github.com/nlewo/image/tree/nix).
 
 For more information, refer to [the Go
 documentation](https://pkg.go.dev/github.com/nlewo/nix2container).
+
+## How to debug the "Digest did not match" issue
+
+nix2container generates the digest of layers at build time, in the Nix
+sandbox. At runtime, this digest is announced to the destination and
+when it doesn't exist on this destination, the missing layer is
+created by reading all required store paths (outside of the Nix sandbox).
+
+Theorically, we should not observe any differences when reading store
+paths at build time or at runtime. But, in practice, bugs exist and it
+can be really hard to identify where the differences are.
+
+The `buildImage.verifyTrace` option allows you to easily identify
+these differences. A trace is generated at build time and compared to
+a trace generated at runtime. These traces contains the attributes and
+checksum of all files written to the tar stream.
+
+When this options is set to `true`, it generates the script
+`image.verifyTrace` which has to be run to compare traces.
+
+Note you also need to ensure `buildLayer.trace` is set to `true` to
+all your layers.

@@ -56,24 +56,35 @@ let
 
   copyToDockerDaemon = image: writeSkopeoApplication "copy-to-docker-daemon" ''
     echo "Copy to Docker daemon image ${image.imageName}:${image.imageTag}"
-    skopeo --insecure-policy copy nix:${image} docker-daemon:${image.imageName}:${image.imageTag} $@
+    skopeo --insecure-policy copy nix:${image}/image.json docker-daemon:${image.imageName}:${image.imageTag} $@
   '';
 
   copyToRegistry = image: writeSkopeoApplication "copy-to-registry" ''
     echo "Copy to Docker registry image ${image.imageName}:${image.imageTag}"
-    skopeo --insecure-policy copy nix:${image} docker://${image.imageName}:${image.imageTag} $@
+    skopeo --insecure-policy copy nix:${image}/image.json docker://${image.imageName}:${image.imageTag} $@
   '';
 
   copyTo = image: writeSkopeoApplication "copy-to" ''
     echo Running skopeo --insecure-policy copy nix:${image} $@
-    skopeo --insecure-policy copy nix:${image} $@
+    skopeo --insecure-policy copy nix:${image}/image.json $@
   '';
 
   copyToPodman = image: writeSkopeoApplication "copy-to-podman" ''
     echo "Copy to podman image ${image.imageName}:${image.imageTag}"
-    skopeo --insecure-policy copy nix:${image} containers-storage:${image.imageName}:${image.imageTag}
+    skopeo --insecure-policy copy nix:${image}/image.json containers-storage:${image.imageName}:${image.imageTag}
     skopeo --insecure-policy inspect containers-storage:${image.imageName}:${image.imageTag}
   '';
+
+  verifyTraceScript = image: pkgs.writers.writeBashBin "verify-trace" ''
+       echo "Generating the trace for image ${image}/image.json"
+       ${nix2container-bin}/bin/nix2container trace ${image}/image.json > trace
+       if cmp -s ${image}/trace trace ; then
+         printf  'The build time trace "%s" and run time trace "%s" are identical' "${image}/trace" "${nix2container-bin}/bin/nix2container trace ${image}/image.json"
+       else
+         printf 'error: The build time trace "%s" and runtime trace "%s" are different' "${image}/trace" "${nix2container-bin}/bin/nix2container trace ${image}/image.json"
+         printf 'Hints: you need to manually compare these files to know identify different store paths'
+       fi
+   '';
 
   # Pull an image from a registry with Skopeo and translate it to a
   # nix2container image.json file.
@@ -247,6 +258,9 @@ let
     maxLayers ? 1,
     # Deprecated: will be removed on v1
     contents ? null,
+    # Whether to generate a trace. Be careful, this slows down the
+    # process. (This only works when reproducible is true.)
+    trace ? false,  
   }: let
     subcommand = if reproducible
               then "layers-from-reproducible-storepaths"
@@ -271,6 +285,7 @@ let
     permsFlag = l.optionalString (perms != []) "--perms ${permsFile}";
     allDeps = deps ++ copyToRootList;
     tarDirectory = l.optionalString (! reproducible) "--tar-directory $out";
+    traceFilename = l.optionalString trace "--trace-filename $out/trace";
     layersJSON = pkgs.runCommand "layers.json" {} ''
       mkdir $out
       ${nix2container-bin}/bin/nix2container ${subcommand} \
@@ -280,6 +295,7 @@ let
         ${rewritesFlag} \
         ${permsFlag} \
         ${tarDirectory} \
+        ${traceFilename} \
         ${l.concatMapStringsSep " "  (l: l + "/layers.json") layers} \
       '';
   in checked { inherit copyToRoot contents; } layersJSON;
@@ -394,6 +410,11 @@ let
     # Deprecated: will be removed
     contents ? null,
     meta ? {},
+    # Whether to verify the buildtime trace and runtime trace are
+    # identical. This is only a debugging option which slows down the
+    # image construction process.
+    # This is especially useful to debug the famous "digest mismatch" issue.
+    verifyTrace ? false
   }:
     let
       configFile = pkgs.writeText "config.json" (l.toJSON config);
@@ -438,9 +459,14 @@ let
         deps = [configFile];
         ignore = configFile;
         layers = layers;
+        trace = verifyTrace;
       };
       fromImageFlag = l.optionalString (fromImage != "") "--from-image ${fromImage}";
       layerPaths = l.concatMapStringsSep " " (l: l + "/layers.json") (layers ++ [customizationLayer]);
+      tracePaths = l.optionalString verifyTrace (l.concatMapStringsSep " " (l: "--traces " + l + "/trace") (layers ++ [customizationLayer]));
+      traceOutput = l.optionalString verifyTrace "--trace-output $out/trace";
+      traceCheck = l.optionalString verifyTrace ''
+      '';
       image = let
         imageName = l.toLower name;
         imageTag =
@@ -448,7 +474,7 @@ let
           then tag
           else
           l.head (l.strings.splitString "-" (baseNameOf image.outPath));
-      in pkgs.runCommand "image-${baseNameOf name}.json"
+      in pkgs.runCommand "image-${baseNameOf name}"
       {
         inherit imageName meta;
         passthru = {
@@ -461,14 +487,18 @@ let
           copyToRegistry = copyToRegistry image;
           copyToPodman = copyToPodman image;
           copyTo = copyTo image;
+          verifyTrace = verifyTraceScript image;
         };
       }
-      ''
+        ''
+        mkdir $out
         ${nix2container-bin}/bin/nix2container image \
-        $out \
+        $out/image.json \
         ${fromImageFlag} \
         ${configFile} \
-        ${layerPaths}
+        ${layerPaths} \
+        ${tracePaths} \
+        ${traceOutput}
       '';
     in checked { inherit copyToRoot contents; } image;
 
