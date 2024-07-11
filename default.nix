@@ -480,6 +480,5 @@ let
         ;
 in
 {
-  inherit nix2container-bin skopeo-nix2container;
-  nix2container = { inherit buildImage buildLayer pullImage pullImageFromManifest; };
+  inherit nix2container-bin skopeo-nix2container buildImage buildLayer pullImage pullImageFromManifest;
 }
