@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"io"
 	"os"
+	"time"
 
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 )
@@ -18,6 +19,7 @@ type Image struct {
 	ImageConfig v1.ImageConfig `json:"image-config"`
 	Layers      []Layer        `json:"layers"`
 	Arch        string         `json:"arch"`
+	Created     *time.Time     `json:"created"`
 }
 
 type Rewrite struct {

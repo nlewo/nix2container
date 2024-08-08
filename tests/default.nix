@@ -137,6 +137,24 @@ let
       };
       pattern = "Hello, world!";
     };
+    created = let
+      image = examples.created;
+      timestamp = "2024-05-13 09:31:10";
+    in pkgs.writeScriptBin "test-script" ''
+      ${image.copyToPodman}/bin/copy-to-podman
+      created=$(${pkgs.podman}/bin/podman image inspect ${image.imageName}:${image.imageTag} -f '{{ .Created }}')
+      if echo $created | ${pkgs.gnugrep}/bin/grep '${timestamp}' > /dev/null;
+      then
+        echo "Test passed"
+      else
+        echo "Expected Created attribute to contain: ${timestamp}"
+        echo ""
+        echo "Actual Created attribute: $created"
+        echo ""
+        echo "Error: test failed"
+        exit $ret
+      fi
+    '';
   } //
   (pkgs.lib.mapAttrs' (name: drv: {
     name = "${name}GetManifest";
