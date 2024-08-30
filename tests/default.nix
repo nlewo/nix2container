@@ -173,6 +173,7 @@ let
       "\n"
       (pkgs.lib.mapAttrsToList (n: v: "echo Running test '${n}'\n${v}/bin/test-script") tests);
     in pkgs.writeScriptBin "all-test-scripts" ''
+      #!${pkgs.runtimeShell}
       set -e
       ${scripts}
     '';
