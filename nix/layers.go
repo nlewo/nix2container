@@ -64,7 +64,7 @@ func getPaths(storePaths []string, parents []types.Layer, rewrites []types.Rewri
 // If tarDirectory is not an empty string, the tar layer is written to
 // the disk. This is useful for layer containing non reproducible
 // store paths.
-func newLayers(paths types.Paths, tarDirectory string, maxLayers int) (layers []types.Layer, err error) {
+func newLayers(paths types.Paths, tarDirectory string, maxLayers int, history v1.History) (layers []types.Layer, err error) {
 	offset := 0
 	for offset < len(paths) {
 		max := offset + 1
@@ -90,6 +90,7 @@ func newLayers(paths types.Paths, tarDirectory string, maxLayers int) (layers []
 			Size:      size,
 			Paths:     layerPaths,
 			MediaType: v1.MediaTypeImageLayer,
+			History:   history,
 		}
 		if tarDirectory != "" {
 			// TODO: we should use v1.MediaTypeImageLayerGzip instead
@@ -104,14 +105,14 @@ func newLayers(paths types.Paths, tarDirectory string, maxLayers int) (layers []
 	return layers, nil
 }
 
-func NewLayers(storePaths []string, maxLayers int, parents []types.Layer, rewrites []types.RewritePath, exclude string, perms []types.PermPath) ([]types.Layer, error) {
+func NewLayers(storePaths []string, maxLayers int, parents []types.Layer, rewrites []types.RewritePath, exclude string, perms []types.PermPath, history v1.History) ([]types.Layer, error) {
 	paths := getPaths(storePaths, parents, rewrites, exclude, perms)
-	return newLayers(paths, "", maxLayers)
+	return newLayers(paths, "", maxLayers, history)
 }
 
-func NewLayersNonReproducible(storePaths []string, maxLayers int, tarDirectory string, parents []types.Layer, rewrites []types.RewritePath, exclude string, perms []types.PermPath) (layers []types.Layer, err error) {
+func NewLayersNonReproducible(storePaths []string, maxLayers int, tarDirectory string, parents []types.Layer, rewrites []types.RewritePath, exclude string, perms []types.PermPath, history v1.History) (layers []types.Layer, err error) {
 	paths := getPaths(storePaths, parents, rewrites, exclude, perms)
-	return newLayers(paths, tarDirectory, maxLayers)
+	return newLayers(paths, tarDirectory, maxLayers, history)
 }
 
 func isPathInLayers(layers []types.Layer, path types.Path) bool {

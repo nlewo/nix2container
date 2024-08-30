@@ -247,6 +247,8 @@ let
     maxLayers ? 1,
     # Deprecated: will be removed on v1
     contents ? null,
+    # Author, comment, created_by
+    metadata ? { created_by = "nix2container"; },
   }: let
     subcommand = if reproducible
               then "layers-from-reproducible-storepaths"
@@ -269,6 +271,8 @@ let
     rewritesFlag = "--rewrites ${rewritesFile}";
     permsFile = pkgs.writeText "perms.json" (l.toJSON perms);
     permsFlag = l.optionalString (perms != []) "--perms ${permsFile}";
+    historyFile = pkgs.writeText "history.json" (l.toJSON metadata);
+    historyFlag = l.optionalString (metadata != {}) "--history ${historyFile}";
     allDeps = deps ++ copyToRootList;
     tarDirectory = l.optionalString (! reproducible) "--tar-directory $out";
     layersJSON = pkgs.runCommand "layers.json" {} ''
@@ -279,6 +283,7 @@ let
         --max-layers ${toString maxLayers} \
         ${rewritesFlag} \
         ${permsFlag} \
+        ${historyFlag} \
         ${tarDirectory} \
         ${l.concatMapStringsSep " "  (l: l + "/layers.json") layers} \
       '';

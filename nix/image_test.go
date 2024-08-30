@@ -38,6 +38,9 @@ func TestGetV1Image(t *testing.T) {
 				DiffIDs:   "sha256:adf74a52f9e1bcd7dab77193455fa06743b979cf5955148010e5becedba4f72d",
 				Size:      10,
 				MediaType: "application/vnd.oci.image.layer.v1.tar",
+				History: v1.History{
+					CreatedBy: "nix2container",
+				},
 			},
 		},
 	}

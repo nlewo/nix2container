@@ -17,12 +17,15 @@ import (
 	"github.com/nlewo/nix2container/types"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+
+	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 var ignore string
 var tarDirectory string
 var permsFilepath string
 var rewritesFilepath string
+var historyFilepath string
 var maxLayers int
 
 // layerCmd represents the layer command
@@ -62,7 +65,16 @@ var layersReproducibleCmd = &cobra.Command{
 				os.Exit(1)
 			}
 		}
-		layers, err := nix.NewLayers(storepaths, maxLayers, parents, rewrites, ignore, perms)
+		var history v1.History
+		if historyFilepath != "" {
+			history, err = readHistoryFile(historyFilepath)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "%s", err)
+				os.Exit(1)
+			}
+		}
+
+		layers, err := nix.NewLayers(storepaths, maxLayers, parents, rewrites, ignore, perms, history)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s", err)
 			os.Exit(1)
@@ -112,7 +124,16 @@ var layersNonReproducibleCmd = &cobra.Command{
 				os.Exit(1)
 			}
 		}
-		layers, err := nix.NewLayersNonReproducible(storepaths, maxLayers, tarDirectory, parents, rewrites, ignore, perms)
+		var history v1.History
+		if historyFilepath != "" {
+			history, err = readHistoryFile(historyFilepath)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "%s", err)
+				os.Exit(1)
+			}
+		}
+
+		layers, err := nix.NewLayersNonReproducible(storepaths, maxLayers, tarDirectory, parents, rewrites, ignore, perms, history)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s", err)
 			os.Exit(1)
@@ -157,12 +178,14 @@ func init() {
 
 	layersNonReproducibleCmd.Flags().StringVarP(&rewritesFilepath, "rewrites", "", "", "A JSON file containing a list of path rewrites. Each element of the list is a JSON object with the attributes path, regex and repl: for a given path, the regex is replaced by repl.")
 	layersNonReproducibleCmd.Flags().StringVarP(&permsFilepath, "perms", "", "", "A JSON file containing file permissions")
+	layersNonReproducibleCmd.Flags().StringVarP(&historyFilepath, "history", "", "", "A JSON file containing layer history")
 	layersNonReproducibleCmd.Flags().IntVarP(&maxLayers, "max-layers", "", 1, "The maximum number of layers")
 
 	rootCmd.AddCommand(layersReproducibleCmd)
 	layersReproducibleCmd.Flags().StringVarP(&ignore, "ignore", "", "", "Ignore the path from the list of storepaths")
 	layersReproducibleCmd.Flags().StringVarP(&rewritesFilepath, "rewrites", "", "", "A JSON file containing path rewrites")
 	layersReproducibleCmd.Flags().StringVarP(&permsFilepath, "perms", "", "", "A JSON file containing file permissions")
+	layersReproducibleCmd.Flags().StringVarP(&historyFilepath, "history", "", "", "A JSON file containing layer history")
 	layersReproducibleCmd.Flags().IntVarP(&maxLayers, "max-layers", "", 1, "The maximum number of layers")
 
 }

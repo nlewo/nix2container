@@ -5,6 +5,8 @@ import (
 
 	"github.com/nlewo/nix2container/types"
 	"github.com/stretchr/testify/assert"
+
+	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 func TestPerms(t *testing.T) {
@@ -18,7 +20,7 @@ func TestPerms(t *testing.T) {
 			Mode:  "0641",
 		},
 	}
-	layer, err := NewLayers(paths, 1, []types.Layer{}, []types.RewritePath{}, "", perms)
+	layer, err := NewLayers(paths, 1, []types.Layer{}, []types.RewritePath{}, "", perms, v1.History{})
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -50,7 +52,7 @@ func TestNewLayers(t *testing.T) {
 	paths := []string{
 		"../data/layer1/file1",
 	}
-	layer, err := NewLayers(paths, 1, []types.Layer{}, []types.RewritePath{}, "", []types.PermPath{})
+	layer, err := NewLayers(paths, 1, []types.Layer{}, []types.RewritePath{}, "", []types.PermPath{}, v1.History{})
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -70,7 +72,7 @@ func TestNewLayers(t *testing.T) {
 	assert.Equal(t, expected, layer)
 
 	tmpDir := t.TempDir()
-	layer, err = NewLayersNonReproducible(paths, 1, tmpDir, []types.Layer{}, []types.RewritePath{}, "", []types.PermPath{})
+	layer, err = NewLayersNonReproducible(paths, 1, tmpDir, []types.Layer{}, []types.RewritePath{}, "", []types.PermPath{}, v1.History{})
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
