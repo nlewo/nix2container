@@ -31,7 +31,7 @@ let
     preBuild = let
       patch = pkgs.fetchurl {
         url = "https://github.com/nlewo/image/commit/c2254c998433cf02af60bf0292042bd80b96a77e.patch";
-        sha256 = "sha256-dKEObfZY2fdsza/kObCLhv4l2snuzAbpDi4fGmtTPUQ=";
+        sha256 = "sha256-1Tj9D+ePjGL5u04aT7zr5rJw4vHAVrXAsr4owdooC/Y=";
 
       };
     in ''
