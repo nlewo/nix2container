@@ -29,10 +29,9 @@ let
     EXTRA_LDFLAGS = pkgs.lib.optionalString pkgs.stdenv.isDarwin "-X github.com/nlewo/nix2container/nix.useNixCaseHack=true";
     nativeBuildInputs = old.nativeBuildInputs ++ [ pkgs.patchutils ];
     preBuild = let
-      patch = pkgs.fetchurl {
+      patch = pkgs.fetchpatch2 {
         url = "https://github.com/nlewo/image/commit/c2254c998433cf02af60bf0292042bd80b96a77e.patch";
-        sha256 = "sha256-1Tj9D+ePjGL5u04aT7zr5rJw4vHAVrXAsr4owdooC/Y=";
-
+        sha256 = "sha256-42dOFbAlNqtS/ZKdqO72rsREFLVVsolrCKPFVy72ZFE=";
       };
     in ''
       mkdir -p vendor/github.com/nlewo/nix2container/
