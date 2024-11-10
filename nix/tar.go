@@ -113,7 +113,7 @@ func appendFileToTar(tw *tar.Writer, srcPath, dstPath string, info os.FileInfo, 
 				}
 
 				if perms.Gname != "" {
-					hdr.Gname = perms.Uname
+					hdr.Gname = perms.Gname
 				}
 
 				if perms.Mode != "" {
