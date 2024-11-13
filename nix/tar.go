@@ -173,8 +173,10 @@ func appendFileToTar(tw *tar.Writer, srcPath, dstPath string, info os.FileInfo, 
 
 					capBytes := buf.Bytes()
 
+					
 					// Convert to hex string
 					hexStr := hex.EncodeToString(capBytes)
+					fmt.Printf("capBytes: %v - %s\n", capBytes, hexStr)
 					hdr.PAXRecords["SCHILY.xattr.security.capability"] = hexStr
 				}
 			}
