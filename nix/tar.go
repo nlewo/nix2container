@@ -156,7 +156,7 @@ func appendFileToTar(tw *tar.Writer, srcPath, dstPath string, info os.FileInfo, 
 			}
 
 			for _, cap := range opts.Capabilities {
-				logrus.Infof("path regex: %s path: %s", cap.Regex, srcPath)
+				logrus.Infof("path regex: %s path: %s dst: %s", cap.Regex, srcPath, dstPath)
 				re := regexp.MustCompile(cap.Regex)
 				if re.Match([]byte(srcPath)) {
 					logrus.Infof("Regex matches!: %s path: %s", cap.Regex, srcPath)
