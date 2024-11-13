@@ -156,10 +156,10 @@ func appendFileToTar(tw *tar.Writer, srcPath, dstPath string, info os.FileInfo, 
 			}
 
 			for _, cap := range opts.Capabilities {
-				fmt.Printf("path regex: %s\n", cap.Regex)
+				logrus.Infof("path regex: %s", cap.Regex)
 				re := regexp.MustCompile(cap.Regex)
 				if re.Match([]byte(srcPath)) {
-					fmt.Printf("Regex matches!: %s\n", srcPath)
+					logrus.Infof("Regex matches!: %s", srcPath)
 
 					data := vfsNsCapData{MagicEtc: vfsCapRevision3 | uint32(0)}
 
