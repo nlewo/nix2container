@@ -150,31 +150,43 @@ func appendFileToTar(tw *tar.Writer, srcPath, dstPath string, info os.FileInfo, 
 
 		// Handle capabilities if defined
 		if len(opts.Capabilities) > 0 {
-			// Initialize PAXRecords if nil
+					// Initialize PAXRecords if nil
 			if hdr.PAXRecords == nil {
 				hdr.PAXRecords = make(map[string]string)
 			}
 
-			data := vfsNsCapData{MagicEtc: vfsCapRevision3 | uint32(0)}
+			for _, cap := range opts.Capabilities {
+				re := regexp.MustCompile(cap.Regex)
+				if re.Match([]byte(hdr.Name)) {
 
-			data.Data[0].Permitted = uint32(10)
-			data.Data[0].Inheritable = uint32(10)
-			data.Data[1].Permitted = uint32(10 >> 32)
-			data.Data[1].Inheritable = uint32(10 >> 32)
-			data.Effective = uint32(10)
+					data := vfsNsCapData{MagicEtc: vfsCapRevision3 | uint32(0)}
 
-			buf := &bytes.Buffer{}
-			if err := binary.Write(buf, binary.LittleEndian, data); err != nil {
-				return err
+					var permitted, inheritable, effective uint32
+					for _, capStr := range cap.Caps {
+						switch capStr {
+						case "CAP_NET_BIND_SERVICE":
+							bit := uint32(1 << 10) // CAP_NET_BIND_SERVICE is 10
+							permitted |= bit
+							inheritable |= bit
+							effective |= bit
+						// Add more cases for other capabilities as needed
+						}
+					}
+
+					data.Data[0].Permitted = permitted
+					data.Data[0].Inheritable = inheritable
+					data.Effective = effective
+
+					buf := &bytes.Buffer{}
+					if err := binary.Write(buf, binary.LittleEndian, data); err != nil {
+						fmt.Printf("Failed to write buffer: %v\n", err)
+						continue
+					}
+
+					capBytes := buf.Bytes()
+					hdr.PAXRecords["SCHILY.xattr.security.capability"] = hex.EncodeToString(capBytes)
+				}
 			}
-
-			capBytes := buf.Bytes()
-
-			
-			// Convert to hex string
-			hexStr := hex.EncodeToString(capBytes)
-			fmt.Printf("capBytes: %v - %s\n", capBytes, hexStr)
-			hdr.PAXRecords["SCHILY.xattr.security.capability"] = hexStr
 		}
 	}
 
