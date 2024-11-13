@@ -4,7 +4,6 @@ import (
 	"archive/tar"
 	"bytes"
 	"encoding/binary"
-	"encoding/hex"
 	"fmt"
 	"io"
 	"os"
@@ -154,7 +153,7 @@ func appendFileToTar(tw *tar.Writer, srcPath, dstPath string, info os.FileInfo, 
 		// Handle capabilities if defined
 		if len(opts.Capabilities) > 0 {
 			logrus.Infof("We have capabilities")
-					// Initialize PAXRecords if nil
+			// Initialize PAXRecords if nil
 			if hdr.PAXRecords == nil {
 				hdr.PAXRecords = make(map[string]string)
 			}
@@ -192,7 +191,7 @@ func appendFileToTar(tw *tar.Writer, srcPath, dstPath string, info os.FileInfo, 
 					}
 
 					capBytes := buf.Bytes()
-					hdr.PAXRecords["SCHILY.xattr.security.capability"] = hex.EncodeToString(capBytes)
+					hdr.PAXRecords["SCHILY.xattr.security.capability"] = string(capBytes)
 				}
 			}
 		}
