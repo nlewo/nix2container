@@ -148,8 +148,12 @@ func appendFileToTar(tw *tar.Writer, srcPath, dstPath string, info os.FileInfo, 
 			}
 		}
 
+
+		logrus.Infof("Check for capabilities")
+
 		// Handle capabilities if defined
 		if len(opts.Capabilities) > 0 {
+			logrus.Infof("We have capabilities")
 					// Initialize PAXRecords if nil
 			if hdr.PAXRecords == nil {
 				hdr.PAXRecords = make(map[string]string)
