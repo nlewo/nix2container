@@ -150,7 +150,7 @@ func appendFileToTar(tw *tar.Writer, srcPath, dstPath string, info os.FileInfo, 
 
 					// Set version 3 and no flags
 					// magic_etc = 0x20000000 + version
-					binary.LittleEndian.PutUint32(capBytes[0:], 0x20000003)
+					binary.LittleEndian.PutUint32(capBytes[0:], 0x03000000)
 
 					var effective, permitted, inheritable uint32
 
