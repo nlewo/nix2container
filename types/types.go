@@ -65,6 +65,12 @@ type Capability struct {
 	Caps  []string `json:"caps"`
 }
 
+type CapabilityPath struct {
+	Path  string 	 `json:"path"`
+	Regex string   `json:"regex"`
+	Caps  []string `json:"caps"`
+}
+
 type PathOptions struct {
 	Rewrite Rewrite `json:"rewrite,omitempty"`
 	Perms   []Perm  `json:"perms,omitempty"`
