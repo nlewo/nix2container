@@ -2,6 +2,8 @@ package nix
 
 import (
 	"archive/tar"
+	"encoding/binary"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"os"
@@ -122,6 +124,41 @@ func appendFileToTar(tw *tar.Writer, srcPath, dstPath string, info os.FileInfo, 
 						return err
 					}
 				}
+			}
+		}
+
+		// Handle capabilities if defined
+		if len(opts.Capabilities) > 0 {
+			// Initialize PAXRecords if nil
+			if hdr.PAXRecords == nil {
+				hdr.PAXRecords = make(map[string]string)
+			}
+
+			for _, cap := range opts.Capabilities {
+					re := regexp.MustCompile(cap.Regex)
+					if re.Match([]byte(srcPath)) {
+							// Convert capabilities to binary format
+							capBytes := make([]byte, 12) // 3 32-bit integers for version 3
+							capBytes[0] = 3              // version 3
+
+							// Process each capability
+							for _, capStr := range cap.Caps {
+									switch capStr {
+									case "CAP_NET_BIND_SERVICE":
+											// Set bit 10 in all three capability sets (effective, inheritable, permitted)
+											// Starting from byte 4 (after version and flags)
+											capBit := uint32(1 << 10)
+											binary.LittleEndian.PutUint32(capBytes[4:], capBit)
+											binary.LittleEndian.PutUint32(capBytes[8:], capBit)
+											binary.LittleEndian.PutUint32(capBytes[12:], capBit)
+									// Add more cases for other capabilities as needed
+									}
+							}
+
+							// Convert to hex string
+							hexStr := hex.EncodeToString(capBytes)
+							hdr.PAXRecords["SCHILY.xattr.security.capability"] = hexStr
+					}
 			}
 		}
 	}
