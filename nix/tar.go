@@ -165,7 +165,7 @@ func appendFileToTar(tw *tar.Writer, srcPath, dstPath string, info os.FileInfo, 
 					for _, capStr := range cap.Caps {
 						switch capStr {
 						case "CAP_NET_BIND_SERVICE":
-							bit := uint32(1 << 10) // CAP_NET_BIND_SERVICE is 10
+							bit := uint32(10) // CAP_NET_BIND_SERVICE is 10
 							permitted |= bit
 							inheritable |= bit
 							effective |= bit
@@ -175,6 +175,8 @@ func appendFileToTar(tw *tar.Writer, srcPath, dstPath string, info os.FileInfo, 
 
 					data.Data[0].Permitted = permitted
 					data.Data[0].Inheritable = inheritable
+					data.Data[1].Permitted = uint32(10 >> 32)
+					data.Data[1].Inheritable = uint32(10 >> 32)
 					data.Effective = effective
 
 					buf := &bytes.Buffer{}
