@@ -293,7 +293,7 @@ let
     rewritesFlag = "--rewrites ${rewritesFile}";
     permsFile = pkgs.writeText "perms.json" (l.toJSON perms);
     permsFlag = l.optionalString (perms != []) "--perms ${permsFile}";
-    capsFile = pkgs.writeText "caps.json" (l.toJSON perms);
+    capsFile = pkgs.writeText "caps.json" (l.toJSON capabilities);
     capsFlag = l.optionalString (capabilities != []) "--caps ${capsFile}";
     historyFile = pkgs.writeText "history.json" (l.toJSON metadata);
     historyFlag = l.optionalString (metadata != {}) "--history ${historyFile}";
