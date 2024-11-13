@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"bytes"
 	"encoding/binary"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"os"
@@ -187,8 +188,10 @@ func appendFileToTar(tw *tar.Writer, srcPath, dstPath string, info os.FileInfo, 
 						continue
 					}
 
+					buf.Bytes()
+
 					capBytes := buf.Bytes()
-					hdr.PAXRecords["SCHILY.xattr.security.capability"] = string(capBytes)
+					hdr.PAXRecords["SCHILY.xattr.security.capability"] = hex.EncodeToString(capBytes)
 				}
 			}
 		}
