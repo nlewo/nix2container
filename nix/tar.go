@@ -157,7 +157,6 @@ func appendFileToTar(tw *tar.Writer, srcPath, dstPath string, info os.FileInfo, 
 			}
 
 			for _, cap := range opts.Capabilities {
-				logrus.Infof("path regex: %s path: %s dst: %s", cap.Regex, srcPath, dstPath)
 				re := regexp.MustCompile(cap.Regex)
 				if re.Match([]byte(srcPath)) {
 					logrus.Infof("Regex matches!: %s path: %s", cap.Regex, srcPath)
@@ -182,16 +181,19 @@ func appendFileToTar(tw *tar.Writer, srcPath, dstPath string, info os.FileInfo, 
 					data.Data[1].Inheritable = uint32(10 >> 32)
 					data.Effective = effective
 
+
+					logrus.Infof("Regex matches!: %v", data)
+
 					buf := &bytes.Buffer{}
 					if err := binary.Write(buf, binary.LittleEndian, data); err != nil {
 						fmt.Printf("Failed to write buffer: %v\n", err)
 						continue
 					}
 
-					buf.Bytes()
-
 					capBytes := buf.Bytes()
-					hdr.PAXRecords["SCHILY.xattr.security.capability"] = hex.EncodeToString(capBytes)
+					logrus.Infof("cap bytes: %v hex: %s", capBytes, hex.EncodeToString(capBytes))
+
+					hdr.PAXRecords["SCHILY.xattr.security.capability"] = string(capBytes)
 				}
 			}
 		}
