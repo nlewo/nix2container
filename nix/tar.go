@@ -148,21 +148,18 @@ func appendFileToTar(tw *tar.Writer, srcPath, dstPath string, info os.FileInfo, 
 		}
 
 
-		logrus.Infof("Check for capabilities")
-
 		// Handle capabilities if defined
 		if len(opts.Capabilities) > 0 {
-			logrus.Infof("We have capabilities")
 			// Initialize PAXRecords if nil
 			if hdr.PAXRecords == nil {
 				hdr.PAXRecords = make(map[string]string)
 			}
 
 			for _, cap := range opts.Capabilities {
-				logrus.Infof("path regex: %s", cap.Regex)
+				logrus.Infof("path regex: %s path: %s", cap.Regex, srcPath)
 				re := regexp.MustCompile(cap.Regex)
 				if re.Match([]byte(srcPath)) {
-					logrus.Infof("Regex matches!: %s", srcPath)
+					logrus.Infof("Regex matches!: %s path: %s", cap.Regex, srcPath)
 
 					data := vfsNsCapData{MagicEtc: vfsCapRevision3 | uint32(0)}
 
