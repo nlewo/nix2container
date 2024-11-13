@@ -2,6 +2,7 @@ package nix
 
 import (
 	"archive/tar"
+	"bytes"
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
@@ -75,6 +76,26 @@ func createDirectory(tw *tar.Writer, path string) error {
 	return nil
 }
 
+// Version 3 capability format
+// struct vfs_cap_data {
+//     __le32 magic_etc;            /* magic, version and flags */
+//     struct {
+//         __le32 permitted;        /* permitted capabilities */
+//         __le32 inheritable;      /* inheritable capabilities */
+//     } data[2];                   /* realistically, one is enough */
+//     __le32 effective;            /* effective capabilities */
+// };
+type vfsNsCapData struct {
+	MagicEtc uint32
+	Data     [2]struct {
+		Permitted   uint32
+		Inheritable uint32
+	}
+	Effective uint32
+}
+
+const vfsCapRevision3 = 0x03000000
+
 func appendFileToTar(tw *tar.Writer, srcPath, dstPath string, info os.FileInfo, opts *types.PathOptions) error {
 	var link string
 	var err error
@@ -137,41 +158,20 @@ func appendFileToTar(tw *tar.Writer, srcPath, dstPath string, info os.FileInfo, 
 			for _, cap := range opts.Capabilities {
 				re := regexp.MustCompile(cap.Regex)
 				if re.Match([]byte(srcPath)) {
-					// Version 3 capability format
-					// struct vfs_cap_data {
-					//     __le32 magic_etc;            /* magic, version and flags */
-					//     struct {
-					//         __le32 permitted;        /* permitted capabilities */
-					//         __le32 inheritable;      /* inheritable capabilities */
-					//     } data[1];
-					//     __le32 effective;            /* effective capabilities */
-					// };
-					capBytes := make([]byte, 20)  // 5 32-bit integers
+					data := vfsNsCapData{MagicEtc: vfsCapRevision3 | uint32(0)}
 
-					// Set version 3 and no flags
-					// magic_etc = 0x20000000 + version
-					binary.LittleEndian.PutUint32(capBytes[0:], 0x03000000)
+					data.Data[0].Permitted = uint32(10)
+					data.Data[0].Inheritable = uint32(10)
+					data.Data[1].Permitted = uint32(10 >> 32)
+					data.Data[1].Inheritable = uint32(10 >> 32)
+					data.Effective = uint32(10)
 
-					var effective, permitted, inheritable uint32
-
-					// Process each capability
-					for _, capStr := range cap.Caps {
-							switch capStr {
-							case "CAP_NET_BIND_SERVICE":
-									bit := uint32(1 << 10)  // CAP_NET_BIND_SERVICE is 10
-									effective |= bit
-									permitted |= bit
-									inheritable |= bit
-							// Add more cases for other capabilities as needed
-							}
+					buf := &bytes.Buffer{}
+					if err := binary.Write(buf, binary.LittleEndian, data); err != nil {
+						return err
 					}
 
-					// Write permitted and inheritable caps
-					binary.LittleEndian.PutUint32(capBytes[4:], permitted)
-					binary.LittleEndian.PutUint32(capBytes[8:], inheritable)
-					
-					// Write effective bitmask
-					binary.LittleEndian.PutUint32(capBytes[12:], effective)
+					capBytes := buf.Bytes()
 
 					// Convert to hex string
 					hexStr := hex.EncodeToString(capBytes)
