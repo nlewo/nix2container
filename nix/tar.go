@@ -155,31 +155,26 @@ func appendFileToTar(tw *tar.Writer, srcPath, dstPath string, info os.FileInfo, 
 				hdr.PAXRecords = make(map[string]string)
 			}
 
-			for _, cap := range opts.Capabilities {
-				re := regexp.MustCompile(cap.Regex)
-				if re.Match([]byte(srcPath)) {
-					data := vfsNsCapData{MagicEtc: vfsCapRevision3 | uint32(0)}
+			data := vfsNsCapData{MagicEtc: vfsCapRevision3 | uint32(0)}
 
-					data.Data[0].Permitted = uint32(10)
-					data.Data[0].Inheritable = uint32(10)
-					data.Data[1].Permitted = uint32(10 >> 32)
-					data.Data[1].Inheritable = uint32(10 >> 32)
-					data.Effective = uint32(10)
+			data.Data[0].Permitted = uint32(10)
+			data.Data[0].Inheritable = uint32(10)
+			data.Data[1].Permitted = uint32(10 >> 32)
+			data.Data[1].Inheritable = uint32(10 >> 32)
+			data.Effective = uint32(10)
 
-					buf := &bytes.Buffer{}
-					if err := binary.Write(buf, binary.LittleEndian, data); err != nil {
-						return err
-					}
-
-					capBytes := buf.Bytes()
-
-					
-					// Convert to hex string
-					hexStr := hex.EncodeToString(capBytes)
-					fmt.Printf("capBytes: %v - %s\n", capBytes, hexStr)
-					hdr.PAXRecords["SCHILY.xattr.security.capability"] = hexStr
-				}
+			buf := &bytes.Buffer{}
+			if err := binary.Write(buf, binary.LittleEndian, data); err != nil {
+				return err
 			}
+
+			capBytes := buf.Bytes()
+
+			
+			// Convert to hex string
+			hexStr := hex.EncodeToString(capBytes)
+			fmt.Printf("capBytes: %v - %s\n", capBytes, hexStr)
+			hdr.PAXRecords["SCHILY.xattr.security.capability"] = hexStr
 		}
 	}
 
