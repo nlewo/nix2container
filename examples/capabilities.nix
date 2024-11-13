@@ -43,7 +43,7 @@ nix2container.buildImage {
       capabilities = [
         {
           path = pkgs.nginx;
-          regex = "";
+          regex = "bin/nginx";
           caps = [ "CAP_NET_BIND_SERVICE" ];
         }
       ];
