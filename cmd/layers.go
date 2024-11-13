@@ -203,7 +203,7 @@ func init() {
 	layersReproducibleCmd.Flags().StringVarP(&ignore, "ignore", "", "", "Ignore the path from the list of storepaths")
 	layersReproducibleCmd.Flags().StringVarP(&rewritesFilepath, "rewrites", "", "", "A JSON file containing path rewrites")
 	layersReproducibleCmd.Flags().StringVarP(&permsFilepath, "perms", "", "", "A JSON file containing file permissions")
-	layersNonReproducibleCmd.Flags().StringVarP(&capsFilepath, "caps", "", "", "A JSON file containing file capabilities")
+	layersReproducibleCmd.Flags().StringVarP(&capsFilepath, "caps", "", "", "A JSON file containing file capabilities")
 	layersReproducibleCmd.Flags().StringVarP(&historyFilepath, "history", "", "", "A JSON file containing layer history")
 	layersReproducibleCmd.Flags().IntVarP(&maxLayers, "max-layers", "", 1, "The maximum number of layers")
 
