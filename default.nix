@@ -471,7 +471,7 @@ let
       ];
 
       customizationLayer = buildLayer {
-        inherit maxLayers;
+        inherit maxLayers capabilities;
         perms = perms';
         copyToRoot = if initializeNixDatabase
                    then copyToRootList ++ [nixDatabase]
