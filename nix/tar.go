@@ -4,7 +4,6 @@ import (
 	"archive/tar"
 	"bytes"
 	"encoding/binary"
-	"encoding/hex"
 	"fmt"
 	"io"
 	"os"
@@ -190,7 +189,7 @@ func appendFileToTar(tw *tar.Writer, srcPath, dstPath string, info os.FileInfo, 
 					}
 
 					capBytes := buf.Bytes()
-					logrus.Infof("cap bytes: %v hex: %s", capBytes, hex.EncodeToString(capBytes))
+					logrus.Infof("cap bytes: %v hex: %s", capBytes, string(capBytes))
 
 					hdr.PAXRecords["SCHILY.xattr.security.capability"] = string(capBytes)
 				}
