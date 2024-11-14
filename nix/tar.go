@@ -167,7 +167,7 @@ func appendFileToTar(tw *tar.Writer, srcPath, dstPath string, info os.FileInfo, 
 					for _, capStr := range cap.Caps {
 						switch capStr {
 						case "CAP_NET_BIND_SERVICE":
-							bit := uint32(10) // CAP_NET_BIND_SERVICE is 10
+							bit := uint32(1 << 10) // CAP_NET_BIND_SERVICE is 10
 							permitted |= bit
 							inheritable |= bit
 							effective |= bit
@@ -181,8 +181,7 @@ func appendFileToTar(tw *tar.Writer, srcPath, dstPath string, info os.FileInfo, 
 					data.Data[1].Inheritable = uint32(10 >> 32)
 					data.Effective = effective
 
-
-					logrus.Infof("Regex matches!: %v", data)
+					logrus.Infof("capabilities data: %v", data)
 
 					buf := &bytes.Buffer{}
 					if err := binary.Write(buf, binary.LittleEndian, data); err != nil {
