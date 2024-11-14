@@ -2,8 +2,6 @@ package nix
 
 import (
 	"archive/tar"
-	"bytes"
-	"encoding/binary"
 	"fmt"
 	"io"
 	"os"
@@ -160,35 +158,11 @@ func appendFileToTar(tw *tar.Writer, srcPath, dstPath string, info os.FileInfo, 
 				if re.Match([]byte(srcPath)) {
 					logrus.Infof("Regex matches!: %s path: %s", cap.Regex, srcPath)
 
-					data := vfsNsCapData{MagicEtc: vfsCapRevision3 | uint32(0)}
-
-					var permitted, inheritable, effective uint32
-					for _, capStr := range cap.Caps {
-						switch capStr {
-						case "CAP_NET_BIND_SERVICE":
-							bit := uint32(1 << 10) // CAP_NET_BIND_SERVICE is 10
-							permitted |= bit
-							inheritable |= bit
-							effective |= bit
-						// Add more cases for other capabilities as needed
-						}
-					}
-
-					data.Data[0].Permitted = permitted
-					data.Data[0].Inheritable = inheritable
-					data.Data[1].Permitted = uint32(10 >> 32)
-					data.Data[1].Inheritable = uint32(10 >> 32)
-					data.Effective = effective
+					data := NewVFSCapData(uint32(1 << CAP_NET_BIND_SERVICE), uint32(1 << CAP_NET_BIND_SERVICE), true, 0)
 
 					logrus.Infof("capabilities data: %v", data)
 
-					buf := &bytes.Buffer{}
-					if err := binary.Write(buf, binary.LittleEndian, data); err != nil {
-						fmt.Printf("Failed to write buffer: %v\n", err)
-						continue
-					}
-
-					capBytes := buf.Bytes()
+					capBytes := data.ToBytes()
 					logrus.Infof("cap bytes: %v hex: %s", capBytes, string(capBytes))
 
 					hdr.PAXRecords["SCHILY.xattr.security.capability"] = string(capBytes)
