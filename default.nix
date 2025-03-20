@@ -172,6 +172,7 @@ let
           plainDigest = l.replaceStrings ["sha256:"] [""] digest;
           insecureFlag = l.strings.optionalString (!tlsVerify) "--insecure";
         in pkgs.runCommand plainDigest {
+          impureEnvVars = l.fetchers.proxyImpureEnvVars;
           outputHash = plainDigest;
           outputHashMode = "flat";
           outputHashAlgo = "sha256";
