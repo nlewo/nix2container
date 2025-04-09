@@ -146,8 +146,24 @@ func NewImageFromDir(directory string) (image types.Image, err error) {
 		return image, err
 	}
 
-	// TODO: we should also load the configuration in order to
-	// allow configuration merges
+	{
+		configLayerFileName := directory + "/" + v1Manifest.Config.Digest.Encoded()
+		logrus.Infof("Loading image config from '%s'", configLayerFileName)
+		configLayerFile, err := os.Open(configLayerFileName)
+		if err != nil {
+			return image, err
+		}
+		configLayerContent, err := io.ReadAll(configLayerFile)
+		if err != nil {
+			return image, err
+		}
+		var v1Image v1.Image
+		err = json.Unmarshal(configLayerContent, &v1Image)
+		if err != nil {
+			return image, err
+		}
+		image.ImageConfig = v1Image.Config
+	}
 
 	for i, l := range v1Manifest.Layers {
 		layerFilename := directory + "/" + l.Digest.Encoded()
@@ -225,3 +241,50 @@ type nopCloser struct {
 }
 
 func (nopCloser) Close() error { return nil }
+
+func MergeOtherImageConfig(target *v1.ImageConfig, other *v1.ImageConfig) {
+	// User: overwrite
+	if len(other.User) > 0 {
+		target.User = other.User
+	}
+
+	// ExposedPorts: join
+	for k, v := range other.ExposedPorts {
+		target.ExposedPorts[k] = v
+	}
+
+	// Env: join
+	for k, v := range other.Env {
+		target.Env[k] = v
+	}
+
+	// Entrypoint: overwrite
+	if len(other.Entrypoint) > 0 {
+		target.Entrypoint = other.Entrypoint
+	}
+
+	// Cmd: overwrite
+	if len(other.Cmd) > 0 {
+		target.Cmd = other.Cmd
+	}
+
+	// Volumes: join
+	for k, v := range other.Volumes {
+		target.Volumes[k] = v
+	}
+
+	// WorkingDir: overwrite
+	if len(other.WorkingDir) > 0 {
+		target.WorkingDir = other.WorkingDir
+	}
+
+	// Labels: join
+	for k, v := range other.Labels {
+		target.Labels[k] = v
+	}
+
+	// StopSignal: overwrite
+	if len(other.StopSignal) > 0 {
+		target.StopSignal = other.StopSignal
+	}
+}
