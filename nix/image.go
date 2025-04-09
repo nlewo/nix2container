@@ -13,7 +13,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"os"
 
@@ -158,19 +157,9 @@ func NewImageFromDir(directory string) (image types.Image, err error) {
 			Digest:    l.Digest.String(),
 			DiffIDs:   v1ImageConfig.RootFS.DiffIDs[i].String(),
 		}
-		switch l.MediaType {
-		case "application/vnd.docker.image.rootfs.diff.tar":
-			layer.MediaType = v1.MediaTypeImageLayer
-		case "application/vnd.docker.image.rootfs.diff.tar.gzip":
-			layer.MediaType = v1.MediaTypeImageLayerGzip
-		case "application/vnd.oci.image.layer.v1.tar":
-			layer.MediaType = l.MediaType
-		case "application/vnd.oci.image.layer.v1.tar+gzip":
-			layer.MediaType = l.MediaType
-		case "application/vnd.oci.image.layer.v1.tar+zstd":
-			layer.MediaType = l.MediaType
-		default:
-			return image, fmt.Errorf("Unsupported media type: %q", l.MediaType)
+		err = layer.SetMediaTypeFromDescriptor(l)
+		if err != nil {
+			return image, err
 		}
 		image.Layers = append(image.Layers, layer)
 	}
@@ -222,19 +211,9 @@ func NewImageFromManifest(manifestFilename string, blobMapFilename string) (imag
 			Digest:    l.Digest.String(),
 			DiffIDs:   v1ImageConfig.RootFS.DiffIDs[i].String(),
 		}
-		switch l.MediaType {
-		case "application/vnd.docker.image.rootfs.diff.tar":
-			layer.MediaType = v1.MediaTypeImageLayer
-		case "application/vnd.docker.image.rootfs.diff.tar.gzip":
-			layer.MediaType = v1.MediaTypeImageLayerGzip
-		case "application/vnd.oci.image.layer.v1.tar":
-			layer.MediaType = l.MediaType
-		case "application/vnd.oci.image.layer.v1.tar+gzip":
-			layer.MediaType = l.MediaType
-		case "application/vnd.oci.image.layer.v1.tar+zstd":
-			layer.MediaType = l.MediaType
-		default:
-			return image, fmt.Errorf("Unsupported media type: %q", l.MediaType)
+		err = layer.SetMediaTypeFromDescriptor(l)
+		if err != nil {
+			return image, err
 		}
 		image.Layers = append(image.Layers, layer)
 	}
