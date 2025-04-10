@@ -2,6 +2,7 @@ package types
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"os"
 	"time"
@@ -82,6 +83,24 @@ type Layer struct {
 	MediaType string `json:"mediatype"`
 	LayerPath string `json:"layer-path,omitempty"`
 	History   v1.History
+}
+
+func (layer *Layer) SetMediaTypeFromDescriptor(l v1.Descriptor) error {
+	switch l.MediaType {
+	case "application/vnd.docker.image.rootfs.diff.tar":
+		layer.MediaType = v1.MediaTypeImageLayer
+	case "application/vnd.docker.image.rootfs.diff.tar.gzip":
+		layer.MediaType = v1.MediaTypeImageLayerGzip
+	case "application/vnd.oci.image.layer.v1.tar":
+		layer.MediaType = l.MediaType
+	case "application/vnd.oci.image.layer.v1.tar+gzip":
+		layer.MediaType = l.MediaType
+	case "application/vnd.oci.image.layer.v1.tar+zstd":
+		layer.MediaType = l.MediaType
+	default:
+		return fmt.Errorf("Unsupported media type: %q", l.MediaType)
+	}
+	return nil
 }
 
 func NewLayersFromFile(filename string) ([]Layer, error) {

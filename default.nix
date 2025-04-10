@@ -384,6 +384,8 @@ let
     copyToRoot ? null,
     # An image that is used as base image of this image.
     fromImage ? "",
+    # Whether the base image's configuration (entrypoint, env, ...) should be inherited
+    fromImageInheritConfig ? false,
     # A list of file permisssions which are set when the tar layer is
     # created: these permissions are not written to the Nix store.
     #
@@ -461,6 +463,7 @@ let
         layers = layers;
       };
       fromImageFlag = l.optionalString (fromImage != "") "--from-image ${fromImage}";
+      fromImageInheritConfigFlag = l.optionalString fromImageInheritConfig "--from-image-inherit-config=true";
       createdFlag = "--created ${created}";
       layerPaths = l.concatMapStringsSep " " (l: l + "/layers.json") (layers ++ [customizationLayer]);
       image = let
@@ -489,6 +492,7 @@ let
         ${nix2container-bin}/bin/nix2container image \
         $out \
         ${fromImageFlag} \
+        ${fromImageInheritConfigFlag} \
         ${createdFlag} \
         ${configFile} \
         ${layerPaths}

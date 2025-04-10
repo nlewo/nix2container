@@ -15,6 +15,7 @@ import (
 )
 
 var fromImageFilename string
+var fromImageInheritConfig bool
 
 var created timeValue
 
@@ -39,7 +40,7 @@ var imageCmd = &cobra.Command{
 	Short: "Generate an image.json file from a image configuration and layers",
 	Args:  cobra.MinimumNArgs(3),
 	Run: func(cmd *cobra.Command, args []string) {
-		err := image(args[0], args[1], fromImageFilename, args[2:], (time.Time)(created))
+		err := image(args[0], args[1], fromImageFilename, fromImageInheritConfig, args[2:], (time.Time)(created))
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s", err)
 			os.Exit(1)
@@ -107,7 +108,7 @@ func imageFromManifest(outputFilename, manifestFilename string, blobsFilename st
 	return nil
 }
 
-func image(outputFilename, imageConfigPath string, fromImageFilename string, layerPaths []string, created time.Time) error {
+func image(outputFilename, imageConfigPath string, fromImageFilename string, fromImageInheritConfig bool, layerPaths []string, created time.Time) error {
 	var imageConfig v1.ImageConfig
 	var image types.Image
 
@@ -123,6 +124,7 @@ func image(outputFilename, imageConfigPath string, fromImageFilename string, lay
 		return err
 	}
 
+	mergeImageConfig := false
 	if fromImageFilename != "" {
 		fromImage, err := nix.NewImageFromFile(fromImageFilename)
 		if err != nil {
@@ -130,12 +132,23 @@ func image(outputFilename, imageConfigPath string, fromImageFilename string, lay
 		}
 		image.Layers = append(image.Layers, fromImage.Layers...)
 
+		if fromImageInheritConfig {
+			image.ImageConfig = fromImage.ImageConfig
+			mergeImageConfig = true
+		}
+
 		logrus.Infof("Using base image %s containing %d layers", fromImageFilename, len(fromImage.Layers))
 	}
 
 	image.Arch = runtime.GOARCH
 
-	image.ImageConfig = imageConfig
+	if mergeImageConfig {
+		// When using `fromImage = [...]` and `fromImageInheritConfig = true`, put the config
+		// defined in Nix on top of the config from the base image.
+		nix.MergeOtherImageConfig(&image.ImageConfig, &imageConfig)
+	} else {
+		image.ImageConfig = imageConfig
+	}
 
 	image.Created = &created
 
@@ -167,6 +180,7 @@ func image(outputFilename, imageConfigPath string, fromImageFilename string, lay
 func init() {
 	rootCmd.AddCommand(imageCmd)
 	imageCmd.Flags().StringVarP(&fromImageFilename, "from-image", "", "", "A JSON file describing the base image")
+	imageCmd.Flags().BoolVarP(&fromImageInheritConfig, "from-image-inherit-config", "", false, "Whether the image config should be inherited from the base image")
 	imageCmd.Flags().Var(&created, "created", "Timestamp at which the image was created")
 	rootCmd.AddCommand(imageFromDirCmd)
 	rootCmd.AddCommand(imageFromManifestCmd)
