@@ -255,6 +255,15 @@ let
     # The mode is applied on a specific path. In this path subtree,
     # the mode is then applied on all files matching the regex.
     perms ? [],
+    # A list of capabilities  which are set when the tar layer is
+    # created: these capabilities are not written to the Nix store.
+    #
+    # Each element of this permission list is a dict such as
+    # { path = "a store path";
+    #   regex = ".*";
+    #   caps = ["CAP_NET_BIND_SERVICE"];
+    # }
+    capabilities ? [],
     # The maximun number of layer to create. This is based on the
     # store path "popularity" as described in
     # https://grahamc.com/blog/nix-and-layered-docker-images
@@ -285,6 +294,8 @@ let
     rewritesFlag = "--rewrites ${rewritesFile}";
     permsFile = pkgs.writeText "perms.json" (l.toJSON perms);
     permsFlag = l.optionalString (perms != []) "--perms ${permsFile}";
+    capsFile = pkgs.writeText "caps.json" (l.toJSON capabilities);
+    capsFlag = l.optionalString (capabilities != []) "--caps ${capsFile}";
     historyFile = pkgs.writeText "history.json" (l.toJSON metadata);
     historyFlag = l.optionalString (metadata != {}) "--history ${historyFile}";
     allDeps = deps ++ copyToRootList;
@@ -297,6 +308,7 @@ let
         --max-layers ${toString maxLayers} \
         ${rewritesFlag} \
         ${permsFlag} \
+        ${capsFlag} \
         ${historyFlag} \
         ${tarDirectory} \
         ${l.concatMapStringsSep " "  (l: l + "/layers.json") layers} \
@@ -397,6 +409,15 @@ let
     # The mode is applied on a specific path. In this path subtree,
     # the mode is then applied on all files matching the regex.
     perms ? [],
+    # A list of capabilities  which are set when the tar layer is
+    # created: these capabilities are not written to the Nix store.
+    #
+    # Each element of this permission list is a dict such as
+    # { path = "a store path";
+    #   regex = ".*";
+    #   caps = ["CAP_NET_BIND_SERVICE"];
+    # }
+    capabilities ? [],
     # The maximun number of layer to create. This is based on the
     # store path "popularity" as described in
     # https://grahamc.com/blog/nix-and-layered-docker-images
@@ -453,7 +474,7 @@ let
       ];
 
       customizationLayer = buildLayer {
-        inherit maxLayers;
+        inherit maxLayers capabilities;
         perms = perms';
         copyToRoot = if initializeNixDatabase
                    then copyToRootList ++ [nixDatabase]
