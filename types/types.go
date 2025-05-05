@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"io"
 	"os"
+	"time"
 
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 )
@@ -18,6 +19,7 @@ type Image struct {
 	ImageConfig v1.ImageConfig `json:"image-config"`
 	Layers      []Layer        `json:"layers"`
 	Arch        string         `json:"arch"`
+	Created     *time.Time     `json:"created"`
 }
 
 type Rewrite struct {
@@ -79,6 +81,7 @@ type Layer struct {
 	// https://github.com/opencontainers/image-spec/blob/8b9d41f48198a7d6d0a5c1a12dc2d1f7f47fc97f/specs-go/v1/mediatype.go
 	MediaType string `json:"mediatype"`
 	LayerPath string `json:"layer-path,omitempty"`
+	History   v1.History
 }
 
 func NewLayersFromFile(filename string) ([]Layer, error) {

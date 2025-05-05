@@ -159,6 +159,63 @@ let
       };
       pattern = "Hello, world!";
     };
+    created = let
+      image = examples.created;
+      timestamp = "2024-05-13 09:31:10";
+    in pkgs.writeScriptBin "test-script" ''
+      ${image.copyToPodman}/bin/copy-to-podman
+      created=$(${pkgs.podman}/bin/podman image inspect ${image.imageName}:${image.imageTag} -f '{{ .Created }}')
+      if echo $created | ${pkgs.gnugrep}/bin/grep '${timestamp}' > /dev/null;
+      then
+        echo "Test passed"
+      else
+        echo "Expected Created attribute to contain: ${timestamp}"
+        echo ""
+        echo "Actual Created attribute: $created"
+        echo ""
+        echo "Error: test failed"
+        exit $ret
+      fi
+    '';
+    metadata = let
+      image = examples.metadata;
+      expected_created_by = "test created_by";
+      expected_author = "test author";
+      expected_comment = "test comment";
+    in pkgs.writeScriptBin "test-script" ''
+      ${image.copyToPodman}/bin/copy-to-podman
+      created_by=$(${pkgs.podman}/bin/podman image inspect ${image.imageName}:${image.imageTag} -f '{{ (index .History 0).CreatedBy }}')
+      author=$(${pkgs.podman}/bin/podman image inspect ${image.imageName}:${image.imageTag} -f '{{ (index .History 0).Author }}')
+      comment=$(${pkgs.podman}/bin/podman image inspect ${image.imageName}:${image.imageTag} -f '{{ (index .History 0).Comment }}')
+      if ! echo $created_by | ${pkgs.gnugrep}/bin/grep '${expected_created_by}' > /dev/null;
+      then
+        echo "Expected created_by attribute to contain: ${expected_created_by}"
+        echo ""
+        echo "Actual created_by attribute: $created"
+        echo ""
+        echo "Error: test failed"
+        exit 1
+      fi
+      if ! echo $author | ${pkgs.gnugrep}/bin/grep '${expected_author}' > /dev/null;
+      then
+        echo "Expected author attribute to contain: ${expected_author}"
+        echo ""
+        echo "Actual author attribute: $author"
+        echo ""
+        echo "Error: test failed"
+        exit 1
+      fi
+      if ! echo $comment | ${pkgs.gnugrep}/bin/grep '${expected_comment}' > /dev/null;
+      then
+        echo "Expected comment attribute to contain: ${expected_comment}"
+        echo ""
+        echo "Actual comment attribute: $comment"
+        echo ""
+        echo "Error: test failed"
+        exit 1
+      fi
+      echo "Test passed"
+    '';
   } //
   (pkgs.lib.mapAttrs' (name: drv: {
     name = "${name}GetManifest";
@@ -177,6 +234,7 @@ let
       "\n"
       (pkgs.lib.mapAttrsToList (n: v: "echo Running test '${n}'\n${v}/bin/test-script") tests);
     in pkgs.writeScriptBin "all-test-scripts" ''
+      #!${pkgs.runtimeShell}
       set -e
       ${scripts}
     '';

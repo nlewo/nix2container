@@ -269,6 +269,9 @@ Function arguments are:
     building the layer. This is mainly useful to ignore the
     configuration file from the container layer.
 
+- **`metadata`** (defaults to `{ created_by = "nix2container"; }`): an attribute
+    set containing this layer's `created_by`, `author` and `comment` values
+
 ### `nix2container.layers.shadow`
 
 Helper to create a layer and quickly customize the users and groups available

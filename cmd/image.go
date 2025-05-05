@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"runtime"
+	"time"
 
 	"github.com/nlewo/nix2container/nix"
 	"github.com/nlewo/nix2container/types"
@@ -15,12 +16,31 @@ import (
 
 var fromImageFilename string
 
+var imageArch string
+var created timeValue
+
+type timeValue time.Time
+
+func (tv *timeValue) String() string {
+	return (*time.Time)(tv).Format(time.RFC3339)
+}
+
+func (tv *timeValue) Set(value string) error {
+	t, err := time.Parse(time.RFC3339, value)
+	*tv = timeValue(t)
+	return err
+}
+
+func (tv *timeValue) Type() string {
+	return "time"
+}
+
 var imageCmd = &cobra.Command{
 	Use:   "image OUTPUT-FILENAME CONFIG.JSON LAYERS-1.JSON LAYERS-2.JSON ...",
 	Short: "Generate an image.json file from a image configuration and layers",
 	Args:  cobra.MinimumNArgs(3),
 	Run: func(cmd *cobra.Command, args []string) {
-		err := image(args[0], args[1], fromImageFilename, args[2:])
+		err := image(args[0], args[1], fromImageFilename, args[2:], imageArch, (time.Time)(created))
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s", err)
 			os.Exit(1)
@@ -88,7 +108,7 @@ func imageFromManifest(outputFilename, manifestFilename string, blobsFilename st
 	return nil
 }
 
-func image(outputFilename, imageConfigPath string, fromImageFilename string, layerPaths []string) error {
+func image(outputFilename, imageConfigPath string, fromImageFilename string, layerPaths []string, arch string, created time.Time) error {
 	var imageConfig v1.ImageConfig
 	var image types.Image
 
@@ -114,9 +134,12 @@ func image(outputFilename, imageConfigPath string, fromImageFilename string, lay
 		logrus.Infof("Using base image %s containing %d layers", fromImageFilename, len(fromImage.Layers))
 	}
 
-	image.Arch = runtime.GOARCH
+	image.Arch = arch
 
 	image.ImageConfig = imageConfig
+
+	image.Created = &created
+
 	for _, path := range layerPaths {
 		var layers []types.Layer
 		layerJson, err := os.ReadFile(path)
@@ -145,6 +168,8 @@ func image(outputFilename, imageConfigPath string, fromImageFilename string, lay
 func init() {
 	rootCmd.AddCommand(imageCmd)
 	imageCmd.Flags().StringVarP(&fromImageFilename, "from-image", "", "", "A JSON file describing the base image")
+	imageCmd.Flags().StringVarP(&imageArch, "arch", "", runtime.GOARCH, "Target CPU architecture of the image")
+	imageCmd.Flags().Var(&created, "created", "Timestamp at which the image was created")
 	rootCmd.AddCommand(imageFromDirCmd)
 	rootCmd.AddCommand(imageFromManifestCmd)
 }

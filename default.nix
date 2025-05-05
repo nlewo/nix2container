@@ -29,10 +29,23 @@ let
     EXTRA_LDFLAGS = pkgs.lib.optionalString pkgs.stdenv.isDarwin "-X github.com/nlewo/nix2container/nix.useNixCaseHack=true";
     nativeBuildInputs = old.nativeBuildInputs ++ [ pkgs.patchutils ];
     preBuild = let
-      patch = pkgs.fetchurl {
+      # Needs to use fetchpatch2 to handle "git extended headers", which include
+      # lines with semantic content like "rename from" and "rename to".
+      # However, it also includes "index" lines which include the git revision(s) the patch was initially created from.
+      # These lines may include revisions of differing length, based on how Github generates them.
+      # fetchpatch2 does not filter out, but probably should    
+      fetchgitpatch = args: pkgs.fetchpatch2 (args // {
+        postFetch = (args.postFetch or "") + ''
+          sed -i \
+            -e '/^index /d' \
+            -e '/^similarity index /d' \
+            -e '/^dissimilarity index /d' \
+            $out
+        '';
+      });
+      patch = fetchgitpatch {
         url = "https://github.com/nlewo/image/commit/c2254c998433cf02af60bf0292042bd80b96a77e.patch";
-        sha256 = "sha256-dKEObfZY2fdsza/kObCLhv4l2snuzAbpDi4fGmtTPUQ=";
-
+        sha256 = "sha256-6CUjz46xD3ORgwrHwdIlSu6JUj7WLS6BOSyRGNnALHY=";
       };
     in ''
       mkdir -p vendor/github.com/nlewo/nix2container/
@@ -51,21 +64,22 @@ let
   writeSkopeoApplication = name: text: pkgs.writeShellApplication {
     inherit name text;
     runtimeInputs = [ pkgs.jq skopeo-nix2container ];
+    excludeShellChecks = [ "SC2068" ];
   };
 
   copyToDockerDaemon = image: writeSkopeoApplication "copy-to-docker-daemon" ''
     echo "Copy to Docker daemon image ${image.imageName}:${image.imageTag}"
-    skopeo --insecure-policy copy nix:${image} docker-daemon:${image.imageName}:${image.imageTag} "$@"
+    skopeo --insecure-policy copy nix:${image} docker-daemon:${image.imageName}:${image.imageTag} $@
   '';
 
   copyToRegistry = image: writeSkopeoApplication "copy-to-registry" ''
     echo "Copy to Docker registry image ${image.imageName}:${image.imageTag}"
-    skopeo --insecure-policy copy nix:${image} docker://${image.imageName}:${image.imageTag} "$@"
+    skopeo --insecure-policy copy nix:${image} docker://${image.imageName}:${image.imageTag} $@
   '';
 
   copyTo = image: writeSkopeoApplication "copy-to" ''
-    echo Running skopeo --insecure-policy copy nix:${image} "$@"
-    skopeo --insecure-policy copy nix:${image} "$@"
+    echo Running skopeo --insecure-policy copy nix:${image} $@
+    skopeo --insecure-policy copy nix:${image} $@
   '';
 
   copyToPodman = image: writeSkopeoApplication "copy-to-podman" ''
@@ -158,6 +172,7 @@ let
           plainDigest = l.replaceStrings ["sha256:"] [""] digest;
           insecureFlag = l.strings.optionalString (!tlsVerify) "--insecure";
         in pkgs.runCommand plainDigest {
+          impureEnvVars = l.fetchers.proxyImpureEnvVars;
           outputHash = plainDigest;
           outputHashMode = "flat";
           outputHashAlgo = "sha256";
@@ -246,6 +261,8 @@ let
     maxLayers ? 1,
     # Deprecated: will be removed on v1
     contents ? null,
+    # Author, comment, created_by
+    metadata ? { created_by = "nix2container"; },
   }: let
     subcommand = if reproducible
               then "layers-from-reproducible-storepaths"
@@ -268,6 +285,8 @@ let
     rewritesFlag = "--rewrites ${rewritesFile}";
     permsFile = pkgs.writeText "perms.json" (l.toJSON perms);
     permsFlag = l.optionalString (perms != []) "--perms ${permsFile}";
+    historyFile = pkgs.writeText "history.json" (l.toJSON metadata);
+    historyFlag = l.optionalString (metadata != {}) "--history ${historyFile}";
     allDeps = deps ++ copyToRootList;
     tarDirectory = l.optionalString (! reproducible) "--tar-directory $out";
     layersJSON = pkgs.runCommand "layers.json" {} ''
@@ -278,6 +297,7 @@ let
         --max-layers ${toString maxLayers} \
         ${rewritesFlag} \
         ${permsFlag} \
+        ${historyFlag} \
         ${tarDirectory} \
         ${l.concatMapStringsSep " "  (l: l + "/layers.json") layers} \
       '';
@@ -364,6 +384,8 @@ let
     copyToRoot ? null,
     # An image that is used as base image of this image.
     fromImage ? "",
+    # Image architecture
+    arch ? pkgs.go.GOARCH,
     # A list of file permisssions which are set when the tar layer is
     # created: these permissions are not written to the Nix store.
     #
@@ -390,6 +412,8 @@ let
     # controlled using nixUid/nixGid.
     nixUid ? 0,
     nixGid ? 0,
+    # Time of creation of the image.
+    created ? "0001-01-01T00:00:00Z",
     # Deprecated: will be removed
     contents ? null,
     meta ? {},
@@ -439,6 +463,8 @@ let
         layers = layers;
       };
       fromImageFlag = l.optionalString (fromImage != "") "--from-image ${fromImage}";
+      archFlag = "--arch ${arch}";
+      createdFlag = "--created ${created}";
       layerPaths = l.concatMapStringsSep " " (l: l + "/layers.json") (layers ++ [customizationLayer]);
       image = let
         imageName = l.toLower name;
@@ -466,6 +492,8 @@ let
         ${nix2container-bin}/bin/nix2container image \
         $out \
         ${fromImageFlag} \
+        ${archFlag} \
+        ${createdFlag} \
         ${configFile} \
         ${layerPaths}
       '';

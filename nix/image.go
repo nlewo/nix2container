@@ -73,6 +73,7 @@ func getV1Image(image types.Image) (imageV1 v1.Image, err error) {
 	imageV1.OS = "linux"
 	imageV1.Architecture = image.Arch
 	imageV1.Config = image.ImageConfig
+	imageV1.Created = image.Created
 
 	for _, layer := range image.Layers {
 		digest, err := godigest.Parse(layer.DiffIDs)
@@ -83,15 +84,14 @@ func getV1Image(image types.Image) (imageV1 v1.Image, err error) {
 			imageV1.RootFS.DiffIDs,
 			digest)
 		imageV1.RootFS.Type = "layers"
+		// Even if optional in the spec, we
+		// need to add an history otherwise
+		// some toolings can complain:
+		// https://github.com/nlewo/nix2container/issues/57
 		imageV1.History = append(
 			imageV1.History,
-			v1.History{
-				// Even if optional in the spec, we
-				// need to add an history otherwise
-				// some toolings can complain:
-				// https://github.com/nlewo/nix2container/issues/57
-				CreatedBy: "nix2container",
-			})
+			layer.History,
+		)
 	}
 	return
 }
