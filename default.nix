@@ -176,29 +176,28 @@ let
           insecureFlag = l.strings.optionalString (!tlsVerify) "--insecure";
         in pkgs.runCommand plainDigest {
           impureEnvVars = l.fetchers.proxyImpureEnvVars;
-          outputHash = plainDigest;
-          outputHashMode = "flat";
-          outputHashAlgo = "sha256";
+          nativeBuildInputs = with pkgs; [ cacert curl jq ];
+          outputHash = digest;
         } ''
-          SSL_CERT_FILE="${pkgs.cacert.out}/etc/ssl/certs/ca-bundle.crt";
-
           # This initial access is expected to fail as we don't have a token.
-          ${pkgs.curl}/bin/curl --location ${insecureFlag} "${blobUrl}" --head --silent --write-out '%header{www-authenticate}' --output /dev/null > bearer.txt
-          tokenUrl=$(sed -n 's/Bearer realm="\(.*\)",service="\(.*\)",scope="\(.*\)"/\1?service=\2\&scope=\3/p' bearer.txt)
+          tokenUrl="$(
+            curl --location ${insecureFlag} --head --silent "${blobUrl}" \
+              --output /dev/null --write-out '%header{www-authenticate}' |
+            sed -E 's/Bearer realm="([^"]+)",(.*)/\1?\2/; s/,/\&/g; s/"//g'
+          )"
 
-          declare -a auth_args
           if [ -n "$tokenUrl" ]; then
             echo "Token URL: $tokenUrl"
-            ${pkgs.curl}/bin/curl --location ${insecureFlag} --fail --silent "$tokenUrl" --output token.json
-            token="$(${pkgs.jq}/bin/jq --raw-output .token token.json)"
-            auth_args=(-H "Authorization: Bearer $token")
+            authFlag="--oauth2-bearer $(
+              curl --location ${insecureFlag} --fail --silent "$tokenUrl" |
+              jq --raw-output .token
+            )"
           else
             echo "No token URL found, trying without authentication"
-            auth_args=()
           fi
 
           echo "Blob URL: ${blobUrl}"
-          ${pkgs.curl}/bin/curl ${insecureFlag} --fail "''${auth_args[@]}" "${blobUrl}" --location --output $out
+          curl --location ${insecureFlag} --fail $authFlag "${blobUrl}" --output $out
         '';
 
       # Pull the blobs (archives) for all layers, as well as the one for the image's config JSON.
