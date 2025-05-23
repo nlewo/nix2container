@@ -127,37 +127,29 @@ let
     , tlsVerify ? true
     , name ? fixName "docker-image-${imageName}"
     }: let
+      sourceURL = "docker://${imageName}@${imageDigest}";
       authFile = "/etc/skopeo/auth.json";
       dir = pkgs.runCommand name
       {
         inherit imageDigest;
         impureEnvVars = l.fetchers.proxyImpureEnvVars;
+        nativeBuildInputs = with pkgs; [ cacert skopeo ];
+
         outputHashMode = "recursive";
         outputHashAlgo = "sha256";
         outputHash = sha256;
-
-        nativeBuildInputs = l.singleton pkgs.skopeo;
-        SSL_CERT_FILE = "${pkgs.cacert.out}/etc/ssl/certs/ca-bundle.crt";
-
-        sourceURL = "docker://${imageName}@${imageDigest}";
       } ''
-      skopeo \
-        --insecure-policy \
-        --tmpdir=$TMPDIR \
-        --override-os ${os} \
-        --override-arch ${arch} \
-        copy \
-        --src-tls-verify=${l.boolToString tlsVerify} \
-        $(
-          if test -f "${authFile}"
-          then
-            echo "--authfile=${authFile} $sourceURL"
-          else
-            echo "$sourceURL"
-          fi
-        ) \
-        "dir://$out" \
-        | cat  # pipe through cat to force-disable progress bar
+        if [ -f "${authFile}" ]; then
+          authFlag="--authfile ${authFile}"
+        fi
+
+        skopeo copy "${sourceURL}" "dir://$out" \
+          --insecure-policy \
+          --tmpdir=$TMPDIR \
+          --override-os ${os} \
+          --override-arch ${arch} \
+          --src-tls-verify=${l.boolToString tlsVerify} \
+          $authFlag
       '';
     in pkgs.runCommand "nix2container-${imageName}.json" { } ''
       ${nix2container-bin}/bin/nix2container image-from-dir $out ${dir}
