@@ -58,6 +58,17 @@ let
       filterdiff -x '*/alltransports.go' ${patch} | patch -p1
       sed -i '\#_ "github.com/containers/image/v5/tarball"#a _ "github.com/containers/image/v5/nix"' transports/alltransports/alltransports.go
       cd -
+
+      # Go checks packages in the vendor directory are declared in the modules.txt file.
+      echo '# github.com/nlewo/nix2container v1.0.0' >> vendor/modules.txt
+      echo '## explicit; go 1.13' >> vendor/modules.txt
+      echo github.com/nlewo/nix2container/nix >> vendor/modules.txt
+      echo github.com/nlewo/nix2container/types >> vendor/modules.txt
+      echo github.com/containers/image/v5/nix >> vendor/modules.txt
+      # All packages declared in the modules.txt file must also be required by the go.mod file.
+      echo 'require (' >> go.mod
+      echo '  github.com/nlewo/nix2container v1.0.0' >> go.mod
+      echo ')' >> go.mod
     '';
   });
 

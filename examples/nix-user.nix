@@ -31,13 +31,12 @@ let
     {
       name = "entrypoint";
       text = ''
-        (nix doctor && ls -la /nix) >out 2>&1 && cat out
+        (nix --extra-experimental-features nix-command config check && ls -la /nix) >out 2>&1 && cat out
       '';
     };
 in
 nix2container.buildImage {
   name = "nix-user";
-  tag = "latest";
 
   initializeNixDatabase = true;
   nixUid = l.toInt uid;
