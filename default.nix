@@ -487,6 +487,7 @@ let
       in pkgs.runCommand "image-${baseNameOf name}.json"
       {
         inherit imageName meta;
+        allowSubstitute = false;
         passthru = {
           inherit fromImage imageTag;
           # provide a cheap to evaluate image reference for use with external tools like docker
