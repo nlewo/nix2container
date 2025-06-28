@@ -47,7 +47,8 @@ let
         url = "https://github.com/nlewo/image/commit/c2254c998433cf02af60bf0292042bd80b96a77e.patch";
         sha256 = "sha256-6CUjz46xD3ORgwrHwdIlSu6JUj7WLS6BOSyRGNnALHY=";
       };
-    in ''
+    in #bash
+    ''
       mkdir -p vendor/github.com/nlewo/nix2container/
       cp -r ${nix2container-bin.src}/* vendor/github.com/nlewo/nix2container/
       cd vendor/github.com/containers/image/v5
@@ -78,24 +79,32 @@ let
     excludeShellChecks = [ "SC2068" ];
   };
 
-  copyToDockerDaemon = image: writeSkopeoApplication "copy-to-docker-daemon" ''
-    echo "Copy to Docker daemon image ${image.imageName}:${image.imageTag}"
-    skopeo --insecure-policy copy nix:${image} docker-daemon:${image.imageName}:${image.imageTag} $@
+  copyToDockerDaemon = image: writeSkopeoApplication "copy-to-docker-daemon" #bash
+  ''
+    echo "Copy to Docker daemon image ${image.imageName}:${image.imageTag}" 1>&2
+    skopeo --insecure-policy copy nix:${image} docker-daemon:${image.imageName}:${image.imageTag} $@ 1>&2 || exit 1
+    skopeo --insecure-policy inspect nix:${image} $@
   '';
 
-  copyToRegistry = image: writeSkopeoApplication "copy-to-registry" ''
-    echo "Copy to Docker registry image ${image.imageName}:${image.imageTag}"
-    skopeo --insecure-policy copy nix:${image} docker://${image.imageName}:${image.imageTag} $@
+  copyToRegistry = image: writeSkopeoApplication "copy-to-registry" # bash
+  ''
+    echo "Copy to Docker registry image ${image.imageName}:${image.imageTag}" 1>&2
+    skopeo --insecure-policy copy nix:${image} docker://${image.imageName}:${image.imageTag} $@ 1>&2 || exit 1
+    skopeo --insecure-policy inspect nix:${image} $@
   '';
 
-  copyTo = image: writeSkopeoApplication "copy-to" ''
-    echo Running skopeo --insecure-policy copy nix:${image} $@
-    skopeo --insecure-policy copy nix:${image} $@
+  # Example: nix run ..... -- 
+  copyTo = image: writeSkopeoApplication "copy-to" #bash
+  ''
+    echo Running skopeo --insecure-policy copy nix:${image} $@ 1>&2
+    skopeo --insecure-policy copy nix:${image} $@ 1>&2 || exit 1
+    skopeo --insecure-policy inspect nix:${image} $@
   '';
 
-  copyToPodman = image: writeSkopeoApplication "copy-to-podman" ''
-    echo "Copy to podman image ${image.imageName}:${image.imageTag}"
-    skopeo --insecure-policy copy nix:${image} containers-storage:${image.imageName}:${image.imageTag}
+  copyToPodman = image: writeSkopeoApplication "copy-to-podman" #bash
+  ''
+    echo "Copy to podman image ${image.imageName}:${image.imageTag}" 1>&2
+    skopeo --insecure-policy copy nix:${image} containers-storage:${image.imageName}:${image.imageTag} 1>&2 || exit 1
     skopeo --insecure-policy inspect containers-storage:${image.imageName}:${image.imageTag}
   '';
 
