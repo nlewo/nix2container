@@ -108,6 +108,18 @@ let
     skopeo --insecure-policy inspect containers-storage:${image.imageName}:${image.imageTag}
   '';
 
+  copyToContainerd = image: writeSkopeoApplication "copy-to-containerd" #bash
+  ''
+    ARCHIVE=$(${l.getExe pkgs.mktemp})
+    skopeo --insecure-policy copy nix:${image} oci-archive:"$ARCHIVE":${image.imageName}:${image.imageTag} 1>&2 || exit 1
+    sudo --preserve-env ${l.getExe pkgs.nerdctl} load -i "$ARCHIVE" 1>&2 || {
+      echo "Error loading container into containerd" 1>&2
+      rm -f "$ARCHIVE" 1>&2
+      exit 1
+    }
+    skopeo --insecure-policy inspect oci-archive:"$ARCHIVE":${image.imageName}:${image.imageTag}
+    rm -f "$ARCHIVE" 1>&2
+  '';
   # Pull an image from a registry with Skopeo and translate it to a
   # nix2container image.json file.
   # This mainly comes from nixpkgs/build-support/docker/default.nix.
@@ -506,6 +518,7 @@ let
           copyToDockerDaemon = copyToDockerDaemon image;
           copyToRegistry = copyToRegistry image;
           copyToPodman = copyToPodman image;
+          copyToContainerd = copyToContainerd image;
           copyTo = copyTo image;
         };
       }
