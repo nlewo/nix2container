@@ -300,7 +300,7 @@ let
     historyFlag = l.optionalString (metadata != {}) "--history ${historyFile}";
     allDeps = deps ++ copyToRootList;
     tarDirectory = l.optionalString (! reproducible) "--tar-directory $out";
-    layersJSON = pkgs.runCommand "layers.json" {} ''
+    layersJSON = pkgs.runCommandLocal "layers.json" {} ''
       mkdir $out
       ${nix2container-bin}/bin/nix2container ${subcommand} \
         $out/layers.json \
@@ -484,10 +484,9 @@ let
           then tag
           else
           l.head (l.strings.splitString "-" (baseNameOf image.outPath));
-      in pkgs.runCommand "image-${baseNameOf name}.json"
+      in pkgs.runCommandLocal "image-${baseNameOf name}.json"
       {
         inherit imageName meta;
-        allowSubstitute = false;
         passthru = {
           inherit fromImage imageTag;
           # provide a cheap to evaluate image reference for use with external tools like docker
