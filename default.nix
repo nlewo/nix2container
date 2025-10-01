@@ -365,6 +365,8 @@ let
     # Note this is applied on the image layers and not on layers added
     # with the buildImage.layers attribute
     maxLayers ? 1,
+    # Extra passthru attribute set to provide in addition to the base one
+    passthru ? {},
     # If set to true, the Nix database is initialized with all store
     # paths added into the image. Note this is only useful to run nix
     # commands from the image, for instance to build an image used by
@@ -438,8 +440,9 @@ let
           copyToRegistry = copyToRegistry image;
           copyToPodman = copyToPodman image;
           copyTo = copyTo image;
-        };
-      } ''
+        } // passthru;
+      }
+      ''
         ${nix2container-bin}/bin/nix2container image \
         $out \
         ${fromImageFlag} \
