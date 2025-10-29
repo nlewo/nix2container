@@ -20,7 +20,7 @@ let
         p == "default.nix"
       );
     };
-    vendorHash = "sha256-/j4ZHOwU5Xi8CE/fHha+2iZhsLd/y2ovzVhvg8HDV78=";
+    vendorHash = "sha256-CvBu3BUrBYlOnUSJDXi9vcYRwdLK92mZCjDvWWnOGd0=";
     ldflags = l.optional pkgs.stdenv.isDarwin
       "-X github.com/nlewo/nix2container/nix.useNixCaseHack=true";
   };
@@ -125,9 +125,9 @@ let
     , arch ? pkgs.go.GOARCH
     , tlsVerify ? true
     , name ? fixName "docker-image-${imageName}"
+    , authFile ? "/etc/skopeo/auth.json"
     }: let
       sourceURL = "docker://${imageName}@${imageDigest}";
-      authFile = "/etc/skopeo/auth.json";
       dir = pkgs.runCommand name
       {
         inherit imageDigest;
@@ -154,6 +154,15 @@ let
       ${nix2container-bin}/bin/nix2container image-from-dir $out ${dir}
     '';
 
+  # Pull an image from a registry manifest with authentication support.
+  # Unlike pullImage, this function allows pulling specific blobs based on
+  # a manifest file, with better layer deduplication and version control.
+  #
+  # Credentials:
+  # Authentication works the same way as pullImage (see above):
+  # The nix2container pullblob command looks for /etc/skopeo/auth.json
+  # which must be bind-mounted into the sandbox via:
+  # extra-sandbox-paths = /etc/skopeo/auth.json=/etc/nix/skopeo/auth.json
   pullImageFromManifest =
     { imageName
     , imageManifest ? null
@@ -164,6 +173,7 @@ let
     , arch ? pkgs.go.GOARCH
     , tlsVerify ? true
     , registryUrl ? "registry-1.docker.io"
+    , authFile ? "/etc/skopeo/auth.json"
     }: let
       imageUrl = "docker://${registryUrl}/${imageName}";
       manifest = l.importJSON imageManifest;
@@ -171,11 +181,20 @@ let
       buildImageBlob = digest:
         pkgs.runCommand (l.removePrefix "sha256:" digest) {
           impureEnvVars = l.fetchers.proxyImpureEnvVars;
-          nativeBuildInputs = with pkgs; [ cacert skopeo ];
+          nativeBuildInputs = with pkgs; [ cacert nix2container-bin ];
           outputHash = digest;
         } ''
-          skopeo layers "${imageUrl}:${imageTag}" ${digest} --tls-verify=${l.boolToString tlsVerify}
-          mv layers-*/$name $out
+          authFlag=""
+          if [ -f "${authFile}" ]; then
+            authFlag="--authfile ${authFile}"
+          fi
+          
+          ${nix2container-bin}/bin/nix2container pullblob \
+            --ref "${imageUrl}:${imageTag}" \
+            --blob ${digest} \
+            --out $out \
+            ${if tlsVerify then "--tls-verify" else "--tls-verify=false"} \
+            $authFlag
         '';
 
       # Pull the blobs (archives) for all layers, as well as the one for the image's config JSON.
@@ -194,10 +213,11 @@ let
           # Multi-arch image, pick the one that matches the supplied platform details.
           filter='select(.platform == { os: "${os}", architecture: "${arch}" })'
           hash=$(echo "$manifest" | jq -r ".manifests[] | $filter | .digest")
+          # Output raw manifest without modification
           skopeo inspect "${imageUrl}@$hash" --raw
         else
-          # Single-arch image, return the initial response.
-          echo -n "$manifest"
+          # Single-arch image - output as-is
+          echo "$manifest"
         fi
       '';
 
