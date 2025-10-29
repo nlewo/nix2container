@@ -63,3 +63,88 @@ func TestGetV1Image(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, v1Image, expected)
 }
+
+func TestMergeImageConfig(t *testing.T) {
+	t.Run("simple string fields override", func(t *testing.T) {
+		base := v1.ImageConfig{
+			User:       "root",
+			WorkingDir: "/app",
+		}
+		overlay := v1.ImageConfig{
+			User: "nobody",
+		}
+		expected := v1.ImageConfig{
+			User:       "nobody",
+			WorkingDir: "/app",
+		}
+
+		MergeImageConfig(&base, &overlay)
+		assert.Equal(t, expected, base)
+	})
+
+	t.Run("Cmd and Entrypoint replace", func(t *testing.T) {
+		base := v1.ImageConfig{
+			Cmd:        []string{"/bin/sh"},
+			Entrypoint: []string{"/entrypoint.sh"},
+		}
+		overlay := v1.ImageConfig{
+			Cmd: []string{"/bin/bash"},
+		}
+		expected := v1.ImageConfig{
+			Cmd:        []string{"/bin/bash"},
+			Entrypoint: []string{"/entrypoint.sh"},
+		}
+
+		MergeImageConfig(&base, &overlay)
+		assert.Equal(t, expected, base)
+	})
+
+	t.Run("Env merges with overlay precedence", func(t *testing.T) {
+		base := v1.ImageConfig{
+			Env: []string{"PATH=/usr/bin", "HOME=/root"},
+		}
+		overlay := v1.ImageConfig{
+			Env: []string{"PATH=/usr/local/bin", "USER=test"},
+		}
+
+		MergeImageConfig(&base, &overlay)
+
+		assert.Contains(t, base.Env, "PATH=/usr/local/bin")
+		assert.Contains(t, base.Env, "HOME=/root")
+		assert.Contains(t, base.Env, "USER=test")
+		assert.Equal(t, 3, len(base.Env))
+	})
+
+	t.Run("Labels merge", func(t *testing.T) {
+		base := v1.ImageConfig{
+			Labels: map[string]string{
+				"version":    "1.0",
+				"maintainer": "base",
+			},
+		}
+		overlay := v1.ImageConfig{
+			Labels: map[string]string{
+				"version": "2.0",
+				"app":     "myapp",
+			},
+		}
+		expected := v1.ImageConfig{
+			Labels: map[string]string{
+				"version":    "2.0",
+				"maintainer": "base",
+				"app":        "myapp",
+			},
+		}
+
+		MergeImageConfig(&base, &overlay)
+		assert.Equal(t, expected.Labels, base.Labels)
+	})
+}
+
+func TestNewImageFromDirLoadsConfig(t *testing.T) {
+	image, err := NewImageFromDir("../data/image-directory")
+	assert.Nil(t, err)
+
+	assert.Equal(t, []string{"/bin/sh"}, image.ImageConfig.Cmd)
+	assert.Contains(t, image.ImageConfig.Env, "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin")
+}

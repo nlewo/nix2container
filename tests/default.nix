@@ -58,6 +58,66 @@ let
       image = examples.fromImageManifest;
       pattern = "/etc/alpine-release$";
     };
+    configInheritPullImage = pkgs.writeScriptBin "test-script" ''
+      ${examples.fromImageConfigInherit.copyToPodman}/bin/copy-to-podman
+      
+      # Check that CMD is inherited from Alpine
+      cmd=$(${pkgs.podman}/bin/podman image inspect ${examples.fromImageConfigInherit.imageName}:${examples.fromImageConfigInherit.imageTag} -f '{{ json .Config.Cmd }}')
+      echo "Inherited CMD: $cmd"
+      
+      if echo "$cmd" | ${pkgs.jq}/bin/jq -e '. == ["/bin/sh"]' > /dev/null; then
+        echo "✓ CMD correctly inherited from base Alpine image"
+      else
+        echo "✗ Expected CMD=['/bin/sh'], got: $cmd"
+        exit 1
+      fi
+      
+      # Check that ENV is inherited (Alpine sets PATH)
+      env=$(${pkgs.podman}/bin/podman image inspect ${examples.fromImageConfigInherit.imageName}:${examples.fromImageConfigInherit.imageTag} -f '{{ json .Config.Env }}')
+      echo "Inherited ENV: $env"
+      
+      if echo "$env" | ${pkgs.jq}/bin/jq -e 'any(startswith("PATH="))' > /dev/null; then
+        echo "✓ ENV correctly inherited from base Alpine image"
+      else
+        echo "✗ Expected PATH in ENV, got: $env"
+        exit 1
+      fi
+      
+      echo "Test passed"
+    '';
+    configOverridePullImage = pkgs.writeScriptBin "test-script" ''
+      ${examples.fromImageConfigOverride.copyToPodman}/bin/copy-to-podman
+      
+      # Check that CMD is overridden
+      cmd=$(${pkgs.podman}/bin/podman image inspect ${examples.fromImageConfigOverride.imageName}:${examples.fromImageConfigOverride.imageTag} -f '{{ index .Config.Cmd 0 }}')
+      
+      if echo "$cmd" | ${pkgs.gnugrep}/bin/grep -q "bash"; then
+        echo "✓ CMD correctly overridden"
+      else
+        echo "✗ CMD not overridden correctly, got: $cmd"
+        exit 1
+      fi
+      
+      # Check that custom ENV was added
+      env=$(${pkgs.podman}/bin/podman image inspect ${examples.fromImageConfigOverride.imageName}:${examples.fromImageConfigOverride.imageTag} -f '{{ json .Config.Env }}')
+      
+      if echo "$env" | ${pkgs.jq}/bin/jq -e 'any(. == "CUSTOM_VAR=test")' > /dev/null; then
+        echo "✓ Custom ENV added"
+      else
+        echo "✗ Expected CUSTOM_VAR=test in ENV"
+        exit 1
+      fi
+      
+      # Check that base Alpine PATH is still present (merged, not replaced)
+      if echo "$env" | ${pkgs.jq}/bin/jq -e 'any(startswith("PATH="))' > /dev/null; then
+        echo "✓ Base PATH ENV preserved during merge"
+      else
+        echo "✗ Base PATH ENV was lost"
+        exit 1
+      fi
+      
+      echo "Test passed"
+    '';
     layered = testScript {
       image = examples.layered;
       pattern = "Hello, world";

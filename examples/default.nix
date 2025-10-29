@@ -6,6 +6,8 @@
   nonReproducible = pkgs.callPackage ./non-reproducible.nix { inherit nix2container; };
   fromImage = pkgs.callPackage ./from-image.nix { inherit nix2container; };
   fromImageManifest = pkgs.callPackage ./from-image-manifest.nix { inherit nix2container; };
+  fromImageConfigInherit = pkgs.callPackage ./from-image-config-inherit.nix { inherit nix2container; };
+  fromImageConfigOverride = pkgs.callPackage ./from-image-config-override.nix { inherit nix2container; };
   getManifest = pkgs.callPackage ./get-manifest.nix { inherit nix2container; };
   uwsgi = pkgs.callPackage ./uwsgi { inherit nix2container; };
   openbar = pkgs.callPackage ./openbar.nix { inherit nix2container; };

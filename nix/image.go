@@ -16,6 +16,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 
 	"github.com/containers/image/v5/manifest"
 	"github.com/nlewo/nix2container/types"
@@ -147,8 +148,27 @@ func NewImageFromDir(directory string) (image types.Image, err error) {
 		return image, err
 	}
 
-	// TODO: we should also load the configuration in order to
-	// allow configuration merges
+	configLayerFileName := directory + "/" + v1Manifest.Config.Digest.Encoded()
+	configLayerFile, err := os.Open(configLayerFileName)
+	if err != nil {
+		logrus.Warnf("Could not open config layer file '%s': %v", configLayerFileName, err)
+	} else {
+		defer configLayerFile.Close()
+		configContent, err := io.ReadAll(configLayerFile)
+		if err != nil {
+			logrus.Warnf("Could not read config layer: %v", err)
+		} else {
+			var v1Image v1.Image
+			err = json.Unmarshal(configContent, &v1Image)
+			if err != nil {
+				logrus.Warnf("Could not unmarshal config layer: %v", err)
+			} else {
+				logrus.Infof("Loaded image config from '%s'", configLayerFileName)
+				image.ImageConfig = v1Image.Config
+				image.Arch = v1Image.Architecture
+			}
+		}
+	}
 
 	for i, l := range v1Manifest.Layers {
 		layerFilename := directory + "/" + l.Digest.Encoded()
@@ -214,6 +234,16 @@ func NewImageFromManifest(manifestFilename string, blobMapFilename string) (imag
 		return image, err
 	}
 
+	var v1Image v1.Image
+	err = json.Unmarshal(content, &v1Image)
+	if err != nil {
+		logrus.Warnf("Could not unmarshal v1.Image from config: %v", err)
+	} else {
+		logrus.Infof("Loaded image config from manifest")
+		image.ImageConfig = v1Image.Config
+		image.Arch = v1Image.Architecture
+	}
+
 	for i, l := range v1Manifest.Layers {
 		layerFilename := blobMap[l.Digest.Encoded()]
 		logrus.Infof("Adding tar file '%s' as image layer", layerFilename)
@@ -246,3 +276,73 @@ type nopCloser struct {
 }
 
 func (nopCloser) Close() error { return nil }
+
+// MergeImageConfig merges overlay ImageConfig into target ImageConfig.
+// Non-empty values in overlay take precedence over target values.
+// For maps (Env, Labels, ExposedPorts, Volumes), keys are merged with overlay precedence.
+// For slices (Cmd, Entrypoint), overlay completely replaces if non-empty.
+func MergeImageConfig(target *v1.ImageConfig, overlay *v1.ImageConfig) {
+	if overlay.User != "" {
+		target.User = overlay.User
+	}
+	if overlay.WorkingDir != "" {
+		target.WorkingDir = overlay.WorkingDir
+	}
+	if overlay.StopSignal != "" {
+		target.StopSignal = overlay.StopSignal
+	}
+
+	if len(overlay.Cmd) > 0 {
+		target.Cmd = overlay.Cmd
+	}
+	if len(overlay.Entrypoint) > 0 {
+		target.Entrypoint = overlay.Entrypoint
+	}
+
+	if len(overlay.Env) > 0 {
+		envMap := make(map[string]string)
+		for _, e := range target.Env {
+			parts := strings.SplitN(e, "=", 2)
+			if len(parts) == 2 {
+				envMap[parts[0]] = parts[1]
+			}
+		}
+		for _, e := range overlay.Env {
+			parts := strings.SplitN(e, "=", 2)
+			if len(parts) == 2 {
+				envMap[parts[0]] = parts[1]
+			}
+		}
+		target.Env = nil
+		for k, v := range envMap {
+			target.Env = append(target.Env, k+"="+v)
+		}
+	}
+
+	if len(overlay.Labels) > 0 {
+		if target.Labels == nil {
+			target.Labels = make(map[string]string)
+		}
+		for k, v := range overlay.Labels {
+			target.Labels[k] = v
+		}
+	}
+
+	if len(overlay.ExposedPorts) > 0 {
+		if target.ExposedPorts == nil {
+			target.ExposedPorts = make(map[string]struct{})
+		}
+		for k, v := range overlay.ExposedPorts {
+			target.ExposedPorts[k] = v
+		}
+	}
+
+	if len(overlay.Volumes) > 0 {
+		if target.Volumes == nil {
+			target.Volumes = make(map[string]struct{})
+		}
+		for k, v := range overlay.Volumes {
+			target.Volumes[k] = v
+		}
+	}
+}
