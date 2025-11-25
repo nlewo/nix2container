@@ -2,10 +2,14 @@
 nix2container.buildImage {
   name = "nested";
   config = {
-    entrypoint = ["${pkgs.hello}/bin/hello"];
+    entrypoint = ["/bin/bash" "-c" "${pkgs.hello}/bin/hello"];
   };
   layers = [(nix2container.buildLayer {
-    deps = [pkgs.bashInteractive];
+    copyToRoot = pkgs.buildEnv {
+      name = "root";
+      paths = [pkgs.bashInteractive];
+      pathsToLink = ["/bin"];
+    };
     layers = [
       (nix2container.buildLayer {
         deps = [pkgs.readline];
