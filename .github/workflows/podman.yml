@@ -6,7 +6,9 @@ on:
       - 'master'
 jobs:
   tests:
-    runs-on: ubuntu-latest
+    # This is because we hit the following issue with ubuntu 24.04:
+    # https://github.com/actions/runner-images/issues/10443
+    runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v2.4.0
     - uses: cachix/install-nix-action@v15
