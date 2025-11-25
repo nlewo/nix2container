@@ -7,7 +7,7 @@ let
     grepFlags ? "",
     runFlags ? "",
     pattern,
-  }: pkgs.writeScriptBin "test-script" ''
+  }: pkgs.writeShellScriptBin "test-script" ''
     ${image.copyToPodman}/bin/copy-to-podman
     ${pkgs.podman}/bin/podman run ${runFlags} ${image.imageName}:${image.imageTag} ${command} | ${pkgs.gnugrep}/bin/grep ${grepFlags} '${pattern}'
     ret=$?
