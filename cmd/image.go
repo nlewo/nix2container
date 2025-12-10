@@ -21,22 +21,6 @@ var fromImageEnv bool
 var imageArch string
 var created string
 
-type timeValue time.Time
-
-func (tv *timeValue) String() string {
-	return (*time.Time)(tv).Format(time.RFC3339)
-}
-
-func (tv *timeValue) Set(value string) error {
-	t, err := time.Parse(time.RFC3339, value)
-	*tv = timeValue(t)
-	return err
-}
-
-func (tv *timeValue) Type() string {
-	return "time"
-}
-
 var imageCmd = &cobra.Command{
 	Use:   "image OUTPUT-FILENAME CONFIG.JSON LAYERS-1.JSON LAYERS-2.JSON ...",
 	Short: "Generate an image.json file from a image configuration and layers",
