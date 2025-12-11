@@ -92,11 +92,22 @@ let
       command = "id";
       pattern = "uid=1000(somebody) gid=1000(somebody) groups=1000(somebody)";
     };
+    shadow-somebody-touch = testScript {
+      image = examples.shadow-tmp;
+      command = "id -un | tee /home/somebody/me /tmp/me";
+      pattern = "somebody";
+    };
     shadow-root = testScript {
       image = examples.shadow-tmp;
       runFlags = "-u root";
       command = "id";
       pattern = "uid=0(root) gid=0(root) groups=0(root)";
+    };
+    shadow-root-touch = testScript {
+      image = examples.shadow-tmp;
+      runFlags = "-u root";
+      command = "id -un | tee /root/me /tmp/me";
+      pattern = "root";
     };
     tmp-stat = testScript {
       image = examples.shadow-tmp;

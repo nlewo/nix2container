@@ -526,8 +526,9 @@ let
       ...
     }: {
       inherit gid gname uid uname;
-      mode = "u=rwx,g=rx,o=";
+      mode = "750";
       regex = home;
+      path = shadowSetup;
     };
   in
     buildLayer {
@@ -535,17 +536,22 @@ let
       perms = l.forEach allUsers userPerms;
     };
 
-  layers.tmp = buildLayer {
-    copyToRoot = pkgs.runCommand "tmp-dir" {
-      outputHash = "sha256-AVwrjJdGCmzJ8JlT6x69JkHlFlRvOJ4hcqNt10YNoAU=";
-      outputHashAlgo = "sha256";
-      outputHashMode = "recursive";
-      preferLocalBuild = true;
-    } ''
-      mkdir -p $out/tmp
-    '';
+  layers.tmp = buildLayer rec {
+    copyToRoot =
+      pkgs.runCommand "tmp-dir" {
+        outputHash = "sha256-AVwrjJdGCmzJ8JlT6x69JkHlFlRvOJ4hcqNt10YNoAU=";
+        outputHashAlgo = "sha256";
+        outputHashMode = "recursive";
+        preferLocalBuild = true;
+      } ''
+        mkdir -p $out/tmp
+      '';
     perms = [
-      { path = "/tmp"; regex = ".*"; mode = "a=rwxt"; }
+      {
+        path = copyToRoot;
+        regex = "";
+        mode = "1777";
+      }
     ];
   };
 in {
