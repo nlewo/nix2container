@@ -137,6 +137,32 @@ let
       };
       pattern = "Hello, world!";
     };
+    passthru = let
+        image = nix2container.buildImage {
+          name = "passthru";
+          config.entrypoint = "${pkgs.hello}/bin/hello";
+          passthru.testScript =
+            pkgs.writeShellApplication {
+                name = "passthru-test-script";
+                text = ''
+                  echo "Hello From Passthru Test!"
+                '';
+            };
+        };
+      in
+      pkgs.writeShellApplication {
+        name = "passthru-test";
+        text = ''
+          expected="Hello From Passthru Test!"
+          actual="$(${pkgs.lib.getExe image.testScript})"
+
+          if [[ "$actual" != "$expected" ]]; then
+              echo "Failed passthru test - Unexpected console output"
+              echo "Expected: \"$expected\", actual: \"$actual\""
+              exit 1
+          fi
+        '';
+      };
     created = let
       image = examples.created;
       timestamp = "2024-05-13 09:31:10";
