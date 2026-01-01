@@ -131,12 +131,15 @@ func image(outputFilename, imageConfigPath string, fromImageFilename string, lay
 		}
 		image.Layers = append(image.Layers, fromImage.Layers...)
 
+		image.ImageConfig = fromImage.ImageConfig
+		nix.MergeImageConfig(&image.ImageConfig, &imageConfig)
+
 		logrus.Infof("Using base image %s containing %d layers", fromImageFilename, len(fromImage.Layers))
+	} else {
+		image.ImageConfig = imageConfig
 	}
 
 	image.Arch = arch
-
-	image.ImageConfig = imageConfig
 
 	image.Created = &created
 
