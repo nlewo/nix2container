@@ -75,6 +75,14 @@ let
     inherit name text;
     runtimeInputs = [ pkgs.jq skopeo-nix2container ];
     excludeShellChecks = [ "SC2068" ];
+
+    # Generate the same install script without dependy to the host platform.
+    # This can be used to install a linux image on a darwin system
+    passthru.noarch = pkgs.writeScriptBin name ''
+      #!/usr/bin/env bash
+      set -o errexit
+      ${text}
+    '';
   };
 
   copyToDockerDaemon = image: writeSkopeoApplication "copy-to-docker-daemon" ''

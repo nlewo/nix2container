@@ -56,6 +56,15 @@ $ podman run -it bash
 - [`uwsgi`](./examples/uwsgi/default.nix): isolate dependencies in layers
 - [`layered`](./examples/layered.nix): build a layered image as described in [this blog post](https://grahamc.com/blog/nix-and-layered-docker-images)
 
+### Build and Load under Nix Darwin
+
+When you enabled the Linux builder (`nix.linux-builder.enable`) in Nix Darwin
+and installed the nix2container version of Skopeo in your environment,
+you can build and load an image as follows:
+
+```
+$ nix run --system aarch64-linux github:nlewo/nix2container#examples.bash.copyToDockerDaemon.noarch
+```
 
 ## Functions documentation
 
