@@ -7,19 +7,12 @@ let
   nix2container-bin = pkgs.buildGoModule {
     pname = "nix2container";
     version = "1.0.0";
-    src = l.cleanSourceWith {
-      src = ./.;
-      filter = path: type:
-      let
-        p = baseNameOf path;
-      in !(
-        p == "flake.nix" ||
-        p == "flake.lock" ||
-        p == "examples" ||
-        p == "tests" ||
-        p == "README.md" ||
-        p == "default.nix"
-      );
+    src = l.fileset.toSource {
+      root = ./.;
+      fileset = l.fileset.intersection (l.fileset.gitTracked ./.) (l.fileset.unions [
+        (l.fileset.fileFilter ({ name, hasExt, ... }: name == "go.mod" || name == "go.sum" || hasExt "go") ./.)
+        ./data
+      ]);
     };
     vendorHash = "sha256-KPJSt2QTcyIgC6S/ASuc1xSEIXrPDFMnd+5MhCQqia4=";
     ldflags = l.optional pkgs.stdenv.isDarwin
