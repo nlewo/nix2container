@@ -146,9 +146,11 @@ func NewImageFromDir(directory string) (image types.Image, err error) {
 	if err != nil {
 		return image, err
 	}
-
-	// TODO: we should also load the configuration in order to
-	// allow configuration merges
+	var ociImage v1.Image
+	if err = json.Unmarshal(content, &ociImage); err != nil {
+		return image, err
+	}
+	image.ImageConfig = ociImage.Config
 
 	for i, l := range v1Manifest.Layers {
 		layerFilename := directory + "/" + l.Digest.Encoded()
@@ -213,6 +215,11 @@ func NewImageFromManifest(manifestFilename string, blobMapFilename string) (imag
 	if err != nil {
 		return image, err
 	}
+	var ociImage v1.Image
+	if err = json.Unmarshal(content, &ociImage); err != nil {
+		return image, err
+	}
+	image.ImageConfig = ociImage.Config
 
 	for i, l := range v1Manifest.Layers {
 		layerFilename := blobMap[l.Digest.Encoded()]
