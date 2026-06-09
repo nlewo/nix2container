@@ -64,3 +64,61 @@ func TestGetV1Image(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, v1Image, expected)
 }
+
+func TestHealthcheckInConfigBlob(t *testing.T) {
+	image := types.Image{
+		ImageConfig: types.ImageConfig{
+			ImageConfig: v1.ImageConfig{
+				StopSignal: "SIGQUIT",
+			},
+			Healthcheck: &types.HealthConfig{
+				Test:        []string{"CMD", "curl", "-f", "http://localhost/health"},
+				Interval:    30000000000,
+				Timeout:     5000000000,
+				StartPeriod: 5000000000,
+				Retries:     3,
+			},
+		},
+		Layers: []types.Layer{
+			{
+				Digest:  "sha256:adf74a52f9e1bcd7dab77193455fa06743b979cf5955148010e5becedba4f72d",
+				DiffIDs: "sha256:adf74a52f9e1bcd7dab77193455fa06743b979cf5955148010e5becedba4f72d",
+				Size:    10,
+			},
+		},
+	}
+
+	configBlob, err := GetConfigBlob(image)
+	assert.Nil(t, err)
+
+	// The config blob must contain both Healthcheck and StopSignal.
+	blobStr := string(configBlob)
+	assert.Contains(t, blobStr, `"Healthcheck"`)
+	assert.Contains(t, blobStr, `"StopSignal"`)
+	assert.Contains(t, blobStr, `"curl"`)
+}
+
+func TestNoHealthcheckWhenNil(t *testing.T) {
+	image := types.Image{
+		ImageConfig: types.ImageConfig{
+			ImageConfig: v1.ImageConfig{
+				StopSignal: "SIGTERM",
+			},
+		},
+		Layers: []types.Layer{
+			{
+				Digest:  "sha256:adf74a52f9e1bcd7dab77193455fa06743b979cf5955148010e5becedba4f72d",
+				DiffIDs: "sha256:adf74a52f9e1bcd7dab77193455fa06743b979cf5955148010e5becedba4f72d",
+				Size:    10,
+			},
+		},
+	}
+
+	configBlob, err := GetConfigBlob(image)
+	assert.Nil(t, err)
+
+	// When Healthcheck is nil, it must not appear in the config blob.
+	blobStr := string(configBlob)
+	assert.NotContains(t, blobStr, `"Healthcheck"`)
+	assert.Contains(t, blobStr, `"StopSignal"`)
+}

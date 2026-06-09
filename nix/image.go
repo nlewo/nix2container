@@ -24,13 +24,28 @@ import (
 	"go.podman.io/image/v5/manifest"
 )
 
-// GetConfigBlob returns the config blog of an image.
+// dockerImage is a v1.Image extended with Docker-specific config fields
+// (e.g. Healthcheck) that are not part of the OCI image spec but are
+// widely supported by container runtimes and tooling.
+type dockerImage struct {
+	v1.Image
+
+	// Override Config to include Docker extensions.
+	Config types.ImageConfig `json:"config,omitempty"`
+}
+
+// GetConfigBlob returns the config blob of an image.
 func GetConfigBlob(image types.Image) ([]byte, error) {
 	imageV1, err := getV1Image(image)
 	if err != nil {
 		return nil, err
 	}
-	configBlob, err := json.Marshal(imageV1)
+	// Wrap in dockerImage to preserve Healthcheck in the serialized config.
+	di := dockerImage{
+		Image:  imageV1,
+		Config: image.ImageConfig,
+	}
+	configBlob, err := json.Marshal(di)
 	if err != nil {
 		return nil, err
 	}
@@ -72,7 +87,7 @@ func GetBlob(image types.Image, digest godigest.Digest) (io.ReadCloser, int64, e
 func getV1Image(image types.Image) (imageV1 v1.Image, err error) {
 	imageV1.OS = "linux"
 	imageV1.Architecture = image.Arch
-	imageV1.Config = image.ImageConfig
+	imageV1.Config = image.ImageConfig.ImageConfig
 	imageV1.Created = image.Created
 
 	for _, layer := range image.Layers {

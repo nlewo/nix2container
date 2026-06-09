@@ -9,7 +9,6 @@ import (
 
 	"github.com/nlewo/nix2container/nix"
 	"github.com/nlewo/nix2container/types"
-	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
@@ -109,7 +108,7 @@ func imageFromManifest(outputFilename, manifestFilename string, blobsFilename st
 }
 
 func image(outputFilename, imageConfigPath string, fromImageFilename string, layerPaths []string, arch string, created time.Time) error {
-	var imageConfig v1.ImageConfig
+	var imageConfig types.ImageConfig
 	var image types.Image
 
 	image.Version = types.ImageVersion
