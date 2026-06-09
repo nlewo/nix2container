@@ -365,6 +365,10 @@ let
     # paths added into the image. Note this is only useful to run nix
     # commands from the image, for instance to build an image used by
     # a CI to run Nix builds.
+    #
+    # To avoid path duplication across the image's store and root, this
+    # option converts paths in `copyToRoot` to symlinks to the image's
+    # store, fixing https://github.com/nlewo/nix2container/issues/192
     initializeNixDatabase ? false,
     # If initializeNixDatabase is set to true, the uid/gid of /nix can be
     # controlled using nixUid/nixGid.
@@ -397,10 +401,22 @@ let
           gid = nixGid;
         };
 
+      # When initializeNixDatabase is enabled, convert copyToRoot paths
+      # into symlinks so the Nix DB entries (which reference /nix/store/…)
+      # point to paths that actually exist in the image.  Without this,
+      # the DB would register store paths that are only present under /
+      # (with the store prefix stripped) but missing from /nix/store/.
+      copyToRootListSymlinks = pkgs.symlinkJoin {
+        name = "copyToRoot-symlinks";
+        paths = copyToRootList;
+      };
+
       customizationLayer = buildLayer {
         inherit maxLayers;
         perms = perms';
-        copyToRoot = copyToRootList ++ l.optional initializeNixDatabase nixDatabase;
+        copyToRoot = if initializeNixDatabase
+          then [copyToRootListSymlinks nixDatabase]
+          else copyToRootList;
         deps = [configFile];
         ignore = configFile;
         layers = layers;
