@@ -117,7 +117,7 @@ func walkGraphFn(base string, root *fileNode, walkFn walkFunc) error {
 	for _, k := range keys {
 		dstPath := filepath.Join(base, k)
 		if k == "" {
-			dstPath = filepath.Join("/", k)
+			dstPath = "."
 		}
 		if err := walkFn(root.contents[k].srcPath, dstPath, root.contents[k].info, root.contents[k].options); err != nil {
 			return err

@@ -15,7 +15,7 @@ func TestTar(t *testing.T) {
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
-	expectedDigest := "sha256:1ea63d00b937dc24c711265b80444cc9e7e63751fb7f349b160be61d31381983"
+	expectedDigest := "sha256:419f072b00cabf41a1fccb8b3bc2ca94394c9883a645fd81f0361ea28373eceb"
 	assert.Equal(t, expectedDigest, digest.String())
 
 	expectedSize := int64(4096)
