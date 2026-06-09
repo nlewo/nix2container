@@ -58,8 +58,8 @@ func TestNewLayers(t *testing.T) {
 	}
 	expected := []types.Layer{
 		{
-			Digest:  "sha256:cc45bd46eca903b0900ebb997dffd5778904dca9ec02e7375dd1e653dfb61e2e",
-			DiffIDs: "sha256:cc45bd46eca903b0900ebb997dffd5778904dca9ec02e7375dd1e653dfb61e2e",
+			Digest:  "sha256:6c0a3ae4c7d4a4e950ca40e0a0c38d779c3d20f77f775cb61d9e43ebaab5583a",
+			DiffIDs: "sha256:6c0a3ae4c7d4a4e950ca40e0a0c38d779c3d20f77f775cb61d9e43ebaab5583a",
 			Size:    3072,
 			Paths: types.Paths{
 				types.Path{
@@ -78,8 +78,8 @@ func TestNewLayers(t *testing.T) {
 	}
 	expected = []types.Layer{
 		{
-			Digest:  "sha256:cc45bd46eca903b0900ebb997dffd5778904dca9ec02e7375dd1e653dfb61e2e",
-			DiffIDs: "sha256:cc45bd46eca903b0900ebb997dffd5778904dca9ec02e7375dd1e653dfb61e2e",
+			Digest:  "sha256:6c0a3ae4c7d4a4e950ca40e0a0c38d779c3d20f77f775cb61d9e43ebaab5583a",
+			DiffIDs: "sha256:6c0a3ae4c7d4a4e950ca40e0a0c38d779c3d20f77f775cb61d9e43ebaab5583a",
 			Size:    3072,
 			Paths: types.Paths{
 				types.Path{
@@ -87,7 +87,7 @@ func TestNewLayers(t *testing.T) {
 				},
 			},
 			MediaType: "application/vnd.oci.image.layer.v1.tar",
-			LayerPath: tmpDir + "/cc45bd46eca903b0900ebb997dffd5778904dca9ec02e7375dd1e653dfb61e2e.tar",
+			LayerPath: tmpDir + "/6c0a3ae4c7d4a4e950ca40e0a0c38d779c3d20f77f775cb61d9e43ebaab5583a.tar",
 		},
 	}
 	assert.Equal(t, expected, layer)

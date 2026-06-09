@@ -68,11 +68,11 @@ func TestWalkGraph(t *testing.T) {
 		return nil
 	})
 	assert.Equal(t, nil, err)
-	assert.Equal(t, "/", paths[0])
-	assert.Equal(t, "/nix", paths[1])
-	assert.Equal(t, "/nix/store", paths[2])
-	assert.Equal(t, "/nix/store/hash1", paths[3])
-	assert.Equal(t, "/nix/store/hash2", paths[4])
+	assert.Equal(t, ".", paths[0])
+	assert.Equal(t, "nix", paths[1])
+	assert.Equal(t, "nix/store", paths[2])
+	assert.Equal(t, "nix/store/hash1", paths[3])
+	assert.Equal(t, "nix/store/hash2", paths[4])
 }
 
 func TestWalkGraphOnDirectory(t *testing.T) {
