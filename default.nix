@@ -388,28 +388,30 @@ let
         closureGraphForAllLayers = closureGraph ([configFile] ++ copyToRootList ++ allLayers) ignore;
       in makeNixDatabase closureGraphForAllLayers;
 
-      perms' = perms ++ l.optional initializeNixDatabase
-        {
-          path = nixDatabase;
-          regex = ".*";
-          mode = "0755";
-          uid = nixUid;
-          gid = nixGid;
-        };
-
       customizationLayer = buildLayer {
-        inherit maxLayers;
-        perms = perms';
-        copyToRoot = copyToRootList ++ l.optional initializeNixDatabase nixDatabase;
+        inherit maxLayers perms layers;
+        copyToRoot = copyToRootList;
         deps = [configFile];
         ignore = configFile;
-        layers = layers;
+      };
+
+      nixDatabaseLayer = buildLayer {
+        perms = l.optional initializeNixDatabase
+          {
+            path = nixDatabase;
+            regex = ".*";
+            mode = "0755";
+            uid = nixUid;
+            gid = nixGid;
+          };
+        copyToRoot = nixDatabase;
+        layers = layers ++ [customizationLayer];
       };
 
       fromImageFlag = l.optionalString (fromImage != null) "--from-image ${fromImage}";
       archFlag = "--arch ${arch}";
       createdFlag = "--created ${created}";
-      layerPaths = l.concatMapStringsSep " " (l: l + "/layers.json") (allLayers ++ [customizationLayer]);
+      layerPaths = l.concatMapStringsSep " " (l: l + "/layers.json") (allLayers ++ [customizationLayer] ++ l.optional initializeNixDatabase nixDatabaseLayer);
 
       imageName = l.toLower name;
       imageTag =
