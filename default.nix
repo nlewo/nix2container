@@ -419,7 +419,7 @@ let
       image = pkgs.runCommandLocal "image-${baseNameOf name}.json" {
         inherit meta;
         passthru = {
-          inherit fromImage imageName imageTag;
+          inherit fromImage imageName imageTag config;
           # provide a cheap to evaluate image reference for use with external tools like docker
           # DO NOT use as an input to other derivations, as there is no guarantee that the image
           # reference will exist in the store.
