@@ -2,6 +2,7 @@ package nix
 
 import (
 	"archive/tar"
+	"compress/gzip"
 	"fmt"
 	"io"
 	"os"
@@ -38,6 +39,43 @@ func TarPathsWrite(paths types.Paths, destinationDirectory string) (string, dige
 		return "", "", 0, err
 	}
 	return filename, digest, size, nil
+}
+
+// TarPathsWriteCompressed writes a gzip-compressed tar archive of paths
+// to a file in destinationDirectory named after the digest of the
+// compressed content. It returns the file path, the digest and size of
+// the compressed blob, and the digest of the uncompressed tar stream
+// (the layer diff ID).
+func TarPathsWriteCompressed(paths types.Paths, destinationDirectory string) (string, digest.Digest, int64, digest.Digest, error) {
+	f, err := os.CreateTemp(destinationDirectory, "")
+	if err != nil {
+		return "", "", 0, "", err
+	}
+	defer f.Close() // nolint: errcheck
+	reader := TarPaths(paths)
+	defer reader.Close() // nolint: errcheck
+
+	blobDigester := digest.Canonical.Digester()
+	gz := gzip.NewWriter(io.MultiWriter(f, blobDigester.Hash()))
+	diffIDDigester := digest.Canonical.Digester()
+	if _, err = io.Copy(io.MultiWriter(gz, diffIDDigester.Hash()), reader); err != nil {
+		return "", "", 0, "", err
+	}
+	if err = gz.Close(); err != nil {
+		return "", "", 0, "", err
+	}
+	fi, err := f.Stat()
+	if err != nil {
+		return "", "", 0, "", err
+	}
+	blobDigest := blobDigester.Digest()
+
+	filename := destinationDirectory + "/" + blobDigest.Encoded() + ".tar.gz"
+	err = os.Rename(f.Name(), filename)
+	if err != nil {
+		return "", "", 0, "", err
+	}
+	return filename, blobDigest, fi.Size(), diffIDDigester.Digest(), nil
 }
 
 func TarPathsSum(paths types.Paths) (digest.Digest, int64, error) {

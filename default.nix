@@ -218,6 +218,11 @@ let
     # Store the layer tar in the derivation. This is useful when the
     # layer dependencies are not bit reproducible.
     reproducible ? true,
+    # Materialize the layer as a compressed blob (supported: "gzip") and
+    # record the digest of the compressed content in layers.json. Pushes
+    # can then probe the registry by digest and skip unchanged layers
+    # without uploading or recompressing anything.
+    compress ? null,
     # A list of file permisssions which are set when the tar layer is
     # created: these permissions are not written to the Nix store.
     #
@@ -262,7 +267,8 @@ let
     historyFlag = l.optionalString (metadata != {}) "--history ${historyFile}";
 
     allDeps = deps ++ copyToRootList;
-    tarDirectory = l.optionalString (!reproducible) "--tar-directory $out";
+    tarDirectory = l.optionalString (!reproducible || compress != null) "--tar-directory $out";
+    compressFlag = l.optionalString (compress != null) "--compress ${compress}";
 
     layersJSON = pkgs.runCommandLocal "layers.json" {} ''
       mkdir $out
@@ -275,6 +281,7 @@ let
         ${permsFlag} \
         ${historyFlag} \
         ${tarDirectory} \
+        ${compressFlag} \
         ${toString (map (l: l + "/layers.json") layers)}
       set +x
     '';

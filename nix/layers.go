@@ -3,6 +3,7 @@ package nix
 import (
 	_ "crypto/sha256"
 	_ "crypto/sha512"
+	"fmt"
 	"reflect"
 
 	"github.com/nlewo/nix2container/types"
@@ -64,7 +65,7 @@ func getPaths(storePaths []string, parents []types.Layer, rewrites []types.Rewri
 // If tarDirectory is not an empty string, the tar layer is written to
 // the disk. This is useful for layer containing non reproducible
 // store paths.
-func newLayers(paths types.Paths, tarDirectory string, maxLayers int, history v1.History) (layers []types.Layer, err error) {
+func newLayers(paths types.Paths, tarDirectory string, compress string, maxLayers int, history v1.History) (layers []types.Layer, err error) {
 	offset := 0
 	for offset < len(paths) {
 		max := offset + 1
@@ -73,12 +74,19 @@ func newLayers(paths types.Paths, tarDirectory string, maxLayers int, history v1
 		}
 		layerPaths := paths[offset:max]
 		layerPath := ""
-		var digest godigest.Digest
+		var digest, diffID godigest.Digest
 		var size int64
-		if tarDirectory == "" {
+		if compress == "gzip" {
+			if tarDirectory == "" {
+				return layers, fmt.Errorf("a tar directory is required to compress layers")
+			}
+			layerPath, digest, size, diffID, err = TarPathsWriteCompressed(layerPaths, tarDirectory)
+		} else if tarDirectory == "" {
 			digest, size, err = TarPathsSum(layerPaths)
+			diffID = digest
 		} else {
 			layerPath, digest, size, err = TarPathsWrite(paths, tarDirectory)
+			diffID = digest
 		}
 		if err != nil {
 			return layers, err
@@ -86,14 +94,16 @@ func newLayers(paths types.Paths, tarDirectory string, maxLayers int, history v1
 		logrus.Infof("Adding %d paths to layer (size:%d digest:%s)", len(layerPaths), size, digest.String())
 		layer := types.Layer{
 			Digest:    digest.String(),
-			DiffIDs:   digest.String(),
+			DiffIDs:   diffID.String(),
 			Size:      size,
 			Paths:     layerPaths,
 			MediaType: v1.MediaTypeImageLayer,
 			History:   history,
 		}
-		if tarDirectory != "" {
-			// TODO: we should use v1.MediaTypeImageLayerGzip instead
+		if compress == "gzip" {
+			layer.MediaType = v1.MediaTypeImageLayerGzip
+			layer.LayerPath = layerPath
+		} else if tarDirectory != "" {
 			layer.MediaType = v1.MediaTypeImageLayer
 			layer.LayerPath = layerPath
 		}
@@ -107,12 +117,21 @@ func newLayers(paths types.Paths, tarDirectory string, maxLayers int, history v1
 
 func NewLayers(storePaths []string, maxLayers int, parents []types.Layer, rewrites []types.RewritePath, exclude string, perms []types.PermPath, history v1.History) ([]types.Layer, error) {
 	paths := getPaths(storePaths, parents, rewrites, exclude, perms)
-	return newLayers(paths, "", maxLayers, history)
+	return newLayers(paths, "", "", maxLayers, history)
+}
+
+// NewLayersCompressed materializes gzip-compressed layer blobs in
+// tarDirectory. The recorded digests are the digests of the compressed
+// blobs, so registries can be probed for layer existence without
+// uploading or recompressing anything.
+func NewLayersCompressed(storePaths []string, maxLayers int, tarDirectory string, parents []types.Layer, rewrites []types.RewritePath, exclude string, perms []types.PermPath, history v1.History) ([]types.Layer, error) {
+	paths := getPaths(storePaths, parents, rewrites, exclude, perms)
+	return newLayers(paths, tarDirectory, "gzip", maxLayers, history)
 }
 
 func NewLayersNonReproducible(storePaths []string, maxLayers int, tarDirectory string, parents []types.Layer, rewrites []types.RewritePath, exclude string, perms []types.PermPath, history v1.History) (layers []types.Layer, err error) {
 	paths := getPaths(storePaths, parents, rewrites, exclude, perms)
-	return newLayers(paths, tarDirectory, maxLayers, history)
+	return newLayers(paths, tarDirectory, "", maxLayers, history)
 }
 
 func isPathInLayers(layers []types.Layer, path types.Path) bool {

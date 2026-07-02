@@ -22,6 +22,7 @@ import (
 )
 
 var ignore string
+var compress string
 var tarDirectory string
 var permsFilepath string
 var rewritesFilepath string
@@ -74,7 +75,12 @@ var layersReproducibleCmd = &cobra.Command{
 			}
 		}
 
-		layers, err := nix.NewLayers(storepaths, maxLayers, parents, rewrites, ignore, perms, history)
+		var layers []types.Layer
+		if compress == "gzip" {
+			layers, err = nix.NewLayersCompressed(storepaths, maxLayers, tarDirectory, parents, rewrites, ignore, perms, history)
+		} else {
+			layers, err = nix.NewLayers(storepaths, maxLayers, parents, rewrites, ignore, perms, history)
+		}
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s", err)
 			os.Exit(1)
@@ -133,7 +139,12 @@ var layersNonReproducibleCmd = &cobra.Command{
 			}
 		}
 
-		layers, err := nix.NewLayersNonReproducible(storepaths, maxLayers, tarDirectory, parents, rewrites, ignore, perms, history)
+		var layers []types.Layer
+		if compress == "gzip" {
+			layers, err = nix.NewLayersCompressed(storepaths, maxLayers, tarDirectory, parents, rewrites, ignore, perms, history)
+		} else {
+			layers, err = nix.NewLayersNonReproducible(storepaths, maxLayers, tarDirectory, parents, rewrites, ignore, perms, history)
+		}
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s", err)
 			os.Exit(1)
@@ -180,6 +191,7 @@ func init() {
 	layersNonReproducibleCmd.Flags().StringVarP(&permsFilepath, "perms", "", "", "A JSON file containing file permissions")
 	layersNonReproducibleCmd.Flags().StringVarP(&historyFilepath, "history", "", "", "A JSON file containing layer history")
 	layersNonReproducibleCmd.Flags().IntVarP(&maxLayers, "max-layers", "", 1, "The maximum number of layers")
+	layersNonReproducibleCmd.Flags().StringVarP(&compress, "compress", "", "", "Materialize compressed layer blobs (supported: gzip); recorded digests are of the compressed blobs. Requires --tar-directory.")
 
 	rootCmd.AddCommand(layersReproducibleCmd)
 	layersReproducibleCmd.Flags().StringVarP(&ignore, "ignore", "", "", "Ignore the path from the list of storepaths")
@@ -187,5 +199,7 @@ func init() {
 	layersReproducibleCmd.Flags().StringVarP(&permsFilepath, "perms", "", "", "A JSON file containing file permissions")
 	layersReproducibleCmd.Flags().StringVarP(&historyFilepath, "history", "", "", "A JSON file containing layer history")
 	layersReproducibleCmd.Flags().IntVarP(&maxLayers, "max-layers", "", 1, "The maximum number of layers")
+	layersReproducibleCmd.Flags().StringVarP(&compress, "compress", "", "", "Materialize compressed layer blobs (supported: gzip); recorded digests are of the compressed blobs. Requires --tar-directory.")
+	layersReproducibleCmd.Flags().StringVarP(&tarDirectory, "tar-directory", "", "", "The directory where compressed layer blobs are created (only used with --compress).")
 
 }
