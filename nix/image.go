@@ -147,8 +147,12 @@ func NewImageFromDir(directory string) (image types.Image, err error) {
 		return image, err
 	}
 
-	// TODO: we should also load the configuration in order to
-	// allow configuration merges
+	// Only Env is loaded, for --from-image-env. The rest of the config
+	// is not read: some images carry Cmd and Entrypoint as strings,
+	// which v1.ImageConfig rejects.
+	if v1ImageConfig.Config != nil {
+		image.ImageConfig.Env = v1ImageConfig.Config.Env
+	}
 
 	for i, l := range v1Manifest.Layers {
 		layerFilename := directory + "/" + l.Digest.Encoded()
@@ -212,6 +216,11 @@ func NewImageFromManifest(manifestFilename string, blobMapFilename string) (imag
 	err = json.Unmarshal(content, &v1ImageConfig)
 	if err != nil {
 		return image, err
+	}
+
+	// See the equivalent load in NewImageFromDir.
+	if v1ImageConfig.Config != nil {
+		image.ImageConfig.Env = v1ImageConfig.Config.Env
 	}
 
 	for i, l := range v1Manifest.Layers {

@@ -342,6 +342,9 @@ let
     copyToRoot ? null,
     # An image that is used as base image of this image.
     fromImage ? null,
+    # Keep the config.Env entries of fromImage that `config` does not
+    # set. Other fields of the base config are not inherited.
+    fromImageEnv ? false,
     # Image architecture
     arch ? pkgs.go.GOARCH,
     # A list of file permisssions which are set when the tar layer is
@@ -406,7 +409,8 @@ let
         layers = layers;
       };
 
-      fromImageFlag = l.optionalString (fromImage != null) "--from-image ${fromImage}";
+      fromImageFlag = l.optionalString (fromImage != null) "--from-image ${fromImage}"
+        + l.optionalString (fromImage != null && fromImageEnv) " --from-image-env";
       archFlag = "--arch ${arch}";
       createdFlag = "--created ${created}";
       layerPaths = l.concatMapStringsSep " " (l: l + "/layers.json") (allLayers ++ [customizationLayer]);

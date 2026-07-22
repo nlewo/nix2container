@@ -1,6 +1,9 @@
 package nix
 
 import (
+	"fmt"
+	"os"
+	"path/filepath"
 	"reflect"
 	"testing"
 
@@ -29,6 +32,46 @@ func TestNewImageFromDir(t *testing.T) {
 	if !reflect.DeepEqual(image.Layers, expected.Layers) {
 		t.Fatalf("Layers should be '%#v' (while they are %#v)", expected.Layers, image.Layers)
 	}
+	expectedEnv := []string{"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"}
+	if !reflect.DeepEqual(image.ImageConfig.Env, expectedEnv) {
+		t.Fatalf("ImageConfig.Env should be %#v (while it is %#v)", expectedEnv, image.ImageConfig.Env)
+	}
+	if image.ImageConfig.Cmd != nil {
+		t.Fatalf("only Env is loaded, but ImageConfig.Cmd is %#v", image.ImageConfig.Cmd)
+	}
+}
+
+// Env is loaded from the base config. Some configurations carry Cmd
+// and Entrypoint as plain strings, and they must load too.
+func TestNewImageFromDirEnv(t *testing.T) {
+	dir := t.TempDir()
+	config := []byte(`{
+  "architecture": "amd64",
+  "os": "linux",
+  "config": {"Cmd": "/bin/sh -c true", "Entrypoint": "/bin/sh", "Env": ["A=1"]},
+  "rootfs": {"type": "layers", "diff_ids": ["sha256:8d3ac3489996423f53d6087c81180006263b79f206d3fdec9e66f0e27ceb8759"]}
+}`)
+	configDigest := digest.FromBytes(config)
+	if err := os.WriteFile(filepath.Join(dir, configDigest.Encoded()), config, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	manifest := []byte(`{
+  "schemaVersion": 2,
+  "mediaType": "application/vnd.docker.distribution.manifest.v2+json",
+  "config": {"mediaType": "application/vnd.docker.container.image.v1+json", "size": ` + fmt.Sprint(len(config)) + `, "digest": "` + configDigest.String() + `"},
+  "layers": [{"mediaType": "application/vnd.docker.image.rootfs.diff.tar.gzip", "size": 1, "digest": "sha256:59bf1c3509f33515622619af21ed55bbe26d24913cedbca106468a5fb37a50c3"}]
+}`)
+	if err := os.WriteFile(filepath.Join(dir, "manifest.json"), manifest, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	image, err := NewImageFromDir(dir)
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+	assert.Len(t, image.Layers, 1)
+	assert.Equal(t, []string{"A=1"}, image.ImageConfig.Env)
+	assert.Equal(t, "sha256:8d3ac3489996423f53d6087c81180006263b79f206d3fdec9e66f0e27ceb8759", image.Layers[0].DiffIDs)
 }
 
 func TestGetV1Image(t *testing.T) {
