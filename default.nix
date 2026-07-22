@@ -1,4 +1,15 @@
-{ pkgs ? import <nixpkgs> {} }:
+{ pkgs ? import <nixpkgs> {}
+  # A pre-fetched copy of the container-libs patch that adds the nix:
+  # transport to skopeo, for environments that cannot fetch it from
+  # GitHub at build time (offline builders, proxies that block
+  # /commit/*.patch URLs). Accepts a path or a derivation — a raw
+  # download of the /commit/*.patch URL works as-is (the varying git
+  # "index" lines are stripped at use, like fetchpatch2 does). When
+  # null (the default), the patch is fetched with fetchpatch2 as
+  # before. Note the flake outputs don't thread this parameter; import
+  # the source directory directly to set it.
+, containerLibsPatch ? null
+}:
 
 let
   debug = false;
@@ -37,7 +48,21 @@ let
             $out
         '';
       });
-      patch = fetchgitpatch {
+      patch =
+        # A plain store-path string carries no string context, so the
+        # file would be missing from the build closure and the build
+        # would fail confusingly inside the sandbox.
+        assert l.assertMsg
+          (containerLibsPatch == null || l.isPath containerLibsPatch || l.isDerivation containerLibsPatch)
+          "containerLibsPatch must be a path or a derivation, not a string";
+        if containerLibsPatch != null then
+          pkgs.runCommandLocal "container-libs.patch" {} ''
+            sed -e '/^index /d' \
+                -e '/^similarity index /d' \
+                -e '/^dissimilarity index /d' \
+                ${containerLibsPatch} > $out
+          ''
+        else fetchgitpatch {
         url = "https://github.com/nlewo/container-libs/commit/21b053ac62f3137de42585611953e923577d0e10.patch";
         sha256 = "sha256-pfwQh7FKWHY/xVAGMSvnjMOmkpMo9NG2HFZqhqZ1VN0=";
       };
