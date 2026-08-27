@@ -7,12 +7,140 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/nlewo/nix2container/types"
 	digest "github.com/opencontainers/go-digest"
 	"github.com/sirupsen/logrus"
 )
+
+type nixCaseHackCanonicalizer struct {
+	root        string
+	directories map[string]map[string]string
+}
+
+func newNixCaseHackCanonicalizer(root string) *nixCaseHackCanonicalizer {
+	return &nixCaseHackCanonicalizer{
+		root:        root,
+		directories: make(map[string]map[string]string),
+	}
+}
+
+// canonicalize returns the path Nix stored in the NAR while retaining srcPath
+// separately for reading the restored filesystem. A suffix is removed only
+// when its sibling group matches the names Nix's case-hack algorithm creates.
+func (c *nixCaseHackCanonicalizer) canonicalize(srcPath string) (string, error) {
+	rel, err := filepath.Rel(c.root, srcPath)
+	if err != nil {
+		return "", err
+	}
+	if rel == "." {
+		return srcPath, nil
+	}
+
+	srcParent := c.root
+	dstPath := c.root
+	for _, name := range strings.Split(rel, string(filepath.Separator)) {
+		names, err := c.names(srcParent)
+		if err != nil {
+			return "", err
+		}
+		dstName := names[name]
+		if dstName == "" {
+			dstName = name
+		}
+		dstPath = filepath.Join(dstPath, dstName)
+		srcParent = filepath.Join(srcParent, name)
+	}
+
+	return dstPath, nil
+}
+
+func (c *nixCaseHackCanonicalizer) names(directory string) (map[string]string, error) {
+	if names, ok := c.directories[directory]; ok {
+		return names, nil
+	}
+
+	entries, err := os.ReadDir(directory)
+	if err != nil {
+		return nil, err
+	}
+
+	names := canonicalNixCaseHackNames(entries)
+
+	c.directories[directory] = names
+	return names, nil
+}
+
+type nixCaseHackEntry struct {
+	actual   string
+	original string
+}
+
+func canonicalNixCaseHackNames(entries []os.DirEntry) map[string]string {
+	names := make(map[string]string, len(entries))
+	for _, entry := range entries {
+		actual := entry.Name()
+		names[actual] = actual
+	}
+
+	for _, candidate := range entries {
+		base, ok := nixCaseHackBase(candidate.Name())
+		if !ok {
+			continue
+		}
+
+		var group []nixCaseHackEntry
+		for _, entry := range entries {
+			actual := entry.Name()
+			// An entry that ends in the marker may itself be a literal
+			// original name, so consider both possible interpretations.
+			if strings.EqualFold(actual, base) {
+				group = append(group, nixCaseHackEntry{actual: actual, original: actual})
+			}
+			if original, ok := nixCaseHackBase(actual); ok && strings.EqualFold(original, base) {
+				group = append(group, nixCaseHackEntry{actual: actual, original: original})
+			}
+		}
+		if len(group) < 2 {
+			continue
+		}
+
+		sort.Slice(group, func(i, j int) bool {
+			return group[i].original < group[j].original
+		})
+
+		valid := true
+		for i, entry := range group {
+			// A NAR cannot contain the same directory entry twice.
+			if i > 0 && entry.original == group[i-1].original {
+				valid = false
+				break
+			}
+
+			expected := entry.original
+			if i > 0 {
+				expected += nixCaseHackSuffix + strconv.Itoa(i)
+			}
+			if entry.actual != expected {
+				valid = false
+				break
+			}
+		}
+		if !valid {
+			continue
+		}
+
+		for i := 1; i < len(group); i++ {
+			names[group[i].actual] = group[i].original
+		}
+	}
+
+	return names
+}
 
 func TarPathsWrite(paths types.Paths, destinationDirectory string) (string, digest.Digest, int64, error) {
 	f, err := os.CreateTemp(destinationDirectory, "")
@@ -164,12 +292,17 @@ func TarPaths(paths types.Paths) io.ReadCloser {
 		// anything to the tar stream.
 		for _, path := range paths {
 			options := path.Options
+			canonicalizer := newNixCaseHackCanonicalizer(path.Path)
 			err := filepath.Walk(path.Path, func(path string, info os.FileInfo, err error) error {
 				if err != nil {
 					return fmt.Errorf("failed accessing path %q: %v", path, err)
 				}
 				logrus.Debugf("Walking filesystem: %s", path)
-				return addFileToGraph(graph, path, &info, options)
+				dstPath, err := canonicalizer.canonicalize(path)
+				if err != nil {
+					return fmt.Errorf("failed canonicalizing path %q: %v", path, err)
+				}
+				return addFileToGraph(graph, path, dstPath, &info, options)
 			})
 			if err != nil {
 				if err := w.CloseWithError(err); err != nil {

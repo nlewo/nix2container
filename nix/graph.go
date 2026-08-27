@@ -10,11 +10,6 @@ import (
 	"github.com/nlewo/nix2container/types"
 )
 
-// On case insensitive FS (adfs on MacOS for instance), Nix adds a
-// suffix to avoid filename collisions.
-// See https://github.com/NixOS/nix/blob/ba9e69cdcd8022f37e344f2c86e60ee2b9da493f/src/libutil/archive.cc#L90
-var useNixCaseHack string
-
 type fileNode struct {
 	// The file name on the FS
 	srcPath  string
@@ -40,13 +35,7 @@ func initGraph() *fileNode {
 // Note the graph describes the file tree of the tar stream, not the
 // file tree read on the FS. This means transformations are done during
 // the graph construction.
-func addFileToGraph(root *fileNode, path string, info *os.FileInfo, options *types.PathOptions) error {
-
-	dstPath := path
-	if useNixCaseHack != "" {
-		dstPath = removeNixCaseHackSuffix(dstPath)
-	}
-
+func addFileToGraph(root *fileNode, srcPath, dstPath string, info *os.FileInfo, options *types.PathOptions) error {
 	dstPath = filePathToTarPath(dstPath, options)
 	// A regex in the options could make the path becoming the
 	// empty string. In this case, we don't want to create
@@ -71,13 +60,13 @@ func addFileToGraph(root *fileNode, path string, info *os.FileInfo, options *typ
 	if current.info != nil {
 		if (*current.info).Mode() != (*info).Mode() {
 			return fmt.Errorf("the file '%s' already exists in the graph with mode '%v' from '%s' while it is added again with mode '%v' by '%s'",
-				dstPath, (*current.info).Mode(), current.srcPath, (*info).Mode(), path)
+				dstPath, (*current.info).Mode(), current.srcPath, (*info).Mode(), srcPath)
 		}
 		// .Size() is only meaningful for regular files
 		// See https://pkg.go.dev/io/fs#FileInfo
 		if (*current.info).Mode().IsRegular() && (*current.info).Size() != (*info).Size() {
 			return fmt.Errorf("the file '%s' already exists in the graph with size '%d' from '%s' while it is added again with size '%d' by '%s'",
-				dstPath, (*current.info).Size(), current.srcPath, (*info).Size(), path)
+				dstPath, (*current.info).Size(), current.srcPath, (*info).Size(), srcPath)
 		}
 	}
 	current.info = info
@@ -88,7 +77,7 @@ func addFileToGraph(root *fileNode, path string, info *os.FileInfo, options *typ
 	}
 	current.options = options
 
-	current.srcPath = path
+	current.srcPath = srcPath
 	return nil
 }
 

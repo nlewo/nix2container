@@ -2,29 +2,30 @@ package nix
 
 import (
 	"github.com/nlewo/nix2container/types"
-	"path"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 )
 
-func removeNixCaseHackSuffix(filepath string) string {
-	caseHackSuffix := "~nix~case~hack~"
-	parts := strings.Split(filepath, "/")
-	cleaned := make([]string, len(parts))
-	for i, part := range parts {
-		idx := strings.Index(part, caseHackSuffix)
-		if idx != -1 {
-			cleaned[i] = part[0:idx]
-		} else {
-			cleaned[i] = part
-		}
+const nixCaseHackSuffix = "~nix~case~hack~"
+
+// nixCaseHackBase returns the original name encoded by a suffix that Nix can
+// append when restoring a case-colliding directory entry. Nix-generated
+// suffixes always end the name and contain a positive decimal number.
+func nixCaseHackBase(name string) (string, bool) {
+	idx := strings.LastIndex(name, nixCaseHackSuffix)
+	if idx == -1 {
+		return "", false
 	}
-	var prefix string
-	if strings.HasPrefix(filepath, "/") {
-		prefix = "/"
+
+	suffix := name[idx+len(nixCaseHackSuffix):]
+	n, err := strconv.ParseUint(suffix, 10, 64)
+	if err != nil || n == 0 || strconv.FormatUint(n, 10) != suffix {
+		return "", false
 	}
-	return prefix + path.Join(cleaned...)
+
+	return name[:idx], true
 }
 
 func splitPath(path string) []string {

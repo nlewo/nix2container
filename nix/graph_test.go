@@ -10,19 +10,19 @@ import (
 
 func TestGraph(t *testing.T) {
 	g := initGraph()
-	err := addFileToGraph(g, "/nix", nil, nil)
+	err := addFileToGraph(g, "/nix", "/nix", nil, nil)
 	assert.Equal(t, nil, err)
 	assert.Contains(t, g.contents, "")
 	assert.Contains(t, g.contents[""].contents, "nix")
 
 	g = initGraph()
-	err = addFileToGraph(g, "/nix/store/hash1", nil, nil)
+	err = addFileToGraph(g, "/nix/store/hash1", "/nix/store/hash1", nil, nil)
 	assert.Equal(t, nil, err)
 	assert.Contains(t, g.contents, "")
 	assert.Contains(t, g.contents[""].contents, "nix")
 	assert.Contains(t, g.contents[""].contents["nix"].contents, "store")
 	assert.Contains(t, g.contents[""].contents["nix"].contents["store"].contents, "hash1")
-	err = addFileToGraph(g, "/nix/store/hash2", nil, nil)
+	err = addFileToGraph(g, "/nix/store/hash2", "/nix/store/hash2", nil, nil)
 	assert.Equal(t, nil, err)
 	assert.Contains(t, g.contents, "")
 	assert.Contains(t, g.contents[""].contents, "nix")
@@ -30,9 +30,34 @@ func TestGraph(t *testing.T) {
 	assert.Contains(t, g.contents[""].contents["nix"].contents["store"].contents, "hash2")
 }
 
+func TestGraphKeepsSourceAndDestinationPathsSeparate(t *testing.T) {
+	g := initGraph()
+	srcPath := "/share/terminfo/l~nix~case~hack~1/linux"
+	dstPath := "/share/terminfo/l/linux"
+	if err := addFileToGraph(g, srcPath, dstPath, nil, nil); err != nil {
+		t.Fatal(err)
+	}
+
+	var gotSrcPath string
+	var paths []string
+	if err := walkGraph(g, func(srcPath, dstPath string, _ *os.FileInfo, _ *types.PathOptions) error {
+		paths = append(paths, dstPath)
+		if dstPath == "/share/terminfo/l/linux" {
+			gotSrcPath = srcPath
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	assert.Contains(t, paths, "/share/terminfo/l/linux")
+	assert.NotContains(t, paths, "/share/terminfo/l~nix~case~hack~1/linux")
+	assert.Equal(t, srcPath, gotSrcPath)
+}
+
 func TestAddFileToGraphOverride(t *testing.T) {
 	g := initGraph()
-	err := addFileToGraph(g, "/nix/store/file1", nil, &types.PathOptions{
+	err := addFileToGraph(g, "/nix/store/file1", "/nix/store/file1", nil, &types.PathOptions{
 		Perms: []types.Perm{
 			{
 				Regex: "*",
@@ -41,7 +66,7 @@ func TestAddFileToGraphOverride(t *testing.T) {
 		},
 	})
 	assert.Equal(t, nil, err)
-	err = addFileToGraph(g, "/nix/store/file1", nil, &types.PathOptions{
+	err = addFileToGraph(g, "/nix/store/file1", "/nix/store/file1", nil, &types.PathOptions{
 		Perms: []types.Perm{
 			{
 				Regex: "*",
@@ -57,9 +82,9 @@ func TestWalkGraph(t *testing.T) {
 	paths := make([]string, 5)
 	var idx int
 	pidx := &idx
-	err := addFileToGraph(g, "/nix/store/hash2", nil, nil)
+	err := addFileToGraph(g, "/nix/store/hash2", "/nix/store/hash2", nil, nil)
 	assert.Equal(t, nil, err)
-	err = addFileToGraph(g, "/nix/store/hash1", nil, nil)
+	err = addFileToGraph(g, "/nix/store/hash1", "/nix/store/hash1", nil, nil)
 	assert.Equal(t, nil, err)
 
 	err = walkGraph(g, func(srcPath, dstPath string, info *os.FileInfo, options *types.PathOptions) error {
@@ -79,7 +104,7 @@ func TestWalkGraphOnDirectory(t *testing.T) {
 	graph := initGraph()
 	err := filepath.Walk("../data/graph-directory",
 		func(path string, info os.FileInfo, err error) error {
-			return addFileToGraph(graph, path, &info, nil)
+			return addFileToGraph(graph, path, path, &info, nil)
 		},
 	)
 	assert.Equal(t, nil, err)

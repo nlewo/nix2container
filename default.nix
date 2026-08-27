@@ -15,12 +15,9 @@ let
       ]);
     };
     vendorHash = "sha256-KPJSt2QTcyIgC6S/ASuc1xSEIXrPDFMnd+5MhCQqia4=";
-    ldflags = l.optional pkgs.stdenv.isDarwin
-      "-X github.com/nlewo/nix2container/nix.useNixCaseHack=true";
   };
 
   skopeo-nix2container = pkgs.skopeo.overrideAttrs (old: {
-    EXTRA_LDFLAGS = l.optionalString pkgs.stdenv.isDarwin "-X github.com/nlewo/nix2container/nix.useNixCaseHack=true";
     nativeBuildInputs = old.nativeBuildInputs ++ [ pkgs.patchutils ];
     preBuild = let
       # Needs to use fetchpatch2 to handle "git extended headers", which include
