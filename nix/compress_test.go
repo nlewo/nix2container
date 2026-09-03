@@ -45,6 +45,34 @@ func TestTarPathsCompressGzipDeterministic(t *testing.T) {
 	assert.Equal(t, byte(255), hdr[9])
 }
 
+func TestTarPathsCompressZstdDeterministic(t *testing.T) {
+	paths := types.Paths{{Path: "../data/layer1"}}
+	d1 := t.TempDir()
+	d2 := t.TempDir()
+	dg1, diff1, _, _, err := TarPathsCompress(paths, "zstd", d1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	dg2, diff2, _, _, err := TarPathsCompress(paths, "zstd", d2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, dg1, dg2)
+	assert.Equal(t, diff1, diff2)
+	assert.NotEqual(t, dg1, diff1)
+
+	f, err := os.Open(d1 + "/" + dg1.Encoded() + ".tar.zst")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close() // nolint: errcheck
+	magic := make([]byte, 4)
+	if _, err := io.ReadFull(f, magic); err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, []byte{0x28, 0xb5, 0x2f, 0xfd}, magic)
+}
+
 func TestTarPathsCompressUnknown(t *testing.T) {
 	_, _, _, _, err := TarPathsCompress(types.Paths{{Path: "../data/layer1"}}, "lzma", t.TempDir())
 	assert.ErrorContains(t, err, `unknown compressor "lzma"`)

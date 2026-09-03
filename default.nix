@@ -14,7 +14,7 @@ let
         ./data
       ]);
     };
-    vendorHash = "sha256-KPJSt2QTcyIgC6S/ASuc1xSEIXrPDFMnd+5MhCQqia4=";
+    vendorHash = "sha256-Hce7XKFg4K46CrThoisD6Q211LUX+Ws86rmcI+Y/l04=";
     ldflags = l.optional pkgs.stdenv.hostPlatform.isDarwin
       "-X github.com/nlewo/nix2container/nix.useNixCaseHack=true";
   };
@@ -237,11 +237,13 @@ let
     contents ? null,
     # Author, comment, created_by
     metadata ? { created_by = "nix2container"; },
-    # Compress the layers at build time: "gzip" or null (the default).
-    # The blobs are written to the layers.json output, and the nix:
-    # transport pushes them as they are, so a push does not tar the
+    # Compress the layers at build time: "gzip", "zstd" or null (the
+    # default). The blobs are written to the layers.json output, and the
+    # nix: transport pushes them as they are, so a push does not tar the
     # store paths again. The output grows from a small JSON file to the
-    # compressed size of the layers.
+    # compressed size of the layers. Only OCI destinations accept zstd
+    # layers: use "gzip" for docker-daemon and for registries that only
+    # know the Docker schema 2 media types.
     compressor ? null,
   }:
   assert l.assertMsg (compressor == null || reproducible)

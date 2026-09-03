@@ -198,6 +198,6 @@ func init() {
 	layersReproducibleCmd.Flags().StringVarP(&permsFilepath, "perms", "", "", "A JSON file containing file permissions")
 	layersReproducibleCmd.Flags().StringVarP(&historyFilepath, "history", "", "", "A JSON file containing layer history")
 	layersReproducibleCmd.Flags().IntVarP(&maxLayers, "max-layers", "", 1, "The maximum number of layers")
-	layersReproducibleCmd.Flags().StringVarP(&compressor, "compressor", "", "", "Compress the layers at build time (gzip). The blobs are written to a blobs directory next to the output file, and they are served at push time.")
+	layersReproducibleCmd.Flags().StringVarP(&compressor, "compressor", "", "", "Compress the layers at build time (gzip or zstd). The blobs are written to a blobs directory next to the output file, and they are served at push time.")
 
 }
