@@ -237,7 +237,16 @@ let
     contents ? null,
     # Author, comment, created_by
     metadata ? { created_by = "nix2container"; },
-  }: let
+    # Compress the layers at build time: "gzip" or null (the default).
+    # The blobs are written to the layers.json output, and the nix:
+    # transport pushes them as they are, so a push does not tar the
+    # store paths again. The output grows from a small JSON file to the
+    # compressed size of the layers.
+    compressor ? null,
+  }:
+  assert l.assertMsg (compressor == null || reproducible)
+    "nix2container.buildLayer: compressor requires reproducible = true";
+  let
     subcommand = if reproducible
       then "layers-from-reproducible-storepaths"
       else "layers-from-non-reproducible-storepaths";
@@ -263,6 +272,7 @@ let
 
     allDeps = deps ++ copyToRootList;
     tarDirectory = l.optionalString (!reproducible) "--tar-directory $out";
+    compressorFlag = l.optionalString (compressor != null) "--compressor ${compressor}";
 
     layersJSON = pkgs.runCommandLocal "layers.json" {} ''
       mkdir $out
@@ -274,6 +284,7 @@ let
         ${rewritesFlag} \
         ${permsFlag} \
         ${historyFlag} \
+        ${compressorFlag} \
         ${tarDirectory} \
         ${toString (map (l: l + "/layers.json") layers)}
       set +x
@@ -369,6 +380,9 @@ let
     # Note this is applied on the image layers and not on layers added
     # with the buildImage.layers attribute
     maxLayers ? 1,
+    # See buildLayer.compressor. It applies to the layers of copyToRoot,
+    # not to the layers given in the layers attribute.
+    compressor ? null,
     # If set to true, the Nix database is initialized with all store
     # paths added into the image. Note this is only useful to run nix
     # commands from the image, for instance to build an image used by
@@ -406,7 +420,7 @@ let
         };
 
       customizationLayer = buildLayer {
-        inherit maxLayers;
+        inherit maxLayers compressor;
         perms = perms';
         copyToRoot = copyToRootList ++ l.optional initializeNixDatabase nixDatabase;
         deps = [configFile];

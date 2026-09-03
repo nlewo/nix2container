@@ -97,6 +97,10 @@ Function arguments are:
     this is applied on the image layers and not on layers added with
     the `buildImage.layers` attribute.
 
+- **`compressor`** (defaults to `null`): see `buildLayer.compressor`.
+    It applies to the image layers and not to layers added with the
+    `buildImage.layers` attribute.
+
 - **`perms`** (defaults to `[]`): a list of file permisssions which are
     set when the tar layer is created: these permissions are not
     written to the Nix store.
@@ -244,6 +248,15 @@ Function arguments are:
     post](https://grahamc.com/blog/nix-and-layered-docker-images). Note
     this is applied on the image layers and not on layers added with
     the `buildLayer.layers` attribute.
+
+- **`compressor`** (defaults to `null`): set it to `"gzip"` to
+    compress the layers at build time. The compressed blobs are stored
+    in the layer derivation output, and they are pushed as they are, so
+    a push does not tar the store paths again. The compression is
+    deterministic (level 6, no timestamp, no file name, OS set to
+    255), so the same layer always has the same digest. The cost is
+    store space: the output holds the compressed layers, not only
+    their JSON description. It requires `reproducible = true`.
 
 - **`perms`** (defaults to `[]`): a list of file permisssions which are
     set when the tar layer is created: these permissions are not
