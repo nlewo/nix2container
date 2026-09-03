@@ -21,8 +21,16 @@ import (
 	godigest "github.com/opencontainers/go-digest"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/sirupsen/logrus"
-	"go.podman.io/image/v5/manifest"
 )
+
+// rootFSConfig holds the only part of an image configuration that is
+// read here. The config section is left out on purpose: legacy images
+// carry string-form Cmd and Entrypoint, which v1.ImageConfig rejects.
+type rootFSConfig struct {
+	RootFS struct {
+		DiffIDs []godigest.Digest `json:"diff_ids"`
+	} `json:"rootfs"`
+}
 
 // GetConfigBlob returns the config blog of an image.
 func GetConfigBlob(image types.Image) ([]byte, error) {
@@ -141,7 +149,7 @@ func NewImageFromDir(directory string) (image types.Image, err error) {
 	if err != nil {
 		return image, err
 	}
-	var v1ImageConfig manifest.Schema2Image
+	var v1ImageConfig rootFSConfig
 	err = json.Unmarshal(content, &v1ImageConfig)
 	if err != nil {
 		return image, err
@@ -208,7 +216,7 @@ func NewImageFromManifest(manifestFilename string, blobMapFilename string) (imag
 	if err != nil {
 		return image, err
 	}
-	var v1ImageConfig manifest.Schema2Image
+	var v1ImageConfig rootFSConfig
 	err = json.Unmarshal(content, &v1ImageConfig)
 	if err != nil {
 		return image, err
