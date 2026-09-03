@@ -14,7 +14,7 @@ let
         ./data
       ]);
     };
-    vendorHash = "sha256-MGc0wNKUCfqXCrBb2o/4CCYlf5uPp80yhJPejOG5cOA=";
+    vendorHash = "sha256-FbogW9NGluTRxGKvl7sqvVLa0RdsJrEZ//48wjMPAkk=";
   };
 
   skopeo-nix2container = pkgs.skopeo.overrideAttrs (old: {
@@ -242,11 +242,13 @@ let
     contents ? null,
     # Author, comment, created_by
     metadata ? { created_by = "nix2container"; },
-    # Compress the layers at build time: "gzip" or null (the default).
-    # The blobs are written to the layers.json output, and the nix:
-    # transport pushes them as they are, so a push does not tar the
+    # Compress the layers at build time: "gzip", "zstd" or null (the
+    # default). The blobs are written to the layers.json output, and the
+    # nix: transport pushes them as they are, so a push does not tar the
     # store paths again. The output grows from a small JSON file to the
-    # compressed size of the layers.
+    # compressed size of the layers. Only OCI destinations accept zstd
+    # layers: use "gzip" for docker-daemon and for registries that only
+    # know the Docker schema 2 media types.
     compressor ? null,
   }:
   assert l.assertMsg (permsFile == null || perms == [])

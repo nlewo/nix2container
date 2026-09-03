@@ -8,6 +8,7 @@ import (
 	"runtime"
 	"time"
 
+	"github.com/klauspost/compress/zstd"
 	"github.com/klauspost/pgzip"
 	"github.com/nlewo/nix2container/types"
 	godigest "github.com/opencontainers/go-digest"
@@ -26,6 +27,7 @@ type layerCompressor struct {
 
 var compressors = map[string]layerCompressor{
 	"gzip": {v1.MediaTypeImageLayerGzip, "tar.gz", newGzipWriter},
+	"zstd": {v1.MediaTypeImageLayerZstd, "tar.zst", newZstdWriter},
 }
 
 func getCompressor(name string) (layerCompressor, error) {
@@ -71,6 +73,17 @@ func newGzipWriter(w io.Writer, blocks int) (io.WriteCloser, error) {
 	// truncated to 32 bits rather than 0.
 	zw.ModTime = time.Unix(0, 0)
 	return zw, nil
+}
+
+// newZstdWriter writes zstd at the default level (3). With more than
+// one goroutine, the encoder splits the input and its output depends on
+// the split, so the concurrency is set to 1 to keep the output
+// deterministic.
+func newZstdWriter(w io.Writer, _ int) (io.WriteCloser, error) {
+	return zstd.NewWriter(w,
+		zstd.WithEncoderLevel(zstd.SpeedDefault),
+		zstd.WithEncoderConcurrency(1),
+	)
 }
 
 // TarPathsCompress tars the paths and writes the compressed blob to

@@ -223,6 +223,6 @@ func init() {
 	layersReproducibleCmd.Flags().StringVarP(&historyFilepath, "history", "", "", "A JSON file containing layer history")
 	layersReproducibleCmd.Flags().IntVarP(&maxLayers, "max-layers", "", 1, "The maximum number of layers")
 	layersReproducibleCmd.Flags().StringVarP(&layersJSONFilepath, "layers-json", "", "", "A JSON list of store path lists: the layer split to use, in order, instead of --max-layers")
-	layersReproducibleCmd.Flags().StringVarP(&compressor, "compressor", "", "", "Compress the layers at build time (gzip). The blobs are written to a blobs directory next to the output file, and they are served at push time.")
+	layersReproducibleCmd.Flags().StringVarP(&compressor, "compressor", "", "", "Compress the layers at build time (gzip or zstd). The blobs are written to a blobs directory next to the output file, and they are served at push time.")
 
 }
