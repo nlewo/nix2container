@@ -2,11 +2,13 @@ package nix
 
 import (
 	"archive/tar"
+	"bufio"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"regexp"
+	"sync"
 	"time"
 
 	"github.com/nlewo/nix2container/types"
@@ -23,11 +25,17 @@ func TarPathsWrite(paths types.Paths, destinationDirectory string) (string, dige
 	reader := TarPaths(paths)
 	defer reader.Close() // nolint: errcheck
 
-	r := io.TeeReader(reader, f)
+	// The tar stream comes in pieces as small as one 512-byte header.
+	// The buffer turns them into large writes.
+	w := bufio.NewWriterSize(f, 256*1024)
+	r := io.TeeReader(reader, w)
 
 	digester := digest.Canonical.Digester()
 	size, err := io.Copy(digester.Hash(), r)
 	if err != nil {
+		return "", "", 0, err
+	}
+	if err := w.Flush(); err != nil {
 		return "", "", 0, err
 	}
 	digest := digester.Digest()
@@ -133,21 +141,28 @@ func appendFileToTar(tw *tar.Writer, srcPath, dstPath string, info os.FileInfo, 
 	if err := tw.WriteHeader(hdr); err != nil {
 		return fmt.Errorf("could not write hdr '%#v', got error '%s'", hdr, err.Error())
 	}
-	if link == "" {
+	if link == "" && !info.IsDir() {
 		file, err := os.Open(srcPath)
 		if err != nil {
 			return fmt.Errorf("could not open file '%s', got error '%s'", srcPath, err.Error())
 		}
 		defer file.Close() // nolint: errcheck
-		if !info.IsDir() {
-			_, err = io.Copy(tw, file)
-			if err != nil {
-				return fmt.Errorf("could not copy the file '%s' data to the tarball, got error '%s'", srcPath, err.Error())
-			}
+		buf := copyBuffers.Get().(*[]byte)
+		defer copyBuffers.Put(buf)
+		// The struct hides the WriteTo method of os.File: io.CopyBuffer
+		// would call it, and it allocates a new buffer for every file.
+		_, err = io.CopyBuffer(tw, struct{ io.Reader }{file}, *buf)
+		if err != nil {
+			return fmt.Errorf("could not copy the file '%s' data to the tarball, got error '%s'", srcPath, err.Error())
 		}
 	}
 	return nil
 }
+
+var copyBuffers = sync.Pool{New: func() interface{} {
+	buf := make([]byte, 32*1024)
+	return &buf
+}}
 
 // TarPaths takes a list of paths and return a ReadCloser to the tar
 // archive. If an error occurs, the ReadCloser is closed with the error.
