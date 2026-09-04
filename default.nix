@@ -14,7 +14,7 @@ let
         ./data
       ]);
     };
-    vendorHash = "sha256-Hce7XKFg4K46CrThoisD6Q211LUX+Ws86rmcI+Y/l04=";
+    vendorHash = "sha256-xR1nT0Dd5j5cT4Nnd8EQVPQyM9U+dVX/T5uzr6NUmgg=";
     ldflags = l.optional pkgs.stdenv.hostPlatform.isDarwin
       "-X github.com/nlewo/nix2container/nix.useNixCaseHack=true";
   };

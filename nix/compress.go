@@ -1,13 +1,15 @@
 package nix
 
 import (
-	"compress/gzip"
+	"bufio"
+	"encoding/binary"
 	"fmt"
+	"hash/crc32"
 	"io"
 	"os"
 	"path/filepath"
-	"time"
 
+	"github.com/klauspost/compress/flate"
 	"github.com/klauspost/compress/zstd"
 	"github.com/nlewo/nix2container/types"
 	godigest "github.com/opencontainers/go-digest"
@@ -39,15 +41,50 @@ func getCompressor(name string) (layerCompressor, error) {
 // FNAME and OS=255. The layers.json derivation is input-addressed, so
 // two builders must write the same bytes for the same layer, or the
 // registry stores the layer twice under two digests.
+//
+// The deflate stream comes from klauspost/compress/flate, which is
+// faster than the standard library. Its output is deterministic for a
+// given version, and a version bump can change the digests. The gzip
+// framing is written here rather than by klauspost/compress/gzip:
+// skopeo-nix2container vendors this package, and its vendor tree has
+// the flate package of klauspost/compress but not the gzip one.
 func newGzipWriter(w io.Writer) (io.WriteCloser, error) {
-	gz, err := gzip.NewWriterLevel(w, 6)
+	// ID1, ID2, CM (deflate), FLG, MTIME (4 bytes), XFL, OS.
+	header := []byte{0x1f, 0x8b, 8, 0, 0, 0, 0, 0, 0, 255}
+	if _, err := w.Write(header); err != nil {
+		return nil, err
+	}
+	fw, err := flate.NewWriter(w, 6)
 	if err != nil {
 		return nil, err
 	}
-	gz.ModTime = time.Time{}
-	gz.Name = ""
-	gz.OS = 255
-	return gz, nil
+	return &gzipWriter{w: w, fw: fw}, nil
+}
+
+type gzipWriter struct {
+	w    io.Writer
+	fw   *flate.Writer
+	crc  uint32
+	size uint32
+}
+
+func (g *gzipWriter) Write(p []byte) (int, error) {
+	g.crc = crc32.Update(g.crc, crc32.IEEETable, p)
+	g.size += uint32(len(p))
+	return g.fw.Write(p)
+}
+
+// Close ends the deflate stream and writes the trailer: the CRC-32 and
+// the size of the input, modulo 2^32.
+func (g *gzipWriter) Close() error {
+	if err := g.fw.Close(); err != nil {
+		return err
+	}
+	var trailer [8]byte
+	binary.LittleEndian.PutUint32(trailer[:4], g.crc)
+	binary.LittleEndian.PutUint32(trailer[4:], g.size)
+	_, err := g.w.Write(trailer[:])
+	return err
 }
 
 // newZstdWriter writes zstd at the default level (3). With more than
@@ -81,7 +118,10 @@ func TarPathsCompress(paths types.Paths, name, outDir string) (digest, diffID go
 	}()
 
 	digestHasher := godigest.Canonical.Digester()
-	counted := &countingWriter{w: io.MultiWriter(f, digestHasher.Hash())}
+	// Compressors write in pieces of a few hundred bytes. The buffer
+	// turns them into large writes to the file and to the hasher.
+	buffered := bufio.NewWriterSize(io.MultiWriter(f, digestHasher.Hash()), 256*1024)
+	counted := &countingWriter{w: buffered}
 	cw, err := c.newWriter(counted)
 	if err != nil {
 		return "", "", 0, "", err
@@ -101,6 +141,9 @@ func TarPathsCompress(paths types.Paths, name, outDir string) (digest, diffID go
 	// Close writes the compressor trailer, which the digest and the
 	// size must include.
 	if err = cw.Close(); err != nil {
+		return "", "", 0, "", err
+	}
+	if err = buffered.Flush(); err != nil {
 		return "", "", 0, "", err
 	}
 	// os.CreateTemp creates the file with mode 0600.

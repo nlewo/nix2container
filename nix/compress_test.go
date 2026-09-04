@@ -1,6 +1,8 @@
 package nix
 
 import (
+	"bytes"
+	stdgzip "compress/gzip"
 	"io"
 	"os"
 	"testing"
@@ -107,5 +109,39 @@ func TestNewLayersCompressed(t *testing.T) {
 			t.Fatal(err)
 		}
 		assert.Equal(t, info.Size(), gz[i].Size)
+	}
+}
+
+// The gzip framing is written by hand, so the standard library's reader
+// must get the input back, and check the CRC and the size.
+func TestGzipWriterRoundTrip(t *testing.T) {
+	for _, size := range []int{0, 1, 70000, 3 << 20} {
+		in := make([]byte, size)
+		for i := range in {
+			in[i] = byte(i*7 + i/1000)
+		}
+		var buf bytes.Buffer
+		w, err := newGzipWriter(&buf)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := w.Write(in); err != nil {
+			t.Fatal(err)
+		}
+		if err := w.Close(); err != nil {
+			t.Fatal(err)
+		}
+		r, err := stdgzip.NewReader(&buf)
+		if err != nil {
+			t.Fatalf("size %d: %v", size, err)
+		}
+		out, err := io.ReadAll(r)
+		if err != nil {
+			t.Fatalf("size %d: %v", size, err)
+		}
+		assert.Equal(t, in, out, "size %d", size)
+		assert.Equal(t, byte(255), r.OS)
+		assert.True(t, r.ModTime.IsZero())
+		assert.Empty(t, r.Name)
 	}
 }
