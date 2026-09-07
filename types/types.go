@@ -42,22 +42,30 @@ type RewritePath struct {
 type Perm struct {
 	Regex string `json:"regex"`
 	// Octal representation of file permissions
-	Mode  string `json:"mode"`
-	Uid   int    `json:"uid"`
-	Gid   int    `json:"gid"`
-	Uname string `json:"uname"`
-	Gname string `json:"gname"`
+	Mode string `json:"mode"`
+	// Octal permission bits to OR into the existing mode (e.g. "0200"
+	// to add u+w). Applied after Mode, so {Mode:"0444", OrMode:"0200"}
+	// yields 0644. Lets a single perms entry express "make writable"
+	// over a tree whose files are a mix of 0444/0555 (nix-store
+	// canonicalization) without flattening the execute bit.
+	OrMode string `json:"orMode,omitempty"`
+	Uid    int    `json:"uid"`
+	Gid    int    `json:"gid"`
+	Uname  string `json:"uname"`
+	Gname  string `json:"gname"`
 }
 
 type PermPath struct {
 	Path  string `json:"path"`
 	Regex string `json:"regex"`
 	// Octal representation of file permissions
-	Mode  string `json:"mode"`
-	Uid   int    `json:"uid"`
-	Gid   int    `json:"gid"`
-	Uname string `json:"uname"`
-	Gname string `json:"gname"`
+	Mode string `json:"mode"`
+	// See Perm.OrMode.
+	OrMode string `json:"orMode,omitempty"`
+	Uid    int    `json:"uid"`
+	Gid    int    `json:"gid"`
+	Uname  string `json:"uname"`
+	Gname  string `json:"gname"`
 }
 
 type PathOptions struct {

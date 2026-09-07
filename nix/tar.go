@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"time"
 
 	"github.com/nlewo/nix2container/types"
@@ -121,6 +122,21 @@ func appendFileToTar(tw *tar.Writer, srcPath, dstPath string, info os.FileInfo, 
 					if err != nil {
 						return err
 					}
+				}
+				if perms.OrMode != "" {
+					// fmt.Sscanf %o accepts garbage silently ("03x1"→3,
+					// "0o311"→0, "-0200"→-128, and a negative mode makes
+					// archive/tar silently switch the header to GNU
+					// base-256 encoding); ParseUint base 8 rejects all of
+					// it, and bitSize 12 bounds the value to the
+					// permission bits (0o7777). The value is the plain
+					// octal digits ("0200", matching Mode's convention
+					// above), no 0o prefix.
+					or, err := strconv.ParseUint(perms.OrMode, 8, 12)
+					if err != nil {
+						return fmt.Errorf("invalid orMode %q (want octal permission bits like \"0200\"): %w", perms.OrMode, err)
+					}
+					hdr.Mode |= int64(or)
 				}
 			}
 		}

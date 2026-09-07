@@ -111,6 +111,12 @@ Function arguments are:
     The mode is applied on a specific path. In this path subtree,
     the mode is then applied on all files matching the regex.
 
+    `mode` sets the mode, and `orMode` adds bits to it. For instance,
+    `orMode = "0200";` makes the files writable by their owner and
+    keeps their execute bits. With both, `mode` comes first:
+    `{ mode = "0444"; orMode = "0200"; }` gives `0644`. The entries
+    are applied in list order.
+
 - **`initializeNixDatabase`** (defaults to `false`): to initialize the
     Nix database with all store paths added into the image. Note this
     is only useful to run nix commands from the image, for instance to
@@ -258,6 +264,12 @@ Function arguments are:
     ```
     The mode is applied on a specific path. In this path subtree,
     the mode is then applied on all files matching the regex.
+
+    `mode` sets the mode, and `orMode` adds bits to it. For instance,
+    `orMode = "0200";` makes the files writable by their owner and
+    keeps their execute bits. With both, `mode` comes first:
+    `{ mode = "0444"; orMode = "0200"; }` gives `0644`. The entries
+    are applied in list order.
 
 - **`layers`** (defaults to `[]`): a list of layers built with the
     `buildLayer` function: if a store path in deps or contents belongs
