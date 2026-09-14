@@ -229,6 +229,11 @@ let
     # The mode is applied on a specific path. In this path subtree,
     # the mode is then applied on all files matching the regex.
     perms ? [],
+    # Subtrees left out of the layer, as a list of
+    # { path = <store path>; excludes = [ "relative/path" ... ]; }.
+    # The path itself is still added; only the listed subtrees are
+    # skipped, at emission time, with no pruned copy of the path.
+    excludes ? [],
     # The maximun number of layer to create. This is based on the
     # store path "popularity" as described in
     # https://grahamc.com/blog/nix-and-layered-docker-images
@@ -258,6 +263,9 @@ let
     permsFile = pkgs.writeText "perms.json" (l.toJSON perms);
     permsFlag = l.optionalString (perms != []) "--perms ${permsFile}";
 
+    excludesFile = pkgs.writeText "excludes.json" (l.toJSON excludes);
+    excludesFlag = l.optionalString (excludes != []) "--excludes ${excludesFile}";
+
     historyFile = pkgs.writeText "history.json" (l.toJSON metadata);
     historyFlag = l.optionalString (metadata != {}) "--history ${historyFile}";
 
@@ -273,6 +281,7 @@ let
         --max-layers ${toString maxLayers} \
         ${rewritesFlag} \
         ${permsFlag} \
+        ${excludesFlag} \
         ${historyFlag} \
         ${tarDirectory} \
         ${toString (map (l: l + "/layers.json") layers)}

@@ -11,7 +11,23 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-func getPaths(storePaths []string, parents []types.Layer, rewrites []types.RewritePath, exclude string, permPaths []types.PermPath) types.Paths {
+// LayerOptions is what shapes the paths of a layer beyond the store
+// paths themselves. A zero value gives a plain layer.
+type LayerOptions struct {
+	// Layers whose paths are left out of this one.
+	Parents []types.Layer
+	// Path rewrites, to move a store path's content elsewhere in the image.
+	Rewrites []types.RewritePath
+	// A store path to leave out, even when it is in the closure.
+	Exclude string
+	// Ownership and mode overrides.
+	Perms []types.PermPath
+	// Subtrees of store paths left out of the layer.
+	Excludes []types.ExcludePath
+}
+
+func getPaths(storePaths []string, o LayerOptions) types.Paths {
+	parents, rewrites, exclude, permPaths := o.Parents, o.Rewrites, o.Exclude, o.Perms
 	var paths types.Paths
 	for _, p := range storePaths {
 		path := types.Path{
@@ -43,6 +59,12 @@ func getPaths(storePaths []string, parents []types.Layer, rewrites []types.Rewri
 					Regex: rewrite.Regex,
 					Repl:  rewrite.Repl,
 				}
+			}
+		}
+		for _, ex := range o.Excludes {
+			if p == ex.Path && len(ex.Excludes) > 0 {
+				hasPathOptions = true
+				pathOptions.Excludes = append(pathOptions.Excludes, ex.Excludes...)
 			}
 		}
 		if hasPathOptions {
@@ -105,14 +127,24 @@ func newLayers(paths types.Paths, tarDirectory string, maxLayers int, history v1
 	return layers, nil
 }
 
+// NewLayersWithOptions builds the layers of storePaths, at most
+// maxLayers of them, shaped by o.
+func NewLayersWithOptions(storePaths []string, maxLayers int, o LayerOptions, history v1.History) ([]types.Layer, error) {
+	return newLayers(getPaths(storePaths, o), "", maxLayers, history)
+}
+
+// NewLayersNonReproducibleWithOptions is NewLayersWithOptions with each
+// layer tar written to tarDirectory.
+func NewLayersNonReproducibleWithOptions(storePaths []string, maxLayers int, tarDirectory string, o LayerOptions, history v1.History) ([]types.Layer, error) {
+	return newLayers(getPaths(storePaths, o), tarDirectory, maxLayers, history)
+}
+
 func NewLayers(storePaths []string, maxLayers int, parents []types.Layer, rewrites []types.RewritePath, exclude string, perms []types.PermPath, history v1.History) ([]types.Layer, error) {
-	paths := getPaths(storePaths, parents, rewrites, exclude, perms)
-	return newLayers(paths, "", maxLayers, history)
+	return NewLayersWithOptions(storePaths, maxLayers, LayerOptions{Parents: parents, Rewrites: rewrites, Exclude: exclude, Perms: perms}, history)
 }
 
 func NewLayersNonReproducible(storePaths []string, maxLayers int, tarDirectory string, parents []types.Layer, rewrites []types.RewritePath, exclude string, perms []types.PermPath, history v1.History) (layers []types.Layer, err error) {
-	paths := getPaths(storePaths, parents, rewrites, exclude, perms)
-	return newLayers(paths, tarDirectory, maxLayers, history)
+	return NewLayersNonReproducibleWithOptions(storePaths, maxLayers, tarDirectory, LayerOptions{Parents: parents, Rewrites: rewrites, Exclude: exclude, Perms: perms}, history)
 }
 
 func isPathInLayers(layers []types.Layer, path types.Path) bool {
