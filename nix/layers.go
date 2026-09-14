@@ -22,6 +22,8 @@ type LayerOptions struct {
 	Exclude string
 	// Ownership and mode overrides.
 	Perms []types.PermPath
+	// Tar archives as the content of store paths.
+	Tars []types.TarPath
 }
 
 func getPaths(storePaths []string, o LayerOptions) types.Paths {
@@ -61,6 +63,11 @@ func getPaths(storePaths []string, o LayerOptions) types.Paths {
 		}
 		if hasPathOptions {
 			path.Options = &pathOptions
+		}
+		for _, tp := range o.Tars {
+			if p == tp.Path {
+				path.Tar = tp.Tar
+			}
 		}
 		if p == exclude {
 			logrus.Infof("Excluding path %s from layer", p)

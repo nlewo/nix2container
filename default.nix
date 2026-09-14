@@ -229,6 +229,11 @@ let
     # The mode is applied on a specific path. In this path subtree,
     # the mode is then applied on all files matching the regex.
     perms ? [],
+    # [ { path = <store path>; tar = <tar archive>; } ]: the archive's
+    # members as that path's content, with ownership, modes and mtimes from
+    # the archive headers (a customisation layer built under fakeroot,
+    # whose headers are the only place those exist).
+    fromTar ? [],
     # The maximun number of layer to create. This is based on the
     # store path "popularity" as described in
     # https://grahamc.com/blog/nix-and-layered-docker-images
@@ -258,6 +263,9 @@ let
     permsFile = pkgs.writeText "perms.json" (l.toJSON perms);
     permsFlag = l.optionalString (perms != []) "--perms ${permsFile}";
 
+    tarsFile = pkgs.writeText "tars.json" (l.toJSON (map (t: { path = toString t.path; tar = toString t.tar; }) fromTar));
+    tarsFlag = l.optionalString (fromTar != []) "--tars ${tarsFile}";
+
     historyFile = pkgs.writeText "history.json" (l.toJSON metadata);
     historyFlag = l.optionalString (metadata != {}) "--history ${historyFile}";
 
@@ -273,6 +281,7 @@ let
         --max-layers ${toString maxLayers} \
         ${rewritesFlag} \
         ${permsFlag} \
+        ${tarsFlag} \
         ${historyFlag} \
         ${tarDirectory} \
         ${toString (map (l: l + "/layers.json") layers)}
