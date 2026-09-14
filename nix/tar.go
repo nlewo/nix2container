@@ -6,7 +6,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"regexp"
 	"time"
 
 	"github.com/nlewo/nix2container/types"
@@ -102,8 +101,7 @@ func appendFileToTar(tw *tar.Writer, srcPath, dstPath string, info os.FileInfo, 
 
 	if opts != nil {
 		for _, perms := range opts.Perms {
-			re := regexp.MustCompile(perms.Regex)
-			if re.Match([]byte(srcPath)) {
+			if permMatch(perms.Regex, srcPath) {
 				// Zero value is same as root ID (0)
 				hdr.Uid = perms.Uid
 				hdr.Gid = perms.Gid
