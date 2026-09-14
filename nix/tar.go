@@ -73,11 +73,11 @@ func createDirectory(tw *tar.Writer, path string) error {
 	return nil
 }
 
-func appendFileToTar(tw *tar.Writer, srcPath, dstPath string, info os.FileInfo, opts *types.PathOptions) error {
+func appendFileToTar(tw *tar.Writer, srcPath, dstPath string, info os.FileInfo, opts *types.PathOptions, src source) error {
 	var link string
 	var err error
 	if info.Mode()&os.ModeSymlink != 0 {
-		link, err = os.Readlink(srcPath)
+		link, err = src.readlink()
 		if err != nil {
 			return err
 		}
@@ -134,7 +134,7 @@ func appendFileToTar(tw *tar.Writer, srcPath, dstPath string, info os.FileInfo, 
 		return fmt.Errorf("could not write hdr '%#v', got error '%s'", hdr, err.Error())
 	}
 	if link == "" {
-		file, err := os.Open(srcPath)
+		file, err := src.open()
 		if err != nil {
 			return fmt.Errorf("could not open file '%s', got error '%s'", srcPath, err.Error())
 		}
@@ -169,7 +169,7 @@ func TarPaths(paths types.Paths) io.ReadCloser {
 					return fmt.Errorf("failed accessing path %q: %v", path, err)
 				}
 				logrus.Debugf("Walking filesystem: %s", path)
-				return addFileToGraph(graph, path, &info, options)
+				return addFileToGraph(graph, path, &info, options, fsSource{path: path})
 			})
 			if err != nil {
 				if err := w.CloseWithError(err); err != nil {
@@ -181,12 +181,12 @@ func TarPaths(paths types.Paths) io.ReadCloser {
 
 		// Once the graph of file has been built, it is walked
 		// in order to generate the tar stream.
-		err := walkGraph(graph, func(srcPath, dstPath string, info *os.FileInfo, options *types.PathOptions) error {
+		err := walkGraph(graph, func(srcPath, dstPath string, info *os.FileInfo, options *types.PathOptions, src source) error {
 			// This file is a directory
 			if info == nil {
 				return createDirectory(tw, dstPath)
 			}
-			return appendFileToTar(tw, srcPath, dstPath, *info, options)
+			return appendFileToTar(tw, srcPath, dstPath, *info, options, src)
 		})
 		if err != nil {
 			if err := w.CloseWithError(err); err != nil {
