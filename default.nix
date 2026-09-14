@@ -229,6 +229,11 @@ let
     # The mode is applied on a specific path. In this path subtree,
     # the mode is then applied on all files matching the regex.
     perms ? [],
+    # A JSON file with the same list `perms` would be written to, for
+    # callers whose perms come out of a build (read from a tar's
+    # headers, say) rather than being known at eval time. Exactly one
+    # of perms and permsFile.
+    permsFile ? null,
     # The maximun number of layer to create. This is based on the
     # store path "popularity" as described in
     # https://grahamc.com/blog/nix-and-layered-docker-images
@@ -237,7 +242,10 @@ let
     contents ? null,
     # Author, comment, created_by
     metadata ? { created_by = "nix2container"; },
-  }: let
+  }:
+  assert l.assertMsg (permsFile == null || perms == [])
+    "nix2container.buildLayer: perms and permsFile are exclusive";
+  let
     subcommand = if reproducible
       then "layers-from-reproducible-storepaths"
       else "layers-from-non-reproducible-storepaths";
@@ -255,8 +263,8 @@ let
     rewritesFile = pkgs.writeText "rewrites.json" (l.toJSON rewrites);
     rewritesFlag = "--rewrites ${rewritesFile}";
 
-    permsFile = pkgs.writeText "perms.json" (l.toJSON perms);
-    permsFlag = l.optionalString (perms != []) "--perms ${permsFile}";
+    permsJson = if permsFile != null then permsFile else pkgs.writeText "perms.json" (l.toJSON perms);
+    permsFlag = l.optionalString (perms != [] || permsFile != null) "--perms ${permsJson}";
 
     historyFile = pkgs.writeText "history.json" (l.toJSON metadata);
     historyFlag = l.optionalString (metadata != {}) "--history ${historyFile}";
