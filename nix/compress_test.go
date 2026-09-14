@@ -5,6 +5,7 @@ import (
 	stdgzip "compress/gzip"
 	"io"
 	"os"
+	"runtime"
 	"testing"
 
 	"github.com/nlewo/nix2container/types"
@@ -144,4 +145,36 @@ func TestGzipWriterRoundTrip(t *testing.T) {
 		assert.True(t, r.ModTime.IsZero())
 		assert.Empty(t, r.Name)
 	}
+}
+
+// The layers of a group list come out in order and with the same
+// digests whatever the parallelism.
+func TestNewLayersCompressedParallelIsDeterministic(t *testing.T) {
+	var groups []types.Paths
+	for _, p := range []string{"../data/layer1", "../data/tar-directory", "../data/layer1/file1", "../data/tar-directory/file1"} {
+		groups = append(groups, types.Paths{{Path: p}})
+	}
+	run := func(procs int) []types.Layer {
+		old := runtime.GOMAXPROCS(procs)
+		defer runtime.GOMAXPROCS(old)
+		layers, err := newLayersCompressed(groups, "gzip", t.TempDir(), v1.History{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return layers
+	}
+	serial, parallel := run(1), run(4)
+	assert.Len(t, parallel, len(groups))
+	for i := range groups {
+		assert.Equal(t, groups[i], parallel[i].Paths, "layer %d order", i)
+		assert.Equal(t, serial[i].Digest, parallel[i].Digest, "layer %d digest", i)
+		assert.Equal(t, serial[i].Size, parallel[i].Size, "layer %d size", i)
+	}
+}
+
+// One unreadable layer makes the whole call fail.
+func TestNewLayersCompressedFailure(t *testing.T) {
+	groups := []types.Paths{{{Path: "../data/layer1"}}, {{Path: t.TempDir() + "/does-not-exist"}}, {{Path: "../data/tar-directory"}}}
+	_, err := newLayersCompressed(groups, "gzip", t.TempDir(), v1.History{})
+	assert.ErrorContains(t, err, "does-not-exist")
 }

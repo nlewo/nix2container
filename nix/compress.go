@@ -2,12 +2,14 @@ package nix
 
 import (
 	"bufio"
+	"context"
 	"encoding/binary"
 	"fmt"
 	"hash/crc32"
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 
 	"github.com/klauspost/compress/flate"
 	"github.com/klauspost/compress/zstd"
@@ -15,6 +17,7 @@ import (
 	godigest "github.com/opencontainers/go-digest"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/sirupsen/logrus"
+	"golang.org/x/sync/errgroup"
 )
 
 // A layerCompressor turns a layer tar into a blob at build time.
@@ -171,6 +174,10 @@ func (c *countingWriter) Write(p []byte) (int, error) {
 }
 
 // newLayersCompressed is newLayers with each layer compressed to outDir.
+// Layers are compressed concurrently, at most GOMAXPROCS at a time,
+// each on one goroutine, so the bytes of a layer do not depend on the
+// parallelism. The first error cancels the layers not yet started. The
+// result keeps the order of groups.
 func newLayersCompressed(groups []types.Paths, name, outDir string, history v1.History) ([]types.Layer, error) {
 	c, err := getCompressor(name)
 	if err != nil {
@@ -179,22 +186,33 @@ func newLayersCompressed(groups []types.Paths, name, outDir string, history v1.H
 	if err := os.MkdirAll(outDir, 0o755); err != nil {
 		return nil, err
 	}
-	var layers []types.Layer
-	for _, paths := range groups {
-		digest, diffID, size, path, err := TarPathsCompress(paths, name, outDir)
-		if err != nil {
-			return nil, err
-		}
-		logrus.Infof("Adding %d paths to layer (size:%d digest:%s)", len(paths), size, digest.String())
-		layers = append(layers, types.Layer{
-			Digest:    digest.String(),
-			DiffIDs:   diffID.String(),
-			Size:      size,
-			Paths:     paths,
-			MediaType: c.mediaType,
-			LayerPath: path,
-			History:   history,
+	layers := make([]types.Layer, len(groups))
+	eg, ctx := errgroup.WithContext(context.Background())
+	eg.SetLimit(runtime.GOMAXPROCS(0))
+	for i, paths := range groups {
+		eg.Go(func() error {
+			if err := ctx.Err(); err != nil {
+				return err
+			}
+			digest, diffID, size, path, err := TarPathsCompress(paths, name, outDir)
+			if err != nil {
+				return err
+			}
+			logrus.Infof("Adding %d paths to layer (size:%d digest:%s)", len(paths), size, digest.String())
+			layers[i] = types.Layer{
+				Digest:    digest.String(),
+				DiffIDs:   diffID.String(),
+				Size:      size,
+				Paths:     paths,
+				MediaType: c.mediaType,
+				LayerPath: path,
+				History:   history,
+			}
+			return nil
 		})
+	}
+	if err := eg.Wait(); err != nil {
+		return nil, err
 	}
 	return layers, nil
 }
