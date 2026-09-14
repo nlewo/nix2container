@@ -15,10 +15,15 @@ import "regexp"
 // and layers built in parallel each have their own.
 type regexCache struct {
 	compiled map[string]*regexp.Regexp
+	// One matcher per perms pattern, see permMatch.
+	perms map[string]*permMatcher
 }
 
 func newRegexCache() *regexCache {
-	return &regexCache{compiled: map[string]*regexp.Regexp{}}
+	return &regexCache{
+		compiled: map[string]*regexp.Regexp{},
+		perms:    map[string]*permMatcher{},
+	}
 }
 
 // get compiles pattern on first use and returns that same regex

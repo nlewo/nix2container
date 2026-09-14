@@ -122,7 +122,7 @@ func appendFileToTar(tw *tar.Writer, srcPath, dstPath string, info os.FileInfo, 
 
 	if opts != nil {
 		for _, perms := range opts.Perms {
-			if regexes.get(perms.Regex).MatchString(srcPath) {
+			if regexes.permMatch(perms.Regex, srcPath) {
 				// Zero value is same as root ID (0)
 				hdr.Uid = perms.Uid
 				hdr.Gid = perms.Gid
