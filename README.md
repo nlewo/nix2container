@@ -289,6 +289,16 @@ Function arguments are:
     `{ mode = "0444"; orMode = "0200"; }` gives `0644`. The entries
     are applied in list order.
 
+- **`excludes`** (defaults to `[]`): subtrees of a store path left out
+    of the layer, as `{ path = <store path>; excludes = [ "share/doc"
+    ... ]; }` with paths relative to the store path. The store path is
+    still added with the rest of its content. This avoids a pruned copy
+    of the path, which would be a new store path with a new closure.
+
+- **`excludesFile`** (defaults to `null`): a JSON file holding the same
+    list as `excludes`, for a list that is produced by a build. Only
+    one of `excludes` and `excludesFile` can be set.
+
 - **`layers`** (defaults to `[]`): a list of layers built with the
     `buildLayer` function: if a store path in deps or contents belongs
     to one of these layers, this store path is skipped. This is pretty

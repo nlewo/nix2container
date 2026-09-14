@@ -231,6 +231,17 @@ let
     # headers, say) rather than being known at eval time. Exactly one
     # of perms and permsFile.
     permsFile ? null,
+    # Subtrees left out of the layer, as a list of
+    # { path = <store path>; excludes = [ "relative/path" ... ]; }.
+    # The path itself is still added; only the listed subtrees are
+    # skipped, at emission time, with no pruned copy of the path.
+    excludes ? [],
+    # A JSON file with the same list `excludes` would be written to,
+    # for callers whose excludes come out of a build (a list of files
+    # to drop computed from the content of the path, say) rather than
+    # being known at eval time. Exactly one of excludes and
+    # excludesFile.
+    excludesFile ? null,
     # The maximun number of layer to create. This is based on the
     # store path "popularity" as described in
     # https://grahamc.com/blog/nix-and-layered-docker-images
@@ -245,6 +256,8 @@ let
   }:
   assert l.assertMsg (permsFile == null || perms == [])
     "nix2container.buildLayer: perms and permsFile are exclusive";
+  assert l.assertMsg (excludesFile == null || excludes == [])
+    "nix2container.buildLayer: excludes and excludesFile are exclusive";
   let
     subcommand = if reproducible
       then "layers-from-reproducible-storepaths"
@@ -266,6 +279,9 @@ let
     permsJson = if permsFile != null then permsFile else pkgs.writeText "perms.json" (l.toJSON perms);
     permsFlag = l.optionalString (perms != [] || permsFile != null) "--perms ${permsJson}";
 
+    excludesJson = if excludesFile != null then excludesFile else pkgs.writeText "excludes.json" (l.toJSON excludes);
+    excludesFlag = l.optionalString (excludes != [] || excludesFile != null) "--excludes ${excludesJson}";
+
     historyFile = pkgs.writeText "history.json" (l.toJSON metadata);
     historyFlag = l.optionalString (metadata != {}) "--history ${historyFile}";
 
@@ -283,6 +299,7 @@ let
         ${layersFlag} \
         ${rewritesFlag} \
         ${permsFlag} \
+        ${excludesFlag} \
         ${historyFlag} \
         ${tarDirectory} \
         ${toString (map (l: l + "/layers.json") layers)}
