@@ -255,6 +255,10 @@ Function arguments are:
     set when the tar layer is created: these permissions are not
     written to the Nix store.
 
+- **`permsFile`** (defaults to `null`): a JSON file holding the list
+    `perms` would hold, for permissions computed by a build rather than
+    known at eval time. Exactly one of `perms` and `permsFile`.
+
     Each element of this permission list is a dict such as
     ```
     { path = "a store path";
