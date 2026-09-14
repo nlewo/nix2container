@@ -1,6 +1,8 @@
 package nix
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/nlewo/nix2container/types"
@@ -91,4 +93,40 @@ func TestNewLayers(t *testing.T) {
 		},
 	}
 	assert.Equal(t, expected, layer)
+}
+
+// A layer with excludes has the digest of a layer built from a copy of
+// the path without the excluded subtrees.
+func TestExcludes(t *testing.T) {
+	root := t.TempDir()
+	full := filepath.Join(root, "full")
+	pruned := filepath.Join(root, "pruned")
+	for _, d := range []string{full, pruned} {
+		if err := os.MkdirAll(filepath.Join(d, "lib", "keep"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(d, "lib", "keep", "a"), []byte("a"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.MkdirAll(filepath.Join(full, "lib", "drop", "deep"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(full, "lib", "drop", "deep", "b"), []byte("b"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(full, "lib", "dropfile"), []byte("c"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	rewrite := func(p string) []types.RewritePath { return []types.RewritePath{{Path: p, Regex: "^" + p, Repl: ""}} }
+	withEx, err := NewLayersWithOptions([]string{full}, 1, LayerOptions{Rewrites: rewrite(full),
+		Excludes: []types.ExcludePath{{Path: full, Excludes: []string{"lib/drop", "lib/dropfile"}}}}, v1.History{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	prunedLayer, err := NewLayersWithOptions([]string{pruned}, 1, LayerOptions{Rewrites: rewrite(pruned)}, v1.History{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, prunedLayer[0].Digest, withEx[0].Digest)
 }

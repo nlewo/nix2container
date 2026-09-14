@@ -44,3 +44,15 @@ func readHistoryFile(filename string) (history v1.History, err error) {
 	}
 	return
 }
+
+func readExcludesFile(filename string) (excludePaths []types.ExcludePath, err error) {
+	content, err := os.ReadFile(filename)
+	if err != nil {
+		return excludePaths, err
+	}
+	err = json.Unmarshal(content, &excludePaths)
+	if err != nil {
+		return excludePaths, err
+	}
+	return
+}

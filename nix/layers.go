@@ -22,6 +22,8 @@ type LayerOptions struct {
 	Exclude string
 	// Ownership and mode overrides.
 	Perms []types.PermPath
+	// Subtrees of store paths left out of the layer.
+	Excludes []types.ExcludePath
 }
 
 func getPaths(storePaths []string, o LayerOptions) types.Paths {
@@ -57,6 +59,12 @@ func getPaths(storePaths []string, o LayerOptions) types.Paths {
 					Regex: rewrite.Regex,
 					Repl:  rewrite.Repl,
 				}
+			}
+		}
+		for _, ex := range o.Excludes {
+			if p == ex.Path && len(ex.Excludes) > 0 {
+				hasPathOptions = true
+				pathOptions.Excludes = append(pathOptions.Excludes, ex.Excludes...)
 			}
 		}
 		if hasPathOptions {
