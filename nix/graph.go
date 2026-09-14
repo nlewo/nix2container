@@ -2,6 +2,7 @@ package nix
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -16,8 +17,9 @@ import (
 var useNixCaseHack string
 
 type fileNode struct {
-	// The file name on the FS
+	// The file name on the FS (or "<archive>/<entry>" for archive members)
 	srcPath  string
+	src      source
 	info     *os.FileInfo
 	options  *types.PathOptions
 	contents map[string]*fileNode
@@ -40,7 +42,19 @@ func initGraph() *fileNode {
 // Note the graph describes the file tree of the tar stream, not the
 // file tree read on the FS. This means transformations are done during
 // the graph construction.
-func addFileToGraph(root *fileNode, path string, info *os.FileInfo, options *types.PathOptions) error {
+// source is where a leaf's bytes come from: a file on the filesystem
+// or a member of a tar archive.
+type source interface {
+	readlink() (string, error)
+	open() (io.ReadCloser, error)
+}
+
+type fsSource struct{ path string }
+
+func (s fsSource) readlink() (string, error)    { return os.Readlink(s.path) }
+func (s fsSource) open() (io.ReadCloser, error) { return os.Open(s.path) }
+
+func addFileToGraph(root *fileNode, path string, info *os.FileInfo, options *types.PathOptions, src source) error {
 
 	dstPath := path
 	if useNixCaseHack != "" {
@@ -89,6 +103,7 @@ func addFileToGraph(root *fileNode, path string, info *os.FileInfo, options *typ
 	current.options = options
 
 	current.srcPath = path
+	current.src = src
 	return nil
 }
 
@@ -96,7 +111,7 @@ func addFileToGraph(root *fileNode, path string, info *os.FileInfo, options *typ
 // been added to the graph but has not been walk by
 // filepath.Walk. This for instance occurs when /nix/store/storepath1
 // is added: /nix/store is not walk by the filepath.Walk function.
-type walkFunc func(srcPath, dstPath string, info *os.FileInfo, options *types.PathOptions) error
+type walkFunc func(srcPath, dstPath string, info *os.FileInfo, options *types.PathOptions, src source) error
 
 func walkGraph(root *fileNode, walkFn walkFunc) error {
 	return walkGraphFn("", root, walkFn)
@@ -119,7 +134,7 @@ func walkGraphFn(base string, root *fileNode, walkFn walkFunc) error {
 		if k == "" {
 			dstPath = filepath.Join("/", k)
 		}
-		if err := walkFn(root.contents[k].srcPath, dstPath, root.contents[k].info, root.contents[k].options); err != nil {
+		if err := walkFn(root.contents[k].srcPath, dstPath, root.contents[k].info, root.contents[k].options, root.contents[k].src); err != nil {
 			return err
 		}
 		if err := walkGraphFn(dstPath, root.contents[k], walkFn); err != nil {

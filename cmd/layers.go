@@ -74,7 +74,7 @@ var layersReproducibleCmd = &cobra.Command{
 			}
 		}
 
-		layers, err := nix.NewLayers(storepaths, maxLayers, parents, rewrites, ignore, perms, history)
+		layers, err := nix.NewLayersWithOptions(storepaths, maxLayers, nix.LayerOptions{Parents: parents, Rewrites: rewrites, Exclude: ignore, Perms: perms}, history)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s", err)
 			os.Exit(1)
@@ -133,7 +133,7 @@ var layersNonReproducibleCmd = &cobra.Command{
 			}
 		}
 
-		layers, err := nix.NewLayersNonReproducible(storepaths, maxLayers, tarDirectory, parents, rewrites, ignore, perms, history)
+		layers, err := nix.NewLayersNonReproducibleWithOptions(storepaths, maxLayers, tarDirectory, nix.LayerOptions{Parents: parents, Rewrites: rewrites, Exclude: ignore, Perms: perms}, history)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s", err)
 			os.Exit(1)
