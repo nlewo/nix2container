@@ -25,6 +25,7 @@ var ignore string
 var tarDirectory string
 var permsFilepath string
 var tarsFilepath string
+var ensureDirsFilepath string
 var rewritesFilepath string
 var historyFilepath string
 var maxLayers int
@@ -81,6 +82,14 @@ var layersReproducibleCmd = &cobra.Command{
 				os.Exit(1)
 			}
 		}
+		var ensureDirs []types.EnsureDir
+		if ensureDirsFilepath != "" {
+			ensureDirs, err = readEnsureDirsFile(ensureDirsFilepath)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "%s", err)
+				os.Exit(1)
+			}
+		}
 		var history v1.History
 		if historyFilepath != "" {
 			history, err = readHistoryFile(historyFilepath)
@@ -90,7 +99,7 @@ var layersReproducibleCmd = &cobra.Command{
 			}
 		}
 
-		opts := nix.LayerOptions{Parents: parents, Rewrites: rewrites, Exclude: ignore, Perms: perms, Tars: tars}
+		opts := nix.LayerOptions{Parents: parents, Rewrites: rewrites, Exclude: ignore, Perms: perms, Tars: tars, EnsureDirs: ensureDirs}
 		var layers []types.Layer
 		if layersJSONFilepath != "" {
 			layers, err = nix.NewLayersFromSplitWithOptions(split, opts, history)
@@ -160,6 +169,14 @@ var layersNonReproducibleCmd = &cobra.Command{
 				os.Exit(1)
 			}
 		}
+		var ensureDirs []types.EnsureDir
+		if ensureDirsFilepath != "" {
+			ensureDirs, err = readEnsureDirsFile(ensureDirsFilepath)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "%s", err)
+				os.Exit(1)
+			}
+		}
 		var history v1.History
 		if historyFilepath != "" {
 			history, err = readHistoryFile(historyFilepath)
@@ -169,7 +186,7 @@ var layersNonReproducibleCmd = &cobra.Command{
 			}
 		}
 
-		opts := nix.LayerOptions{Parents: parents, Rewrites: rewrites, Exclude: ignore, Perms: perms, Tars: tars}
+		opts := nix.LayerOptions{Parents: parents, Rewrites: rewrites, Exclude: ignore, Perms: perms, Tars: tars, EnsureDirs: ensureDirs}
 		var layers []types.Layer
 		if layersJSONFilepath != "" {
 			layers, err = nix.NewLayersNonReproducibleFromSplitWithOptions(split, tarDirectory, opts, history)
@@ -221,6 +238,7 @@ func init() {
 	layersNonReproducibleCmd.Flags().StringVarP(&rewritesFilepath, "rewrites", "", "", "A JSON file containing a list of path rewrites. Each element of the list is a JSON object with the attributes path, regex and repl: for a given path, the regex is replaced by repl.")
 	layersNonReproducibleCmd.Flags().StringVarP(&permsFilepath, "perms", "", "", "A JSON file containing file permissions")
 	layersNonReproducibleCmd.Flags().StringVarP(&tarsFilepath, "tars", "", "", "A JSON list of {path, tar}: the members of the tar archive are the content of the store path, with the ownership and modes of the archive headers")
+	layersNonReproducibleCmd.Flags().StringVarP(&ensureDirsFilepath, "ensure-dirs", "", "", "A JSON list of {path, dir, uid, gid, mode}: directories of a store path created at that owner and mode when the source lacks them; one the source has is left as it is")
 	layersNonReproducibleCmd.Flags().StringVarP(&historyFilepath, "history", "", "", "A JSON file containing layer history")
 	layersNonReproducibleCmd.Flags().IntVarP(&maxLayers, "max-layers", "", 1, "The maximum number of layers")
 	layersNonReproducibleCmd.Flags().StringVarP(&layersJSONFilepath, "layers-json", "", "", "A JSON list of store path lists: the layer split to use, in order, instead of --max-layers")
@@ -230,6 +248,7 @@ func init() {
 	layersReproducibleCmd.Flags().StringVarP(&rewritesFilepath, "rewrites", "", "", "A JSON file containing path rewrites")
 	layersReproducibleCmd.Flags().StringVarP(&permsFilepath, "perms", "", "", "A JSON file containing file permissions")
 	layersReproducibleCmd.Flags().StringVarP(&tarsFilepath, "tars", "", "", "A JSON list of {path, tar}: the members of the tar archive are the content of the store path, with the ownership and modes of the archive headers")
+	layersReproducibleCmd.Flags().StringVarP(&ensureDirsFilepath, "ensure-dirs", "", "", "A JSON list of {path, dir, uid, gid, mode}: directories of a store path created at that owner and mode when the source lacks them; one the source has is left as it is")
 	layersReproducibleCmd.Flags().StringVarP(&historyFilepath, "history", "", "", "A JSON file containing layer history")
 	layersReproducibleCmd.Flags().IntVarP(&maxLayers, "max-layers", "", 1, "The maximum number of layers")
 	layersReproducibleCmd.Flags().StringVarP(&layersJSONFilepath, "layers-json", "", "", "A JSON list of store path lists: the layer split to use, in order, instead of --max-layers")

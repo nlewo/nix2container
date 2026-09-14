@@ -56,3 +56,15 @@ func readTarsFile(filename string) (tarPaths []types.TarPath, err error) {
 	}
 	return
 }
+
+func readEnsureDirsFile(filename string) (ensureDirs []types.EnsureDir, err error) {
+	content, err := os.ReadFile(filename)
+	if err != nil {
+		return ensureDirs, err
+	}
+	err = json.Unmarshal(content, &ensureDirs)
+	if err != nil {
+		return ensureDirs, err
+	}
+	return
+}

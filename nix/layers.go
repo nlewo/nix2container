@@ -24,6 +24,8 @@ type LayerOptions struct {
 	Perms []types.PermPath
 	// Tar archives as the content of store paths.
 	Tars []types.TarPath
+	// Directories carried at a fixed owner and mode.
+	EnsureDirs []types.EnsureDir
 }
 
 func getPaths(storePaths []string, o LayerOptions) types.Paths {
@@ -60,6 +62,12 @@ func getPaths(storePaths []string, o LayerOptions) types.Paths {
 					Regex: rewrite.Regex,
 					Repl:  rewrite.Repl,
 				}
+			}
+		}
+		for _, ed := range o.EnsureDirs {
+			if p == ed.Path {
+				hasPathOptions = true
+				pathOptions.EnsureDirs = append(pathOptions.EnsureDirs, ed)
 			}
 		}
 		if hasPathOptions {

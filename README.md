@@ -297,6 +297,13 @@ Function arguments are:
     relative to the archive root. Hard links, devices and fifos are
     refused.
 
+- **`ensureDirs`** (defaults to `[]`): a list of `{ path = <store
+    path>; dir = "relative/dir"; uid; gid; mode; }`. The directory is
+    created at that owner and mode when the source lacks it, for
+    instance `/nix` and `/nix/store` above a shipped store, which no
+    store path contains; one the source has is left as the source
+    shipped it.
+
 - **`layers`** (defaults to `[]`): a list of layers built with the
     `buildLayer` function: if a store path in deps or contents belongs
     to one of these layers, this store path is skipped. This is pretty

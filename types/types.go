@@ -85,6 +85,8 @@ type PermPath struct {
 type PathOptions struct {
 	Rewrite Rewrite `json:"rewrite,omitempty"`
 	Perms   []Perm  `json:"perms,omitempty"`
+	// Directories to carry at a fixed ownership/mode (see EnsureDir).
+	EnsureDirs []EnsureDir `json:"ensureDirs,omitempty"`
 }
 
 type Path struct {
@@ -134,4 +136,14 @@ func NewLayersFromFile(filename string) ([]Layer, error) {
 		return nil, err
 	}
 	return layers, nil
+}
+
+// EnsureDir is a directory of a store path created at a fixed owner and
+// mode when the source lacks it; one the source has is left as it is.
+type EnsureDir struct {
+	Path string `json:"path"`
+	Dir  string `json:"dir"`
+	Uid  int    `json:"uid"`
+	Gid  int    `json:"gid"`
+	Mode string `json:"mode"`
 }

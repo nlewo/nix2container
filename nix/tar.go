@@ -231,6 +231,10 @@ func TarPaths(paths types.Paths) io.ReadCloser {
 					w.CloseWithError(err) // nolint: errcheck
 					return
 				}
+				if err := addEnsuredDirs(graph, path); err != nil {
+					w.CloseWithError(err) // nolint: errcheck
+					return
+				}
 				continue
 			}
 			err := filepath.Walk(path.Path, func(path string, info os.FileInfo, err error) error {
@@ -244,6 +248,10 @@ func TarPaths(paths types.Paths) io.ReadCloser {
 				if err := w.CloseWithError(err); err != nil {
 					return
 				}
+				return
+			}
+			if err := addEnsuredDirs(graph, path); err != nil {
+				w.CloseWithError(err) // nolint: errcheck
 				return
 			}
 		}
