@@ -1,6 +1,7 @@
 package nix
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -14,6 +15,7 @@ import (
 	godigest "github.com/opencontainers/go-digest"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/sirupsen/logrus"
+	"golang.org/x/sync/errgroup"
 )
 
 // A layerCompressor turns a layer tar into a blob at build time.
@@ -53,10 +55,11 @@ const gzipBlockSize = 1 << 20
 // cuts the input into blocks of gzipBlockSize and compresses them with
 // klauspost/compress/flate, which is faster than the standard library,
 // several blocks at a time. The bytes depend on the block size and not
-// on how many blocks are in flight, so that number follows the machine:
-// one large layer uses every core. Each block in flight costs a few MiB.
-// Its output is deterministic for a given version, and a version bump
-// can change the digests.
+// on how many blocks are in flight, so that number follows the machine
+// and the other layers being compressed: one large layer alone uses
+// every core. Each block in flight costs a few MiB. Its output is
+// deterministic for a given version, and a version bump can change the
+// digests.
 func newGzipWriter(w io.Writer, blocks int) (io.WriteCloser, error) {
 	zw, err := pgzip.NewWriterLevel(w, 6)
 	if err != nil {
@@ -94,6 +97,12 @@ func TarPathsCompress(paths types.Paths, name, outDir string) (digest, diffID go
 	if err != nil {
 		return "", "", 0, "", err
 	}
+	return tarPathsCompress(paths, c, outDir, runtime.GOMAXPROCS(0))
+}
+
+// tarPathsCompress is TarPathsCompress for a layer that shares the
+// machine with others: goroutines is this layer's part of it.
+func tarPathsCompress(paths types.Paths, c layerCompressor, outDir string, goroutines int) (digest, diffID godigest.Digest, size int64, path string, err error) {
 	f, err := os.CreateTemp(outDir, "layer-*")
 	if err != nil {
 		return "", "", 0, "", err
@@ -107,7 +116,7 @@ func TarPathsCompress(paths types.Paths, name, outDir string) (digest, diffID go
 
 	digestHasher := godigest.Canonical.Digester()
 	counted := &countingWriter{w: io.MultiWriter(f, digestHasher.Hash())}
-	cw, err := c.newWriter(counted, runtime.GOMAXPROCS(0))
+	cw, err := c.newWriter(counted, goroutines)
 	if err != nil {
 		return "", "", 0, "", err
 	}
@@ -153,6 +162,14 @@ func (c *countingWriter) Write(p []byte) (int, error) {
 }
 
 // newLayersCompressed is newLayers with each layer compressed to outDir.
+// Layers are compressed concurrently, at most GOMAXPROCS at a time.
+// A writer that can use several goroutines for one layer gets
+// GOMAXPROCS divided by the layers in flight: an image of one layer
+// compresses it on every core, an image of a hundred gives each layer
+// one, and the memory stays bounded by the cores, not by cores times
+// layers. The bytes of a layer depend on neither number. The first
+// error cancels the layers not yet started. The result keeps the order
+// of groups.
 func newLayersCompressed(groups []types.Paths, name, outDir string, history v1.History) ([]types.Layer, error) {
 	c, err := getCompressor(name)
 	if err != nil {
@@ -161,22 +178,47 @@ func newLayersCompressed(groups []types.Paths, name, outDir string, history v1.H
 	if err := os.MkdirAll(outDir, 0o755); err != nil {
 		return nil, err
 	}
-	var layers []types.Layer
-	for _, paths := range groups {
-		digest, diffID, size, path, err := TarPathsCompress(paths, name, outDir)
-		if err != nil {
-			return nil, err
-		}
-		logrus.Infof("Adding %d paths to layer (size:%d digest:%s)", len(paths), size, digest.String())
-		layers = append(layers, types.Layer{
-			Digest:    digest.String(),
-			DiffIDs:   diffID.String(),
-			Size:      size,
-			Paths:     paths,
-			MediaType: c.mediaType,
-			LayerPath: path,
-			History:   history,
+	layers := make([]types.Layer, len(groups))
+	eg, ctx := errgroup.WithContext(context.Background())
+	// No min and max: skopeo compiles its copy of this package as an
+	// old Go version (no go directive reaches it), which lacks them.
+	procs := runtime.GOMAXPROCS(0)
+	inFlight := len(groups)
+	if inFlight > procs {
+		inFlight = procs
+	}
+	perLayer := 1
+	if inFlight > 0 && procs/inFlight > 1 {
+		perLayer = procs / inFlight
+	}
+	eg.SetLimit(procs)
+	for i, paths := range groups {
+		// Copies, for the same reason: before Go 1.22 the loop
+		// variables are shared between the iterations.
+		i, paths := i, paths
+		eg.Go(func() error {
+			if err := ctx.Err(); err != nil {
+				return err
+			}
+			digest, diffID, size, path, err := tarPathsCompress(paths, c, outDir, perLayer)
+			if err != nil {
+				return err
+			}
+			logrus.Infof("Adding %d paths to layer (size:%d digest:%s)", len(paths), size, digest.String())
+			layers[i] = types.Layer{
+				Digest:    digest.String(),
+				DiffIDs:   diffID.String(),
+				Size:      size,
+				Paths:     paths,
+				MediaType: c.mediaType,
+				LayerPath: path,
+				History:   history,
+			}
+			return nil
 		})
+	}
+	if err := eg.Wait(); err != nil {
+		return nil, err
 	}
 	return layers, nil
 }

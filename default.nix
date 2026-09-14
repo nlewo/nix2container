@@ -14,7 +14,7 @@ let
         ./data
       ]);
     };
-    vendorHash = "sha256-FbogW9NGluTRxGKvl7sqvVLa0RdsJrEZ//48wjMPAkk=";
+    vendorHash = "sha256-CQhJS9Fxd86WM/Eku6d2V/BTso6vU3KnEeDQzPhhfGM=";
   };
 
   skopeo-nix2container = pkgs.skopeo.overrideAttrs (old: {
@@ -286,6 +286,10 @@ let
 
     layersJSON = pkgs.runCommandLocal "layers.json" {} ''
       mkdir $out
+      # Layers are compressed in parallel, up to GOMAXPROCS at a time.
+      # NIX_BUILD_CORES is the builder's cores setting; 0 means all,
+      # which is also what the Go runtime does with an unset variable.
+      export GOMAXPROCS="''${NIX_BUILD_CORES:-0}"
       set -x
       ${nix2container-bin}/bin/nix2container ${subcommand} \
         $out/layers.json \
