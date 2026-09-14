@@ -81,11 +81,12 @@ var layersReproducibleCmd = &cobra.Command{
 			}
 		}
 
+		opts := nix.LayerOptions{Parents: parents, Rewrites: rewrites, Exclude: ignore, Perms: perms}
 		var layers []types.Layer
 		if layersJSONFilepath != "" {
-			layers, err = nix.NewLayersFromSplit(split, parents, rewrites, ignore, perms, history)
+			layers, err = nix.NewLayersFromSplitWithOptions(split, opts, history)
 		} else {
-			layers, err = nix.NewLayers(storepaths, maxLayers, parents, rewrites, ignore, perms, history)
+			layers, err = nix.NewLayersWithOptions(storepaths, maxLayers, opts, history)
 		}
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s", err)
@@ -151,11 +152,12 @@ var layersNonReproducibleCmd = &cobra.Command{
 			}
 		}
 
+		opts := nix.LayerOptions{Parents: parents, Rewrites: rewrites, Exclude: ignore, Perms: perms}
 		var layers []types.Layer
 		if layersJSONFilepath != "" {
-			layers, err = nix.NewLayersNonReproducibleFromSplit(split, tarDirectory, parents, rewrites, ignore, perms, history)
+			layers, err = nix.NewLayersNonReproducibleFromSplitWithOptions(split, tarDirectory, opts, history)
 		} else {
-			layers, err = nix.NewLayersNonReproducible(storepaths, maxLayers, tarDirectory, parents, rewrites, ignore, perms, history)
+			layers, err = nix.NewLayersNonReproducibleWithOptions(storepaths, maxLayers, tarDirectory, opts, history)
 		}
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s", err)
