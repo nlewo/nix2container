@@ -44,3 +44,15 @@ func readHistoryFile(filename string) (history v1.History, err error) {
 	}
 	return
 }
+
+func readTarsFile(filename string) (tarPaths []types.TarPath, err error) {
+	content, err := os.ReadFile(filename)
+	if err != nil {
+		return tarPaths, err
+	}
+	err = json.Unmarshal(content, &tarPaths)
+	if err != nil {
+		return tarPaths, err
+	}
+	return
+}
