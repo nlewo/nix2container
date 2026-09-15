@@ -10,19 +10,19 @@ import (
 
 func TestGraph(t *testing.T) {
 	g := initGraph()
-	err := addFileToGraph(g, "/nix", nil, nil)
+	err := addFileToGraph(g, "/nix", nil, nil, nil)
 	assert.Equal(t, nil, err)
 	assert.Contains(t, g.contents, "")
 	assert.Contains(t, g.contents[""].contents, "nix")
 
 	g = initGraph()
-	err = addFileToGraph(g, "/nix/store/hash1", nil, nil)
+	err = addFileToGraph(g, "/nix/store/hash1", nil, nil, nil)
 	assert.Equal(t, nil, err)
 	assert.Contains(t, g.contents, "")
 	assert.Contains(t, g.contents[""].contents, "nix")
 	assert.Contains(t, g.contents[""].contents["nix"].contents, "store")
 	assert.Contains(t, g.contents[""].contents["nix"].contents["store"].contents, "hash1")
-	err = addFileToGraph(g, "/nix/store/hash2", nil, nil)
+	err = addFileToGraph(g, "/nix/store/hash2", nil, nil, nil)
 	assert.Equal(t, nil, err)
 	assert.Contains(t, g.contents, "")
 	assert.Contains(t, g.contents[""].contents, "nix")
@@ -39,7 +39,7 @@ func TestAddFileToGraphOverride(t *testing.T) {
 				Uid:   1,
 			},
 		},
-	})
+	}, nil)
 	assert.Equal(t, nil, err)
 	err = addFileToGraph(g, "/nix/store/file1", nil, &types.PathOptions{
 		Perms: []types.Perm{
@@ -48,7 +48,7 @@ func TestAddFileToGraphOverride(t *testing.T) {
 				Uid:   2,
 			},
 		},
-	})
+	}, nil)
 	assert.Error(t, err)
 }
 
@@ -57,12 +57,12 @@ func TestWalkGraph(t *testing.T) {
 	paths := make([]string, 5)
 	var idx int
 	pidx := &idx
-	err := addFileToGraph(g, "/nix/store/hash2", nil, nil)
+	err := addFileToGraph(g, "/nix/store/hash2", nil, nil, nil)
 	assert.Equal(t, nil, err)
-	err = addFileToGraph(g, "/nix/store/hash1", nil, nil)
+	err = addFileToGraph(g, "/nix/store/hash1", nil, nil, nil)
 	assert.Equal(t, nil, err)
 
-	err = walkGraph(g, func(srcPath, dstPath string, info *os.FileInfo, options *types.PathOptions) error {
+	err = walkGraph(g, func(srcPath, dstPath string, info *os.FileInfo, options *types.PathOptions, src source) error {
 		paths[*pidx] = dstPath
 		*pidx = *pidx + 1
 		return nil
@@ -79,7 +79,7 @@ func TestWalkGraphOnDirectory(t *testing.T) {
 	graph := initGraph()
 	err := filepath.Walk("../data/graph-directory",
 		func(path string, info os.FileInfo, err error) error {
-			return addFileToGraph(graph, path, &info, nil)
+			return addFileToGraph(graph, path, &info, nil, fsSource{path: path})
 		},
 	)
 	assert.Equal(t, nil, err)
@@ -88,7 +88,7 @@ func TestWalkGraphOnDirectory(t *testing.T) {
 	missingDirectories := make([]string, 10)
 	var idx int
 	pidx := &idx
-	err = walkGraph(graph, func(srcPath, dstPath string, info *os.FileInfo, options *types.PathOptions) error {
+	err = walkGraph(graph, func(srcPath, dstPath string, info *os.FileInfo, options *types.PathOptions, src source) error {
 		dstPaths[*pidx] = dstPath
 		srcPaths[*pidx] = srcPath
 		if info == nil {
