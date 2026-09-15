@@ -3,6 +3,7 @@ module github.com/nlewo/nix2container
 go 1.24.0
 
 require (
+	github.com/klauspost/compress v1.18.0
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.1.1
 	github.com/sirupsen/logrus v1.9.3
