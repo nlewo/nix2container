@@ -63,11 +63,25 @@ type PermPath struct {
 type PathOptions struct {
 	Rewrite Rewrite `json:"rewrite,omitempty"`
 	Perms   []Perm  `json:"perms,omitempty"`
+	// Directories to carry at a fixed ownership/mode (see EnsureDir).
+	EnsureDirs []EnsureDir `json:"ensureDirs,omitempty"`
 }
 
 type Path struct {
 	Path    string       `json:"path"`
 	Options *PathOptions `json:"options,omitempty"`
+	// When set, the layer content is the members of this tar archive
+	// (ownership and modes from the archive headers) rather than the
+	// files under Path; Path then only names the entries for perms and
+	// rewrites ("<Path>/<member>").
+	Tar string `json:"tar,omitempty"`
+}
+
+// TarPath names a tar archive whose members are the content of a store
+// path in the layer.
+type TarPath struct {
+	Path string `json:"path"`
+	Tar  string `json:"tar"`
 }
 
 type Paths []Path
@@ -100,4 +114,14 @@ func NewLayersFromFile(filename string) ([]Layer, error) {
 		return nil, err
 	}
 	return layers, nil
+}
+
+// EnsureDir is a directory of a store path created at a fixed owner and
+// mode when the source lacks it; one the source has is left as it is.
+type EnsureDir struct {
+	Path string `json:"path"`
+	Dir  string `json:"dir"`
+	Uid  int    `json:"uid"`
+	Gid  int    `json:"gid"`
+	Mode string `json:"mode"`
 }

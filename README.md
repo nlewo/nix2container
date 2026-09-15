@@ -249,6 +249,21 @@ Function arguments are:
     set when the tar layer is created: these permissions are not
     written to the Nix store.
 
+- **`fromTar`** (defaults to `[]`): a list of `{ path = <store path>;
+    tar = <tar archive>; }`. The members of the archive are the content
+    of the store path, with the ownership, modes and modification times
+    of the archive headers. This is for a layer built under fakeroot, whose owners and
+    modes exist only in the tar it produces. Entry names are taken
+    relative to the archive root. Hard links, devices and fifos are
+    refused.
+
+- **`ensureDirs`** (defaults to `[]`): a list of `{ path = <store
+    path>; dir = "relative/dir"; uid; gid; mode; }`. The directory is
+    created at that owner and mode when the source lacks it, for
+    instance `/nix` and `/nix/store` above a shipped store, which no
+    store path contains; one the source has is left as the source
+    shipped it.
+
     Each element of this permission list is a dict such as
     ```
     { path = "a store path";

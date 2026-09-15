@@ -73,11 +73,11 @@ func createDirectory(tw *tar.Writer, path string) error {
 	return nil
 }
 
-func appendFileToTar(tw *tar.Writer, srcPath, dstPath string, info os.FileInfo, opts *types.PathOptions) error {
+func appendFileToTar(tw *tar.Writer, srcPath, dstPath string, info os.FileInfo, opts *types.PathOptions, src source) error {
 	var link string
 	var err error
 	if info.Mode()&os.ModeSymlink != 0 {
-		link, err = os.Readlink(srcPath)
+		link, err = src.readlink()
 		if err != nil {
 			return err
 		}
@@ -93,6 +93,10 @@ func appendFileToTar(tw *tar.Writer, srcPath, dstPath string, info os.FileInfo, 
 	hdr.Gid = 0
 	hdr.Uname = "root"
 	hdr.Gname = "root"
+	if ts, ok := src.(tarSource); ok {
+		hdr.Uid = ts.entry.hdr.Uid
+		hdr.Gid = ts.entry.hdr.Gid
+	}
 
 	// Force symlink permissions to match Linux ones
 	// see https://github.com/nlewo/nix2container/issues/23
@@ -126,7 +130,12 @@ func appendFileToTar(tw *tar.Writer, srcPath, dstPath string, info os.FileInfo, 
 		}
 	}
 
-	hdr.ModTime = time.Date(1970, 01, 01, 0, 0, 1, 0, time.UTC)
+	// An entry that comes from a tar archive keeps the archive's mtime, as
+	// it keeps its ownership and mode; a file from the store gets the
+	// fixed instant below, like every entry did before tar sources.
+	if _, fromTar := info.(tarFileInfo); !fromTar {
+		hdr.ModTime = time.Date(1970, 01, 01, 0, 0, 1, 0, time.UTC)
+	}
 	hdr.AccessTime = time.Date(1970, 01, 01, 0, 0, 0, 0, time.UTC)
 	hdr.ChangeTime = time.Date(1970, 01, 01, 0, 0, 0, 0, time.UTC)
 
@@ -134,7 +143,7 @@ func appendFileToTar(tw *tar.Writer, srcPath, dstPath string, info os.FileInfo, 
 		return fmt.Errorf("could not write hdr '%#v', got error '%s'", hdr, err.Error())
 	}
 	if link == "" {
-		file, err := os.Open(srcPath)
+		file, err := src.open()
 		if err != nil {
 			return fmt.Errorf("could not open file '%s', got error '%s'", srcPath, err.Error())
 		}
@@ -158,18 +167,41 @@ func TarPaths(paths types.Paths) io.ReadCloser {
 
 	go func() {
 		defer w.Close() // nolint: errcheck
+		var archives []*os.File
+		defer func() {
+			for _, f := range archives {
+				f.Close() // nolint: errcheck
+			}
+		}()
 		// First, we build a graph representing all files that
 		// has to be added to the layer. This graph allows to
 		// transform the file tree without having to write
 		// anything to the tar stream.
 		for _, path := range paths {
 			options := path.Options
+			if path.Tar != "" {
+				f, err := os.Open(path.Tar)
+				if err != nil {
+					w.CloseWithError(err) // nolint: errcheck
+					return
+				}
+				archives = append(archives, f)
+				if err := addTarToGraph(graph, path, f); err != nil {
+					w.CloseWithError(err) // nolint: errcheck
+					return
+				}
+				if err := addEnsuredDirs(graph, path); err != nil {
+					w.CloseWithError(err) // nolint: errcheck
+					return
+				}
+				continue
+			}
 			err := filepath.Walk(path.Path, func(path string, info os.FileInfo, err error) error {
 				if err != nil {
 					return fmt.Errorf("failed accessing path %q: %v", path, err)
 				}
 				logrus.Debugf("Walking filesystem: %s", path)
-				return addFileToGraph(graph, path, &info, options)
+				return addFileToGraph(graph, path, &info, options, fsSource{path: path})
 			})
 			if err != nil {
 				if err := w.CloseWithError(err); err != nil {
@@ -177,16 +209,20 @@ func TarPaths(paths types.Paths) io.ReadCloser {
 				}
 				return
 			}
+			if err := addEnsuredDirs(graph, path); err != nil {
+				w.CloseWithError(err) // nolint: errcheck
+				return
+			}
 		}
 
 		// Once the graph of file has been built, it is walked
 		// in order to generate the tar stream.
-		err := walkGraph(graph, func(srcPath, dstPath string, info *os.FileInfo, options *types.PathOptions) error {
+		err := walkGraph(graph, func(srcPath, dstPath string, info *os.FileInfo, options *types.PathOptions, src source) error {
 			// This file is a directory
 			if info == nil {
 				return createDirectory(tw, dstPath)
 			}
-			return appendFileToTar(tw, srcPath, dstPath, *info, options)
+			return appendFileToTar(tw, srcPath, dstPath, *info, options, src)
 		})
 		if err != nil {
 			if err := w.CloseWithError(err); err != nil {

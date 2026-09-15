@@ -24,6 +24,8 @@ import (
 var ignore string
 var tarDirectory string
 var permsFilepath string
+var tarsFilepath string
+var ensureDirsFilepath string
 var rewritesFilepath string
 var historyFilepath string
 var maxLayers int
@@ -65,6 +67,22 @@ var layersReproducibleCmd = &cobra.Command{
 				os.Exit(1)
 			}
 		}
+		var tars []types.TarPath
+		if tarsFilepath != "" {
+			tars, err = readTarsFile(tarsFilepath)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "%s", err)
+				os.Exit(1)
+			}
+		}
+		var ensureDirs []types.EnsureDir
+		if ensureDirsFilepath != "" {
+			ensureDirs, err = readEnsureDirsFile(ensureDirsFilepath)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "%s", err)
+				os.Exit(1)
+			}
+		}
 		var history v1.History
 		if historyFilepath != "" {
 			history, err = readHistoryFile(historyFilepath)
@@ -74,7 +92,7 @@ var layersReproducibleCmd = &cobra.Command{
 			}
 		}
 
-		layers, err := nix.NewLayers(storepaths, maxLayers, parents, rewrites, ignore, perms, history)
+		layers, err := nix.NewLayersWithOptions(storepaths, maxLayers, nix.LayerOptions{Parents: parents, Rewrites: rewrites, Exclude: ignore, Perms: perms, Tars: tars, EnsureDirs: ensureDirs}, history)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s", err)
 			os.Exit(1)
@@ -124,6 +142,22 @@ var layersNonReproducibleCmd = &cobra.Command{
 				os.Exit(1)
 			}
 		}
+		var tars []types.TarPath
+		if tarsFilepath != "" {
+			tars, err = readTarsFile(tarsFilepath)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "%s", err)
+				os.Exit(1)
+			}
+		}
+		var ensureDirs []types.EnsureDir
+		if ensureDirsFilepath != "" {
+			ensureDirs, err = readEnsureDirsFile(ensureDirsFilepath)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "%s", err)
+				os.Exit(1)
+			}
+		}
 		var history v1.History
 		if historyFilepath != "" {
 			history, err = readHistoryFile(historyFilepath)
@@ -133,7 +167,7 @@ var layersNonReproducibleCmd = &cobra.Command{
 			}
 		}
 
-		layers, err := nix.NewLayersNonReproducible(storepaths, maxLayers, tarDirectory, parents, rewrites, ignore, perms, history)
+		layers, err := nix.NewLayersNonReproducibleWithOptions(storepaths, maxLayers, tarDirectory, nix.LayerOptions{Parents: parents, Rewrites: rewrites, Exclude: ignore, Perms: perms, Tars: tars, EnsureDirs: ensureDirs}, history)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s", err)
 			os.Exit(1)
@@ -178,6 +212,8 @@ func init() {
 
 	layersNonReproducibleCmd.Flags().StringVarP(&rewritesFilepath, "rewrites", "", "", "A JSON file containing a list of path rewrites. Each element of the list is a JSON object with the attributes path, regex and repl: for a given path, the regex is replaced by repl.")
 	layersNonReproducibleCmd.Flags().StringVarP(&permsFilepath, "perms", "", "", "A JSON file containing file permissions")
+	layersNonReproducibleCmd.Flags().StringVarP(&tarsFilepath, "tars", "", "", "A JSON list of {path, tar}: the members of the tar archive are the content of the store path, with the ownership and modes of the archive headers")
+	layersNonReproducibleCmd.Flags().StringVarP(&ensureDirsFilepath, "ensure-dirs", "", "", "A JSON list of {path, dir, uid, gid, mode}: directories of a store path created at that owner and mode when the source lacks them; one the source has is left as it is")
 	layersNonReproducibleCmd.Flags().StringVarP(&historyFilepath, "history", "", "", "A JSON file containing layer history")
 	layersNonReproducibleCmd.Flags().IntVarP(&maxLayers, "max-layers", "", 1, "The maximum number of layers")
 
@@ -185,6 +221,8 @@ func init() {
 	layersReproducibleCmd.Flags().StringVarP(&ignore, "ignore", "", "", "Ignore the path from the list of storepaths")
 	layersReproducibleCmd.Flags().StringVarP(&rewritesFilepath, "rewrites", "", "", "A JSON file containing path rewrites")
 	layersReproducibleCmd.Flags().StringVarP(&permsFilepath, "perms", "", "", "A JSON file containing file permissions")
+	layersReproducibleCmd.Flags().StringVarP(&tarsFilepath, "tars", "", "", "A JSON list of {path, tar}: the members of the tar archive are the content of the store path, with the ownership and modes of the archive headers")
+	layersReproducibleCmd.Flags().StringVarP(&ensureDirsFilepath, "ensure-dirs", "", "", "A JSON list of {path, dir, uid, gid, mode}: directories of a store path created at that owner and mode when the source lacks them; one the source has is left as it is")
 	layersReproducibleCmd.Flags().StringVarP(&historyFilepath, "history", "", "", "A JSON file containing layer history")
 	layersReproducibleCmd.Flags().IntVarP(&maxLayers, "max-layers", "", 1, "The maximum number of layers")
 
