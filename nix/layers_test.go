@@ -92,3 +92,25 @@ func TestNewLayers(t *testing.T) {
 	}
 	assert.Equal(t, expected, layer)
 }
+
+// Each layer tar written to the tar directory must hold that layer's
+// paths only, so it must match the digest of the reproducible layer.
+func TestNewLayersNonReproducibleWritesEachLayer(t *testing.T) {
+	paths := []string{
+		"../data/layer1/file1",
+		"../data/tar-directory/file1",
+	}
+	reproducible, err := NewLayers(paths, 2, []types.Layer{}, []types.RewritePath{}, "", []types.PermPath{}, v1.History{})
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+	written, err := NewLayersNonReproducible(paths, 2, t.TempDir(), []types.Layer{}, []types.RewritePath{}, "", []types.PermPath{}, v1.History{})
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+	assert.Len(t, written, 2)
+	for i := range written {
+		assert.Len(t, written[i].Paths, 1)
+		assert.Equal(t, reproducible[i].Digest, written[i].Digest)
+	}
+}

@@ -78,7 +78,7 @@ func newLayers(paths types.Paths, tarDirectory string, maxLayers int, history v1
 		if tarDirectory == "" {
 			digest, size, err = TarPathsSum(layerPaths)
 		} else {
-			layerPath, digest, size, err = TarPathsWrite(paths, tarDirectory)
+			layerPath, digest, size, err = TarPathsWrite(layerPaths, tarDirectory)
 		}
 		if err != nil {
 			return layers, err
