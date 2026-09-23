@@ -11,15 +11,34 @@ import (
 
 const ImageVersion = 1
 
+// HealthConfig holds configuration for container health checks.
+// This is a Docker/Podman extension not present in the OCI image spec.
+type HealthConfig struct {
+	Test        []string `json:"Test,omitempty"`
+	Interval    int64    `json:"Interval,omitempty"`
+	Timeout     int64    `json:"Timeout,omitempty"`
+	StartPeriod int64    `json:"StartPeriod,omitempty"`
+	Retries     int      `json:"Retries,omitempty"`
+}
+
+// ImageConfig extends the OCI ImageConfig with Docker-specific fields
+// such as Healthcheck that are widely supported by container runtimes.
+type ImageConfig struct {
+	v1.ImageConfig
+
+	// Healthcheck describes how to check the container is healthy.
+	Healthcheck *HealthConfig `json:"Healthcheck,omitempty"`
+}
+
 // Image represent the JSON image file produced by nix2container. This
 // JSON file can then be used by the Skopeo Nix transport to actually
 // build the container image.
 type Image struct {
-	Version     int            `json:"version"`
-	ImageConfig v1.ImageConfig `json:"image-config"`
-	Layers      []Layer        `json:"layers"`
-	Arch        string         `json:"arch"`
-	Created     *time.Time     `json:"created"`
+	Version     int         `json:"version"`
+	ImageConfig ImageConfig `json:"image-config"`
+	Layers      []Layer     `json:"layers"`
+	Arch        string      `json:"arch"`
+	Created     *time.Time  `json:"created"`
 }
 
 type Rewrite struct {
