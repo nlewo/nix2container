@@ -20,6 +20,7 @@ func TestNewImageFromDir(t *testing.T) {
 		Layers: []types.Layer{
 			{
 				Digest:    "sha256:59bf1c3509f33515622619af21ed55bbe26d24913cedbca106468a5fb37a50c3",
+				Size:      2818413,
 				DiffIDs:   "sha256:8d3ac3489996423f53d6087c81180006263b79f206d3fdec9e66f0e27ceb8759",
 				MediaType: "application/vnd.oci.image.layer.v1.tar+gzip",
 				LayerPath: "../data/image-directory/59bf1c3509f33515622619af21ed55bbe26d24913cedbca106468a5fb37a50c3",

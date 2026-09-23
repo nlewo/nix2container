@@ -156,6 +156,7 @@ func NewImageFromDir(directory string) (image types.Image, err error) {
 		layer := types.Layer{
 			LayerPath: layerFilename,
 			Digest:    l.Digest.String(),
+			Size:      l.Size,
 			DiffIDs:   v1ImageConfig.RootFS.DiffIDs[i].String(),
 		}
 		switch l.MediaType {
@@ -220,6 +221,7 @@ func NewImageFromManifest(manifestFilename string, blobMapFilename string) (imag
 		layer := types.Layer{
 			LayerPath: layerFilename,
 			Digest:    l.Digest.String(),
+			Size:      l.Size,
 			DiffIDs:   v1ImageConfig.RootFS.DiffIDs[i].String(),
 		}
 		switch l.MediaType {
