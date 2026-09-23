@@ -237,6 +237,10 @@ let
     contents ? null,
     # Author, comment, created_by
     metadata ? { created_by = "nix2container"; },
+    # When false, the layer holds the paths of deps and copyToRoot but
+    # not their runtime closure. The references must be present at run
+    # time, for instance through a mounted /nix/store. See the README.
+    includeStorePaths ? true,
   }: let
     subcommand = if reproducible
       then "layers-from-reproducible-storepaths"
@@ -269,7 +273,7 @@ let
       set -x
       ${nix2container-bin}/bin/nix2container ${subcommand} \
         $out/layers.json \
-        ${closureGraph allDeps ignore} \
+        ${(if includeStorePaths then closureGraph else prunedClosureGraph) allDeps ignore} \
         --max-layers ${toString maxLayers} \
         ${rewritesFlag} \
         ${permsFlag} \
@@ -331,6 +335,41 @@ let
       jq ".graph | map($filter | .references |= sort) | sort_by(.path)" .attrs.json > $out
     '';
 
+  # Like closureGraph, but keep only the explicitly-listed paths: every
+  # other closure entry is dropped and the kept entries' references are
+  # emptied. Layers built from this graph contain just the listed trees
+  # and none of their runtime closure — buildLayer/buildImage's
+  # `includeStorePaths = false`. Emptying references keeps the graph
+  # closed by construction, which the layer-grouping code relies on.
+  # exportReferencesGraph is still used (not a hand-built graph) so the
+  # kept entries carry the same narHash/narSize fields, in the same
+  # serialization, as the unpruned graph.
+  # Normalize a paths-list element to the store path root as
+  # exportReferencesGraph reports it: "${p}" imports path literals into
+  # the store (plain toString would keep the eval-time source path) and
+  # coerces derivations to their outPath; the match truncates store
+  # subpaths ("${pkg}/share/foo") to the store-path root.
+  storePathRoot = p:
+    let
+      s = "${p}";
+      m = l.match "(${builtins.storeDir}/[^/]+)(/.*)?" s;
+    in if m == null then s else l.head m;
+
+  prunedClosureGraph = paths: ignore:
+    pkgs.runCommand "closure-graph-pruned.json" {
+      __structuredAttrs = true;
+      exportReferencesGraph.graph = paths;
+      keepPaths = map storePathRoot paths;
+      nativeBuildInputs = [ pkgs.jq ];
+      outputChecks.out.disallowedReferences = l.toList (l.defaultTo [] ignore);
+    } ''
+      filter='select(.path | inside("${toString ignore}") | not)'
+      jq ".keepPaths as \$keep | .graph
+          | map(select(.path | IN(\$keep[])))
+          | map($filter | .references = [])
+          | sort_by(.path)" .attrs.json > $out
+    '';
+
   buildImage = {
     name,
     # Image tag, when null then the nix output hash will be used.
@@ -383,7 +422,17 @@ let
     # Deprecated: will be removed
     contents ? null,
     meta ? {},
+    # See buildLayer.includeStorePaths. Applies to the image's own
+    # layer (copyToRoot and its closure); explicit `layers` entries
+    # carry their own flag.
+    includeStorePaths ? true,
   }:
+    assert l.assertMsg (includeStorePaths || !initializeNixDatabase) ''
+      nix2container.buildImage: initializeNixDatabase = true with
+      includeStorePaths = false would register store paths the image
+      does not contain. Drop one of the two flags, or register the
+      runtime store's closure from the copyToRoot tree instead.
+    '';
     let
       configFile = pkgs.writeText "config.json" (l.toJSON config);
       copyToRootList = l.toList (l.defaultTo [] (l.defaultTo contents copyToRoot));
@@ -406,7 +455,7 @@ let
         };
 
       customizationLayer = buildLayer {
-        inherit maxLayers;
+        inherit maxLayers includeStorePaths;
         perms = perms';
         copyToRoot = copyToRootList ++ l.optional initializeNixDatabase nixDatabase;
         deps = [configFile];

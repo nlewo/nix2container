@@ -90,6 +90,10 @@ Function arguments are:
     image of this image; use `pullImage` or `pullImageFromManifest` to
     supply this.
 
+- **`includeStorePaths`** (defaults to `true`): see
+    `buildLayer.includeStorePaths`. It applies to the image layers and
+    not to layers added with the `buildImage.layers` attribute.
+
 - **`maxLayers`** (defaults to `1`): the maximum number of layers to
     create. This is based on the store path "popularity" as described
     in this [blog
@@ -237,6 +241,14 @@ Function arguments are:
     is stored in the store path. This is useful when the layer
     dependencies are not bit reproducible: it allows to have the layer
     tarball and its hash in the same store path.
+
+- **`includeStorePaths`** (defaults to `true`): when `false`, the
+    layer holds the paths listed in `deps` and `copyToRoot`, but not
+    their runtime closure. The listed paths keep their store paths, so
+    their references must be present at run time, for instance through
+    a `/nix/store` mounted into the container. Those references are not
+    pushed with the image. dockerTools' `streamLayeredImage` has an
+    option with the same name, but it does not ship the store paths.
 
 - **`maxLayers`** (defaults to `1`): the maximum number of layers to
     create. This is based on the store path "popularity" as described
