@@ -392,7 +392,7 @@ let
       allLayers = nestedLayers ++ layers;
 
       nixDatabase = let
-        ignore = [configFile]++allLayers;
+        ignore = [configFile]++allLayers++copyToRootList;
         closureGraphForAllLayers = closureGraph ([configFile] ++ copyToRootList ++ allLayers) ignore;
       in makeNixDatabase closureGraphForAllLayers;
 

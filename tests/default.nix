@@ -5,14 +5,16 @@ let
     image,
     command ? "",
     grepFlags ? "",
+    expectedReturnCode ? 0,
     pattern,
   }: pkgs.writeShellScriptBin "test-script" ''
     ${image.copyToPodman}/bin/copy-to-podman
     ${pkgs.podman}/bin/podman run ${image.imageName}:${image.imageTag} ${command} | ${pkgs.gnugrep}/bin/grep ${grepFlags} '${pattern}'
     ret=$?
-    if [ $ret -ne 0 ];
+    if [ $ret -ne ${builtins.toString expectedReturnCode} ];
     then
-      echo "image list"
+      echo "Return code is $ret while ${builtins.toString expectedReturnCode} is expected"
+      echo "Image list"
       ${pkgs.podman}/bin/podman image list
       echo ""
       echo "Actual output:"
@@ -80,6 +82,16 @@ let
       image = examples.nix;
       command = "nix-store -qR ${pkgs.nix}";
       pattern = "${pkgs.nix}";
+    };
+    # Regression test for https://github.com/nlewo/nix2container/issues/192
+    nix-verify-database = testScript {
+      image = examples.nix;
+      command = "nix-store --verify 2>&1";
+      # When the nix database contains absent FS store paths, nix-store --verify outputs:
+      # checking path existence...
+      # path '/nix/store/1x2q6vc1ygmbxsfxlal2blavpirs7rnl-root' disappeared, removing from database...      
+      pattern = "removing from database";
+      expectedReturnCode = 1;
     };
     nix-user = testScript {
       image = examples.nix-user;
