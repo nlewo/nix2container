@@ -1,30 +1,37 @@
 package nix
 
 import (
-	"github.com/nlewo/nix2container/types"
-	"path"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
+
+	"github.com/nlewo/nix2container/types"
+	"github.com/sirupsen/logrus"
 )
 
-func removeNixCaseHackSuffix(filepath string) string {
+// On case insensitive FS (adfs on MacOS for instance), Nix adds a
+// suffix to avoid filename collisions.
+// See https://github.com/NixOS/nix/blob/ba9e69cdcd8022f37e344f2c86e60ee2b9da493f/src/libutil/archive.cc#L90
+// Note the det sys MacOS native builder run a Linux sandbox on top of a MacOS FS. This means we need to apply this transformation on all systems.
+// See https://github.com/nlewo/nix2container/issues/127
+func unhackNixCaseHack(filename string) (finalName string) {
+	finalName = filename
 	caseHackSuffix := "~nix~case~hack~"
-	parts := strings.Split(filepath, "/")
-	cleaned := make([]string, len(parts))
-	for i, part := range parts {
-		idx := strings.Index(part, caseHackSuffix)
-		if idx != -1 {
-			cleaned[i] = part[0:idx]
-		} else {
-			cleaned[i] = part
+	splited := strings.Split(filename, caseHackSuffix)
+	if len(splited) == 2 {
+		idx, err := strconv.ParseInt(splited[1], 10, 64)
+		if err != nil {
+			logrus.Debugf("the nix-case-hack index %s of the file %s format is not correct: %s", splited[1], filename, err)
+			return
 		}
+		if idx < 1 {
+			logrus.Debugf("the nix-case-hack index %d of the file %s is not greather than 0", idx, filename)
+			return
+		}
+		finalName = splited[0]
 	}
-	var prefix string
-	if strings.HasPrefix(filepath, "/") {
-		prefix = "/"
-	}
-	return prefix + path.Join(cleaned...)
+	return
 }
 
 func splitPath(path string) []string {

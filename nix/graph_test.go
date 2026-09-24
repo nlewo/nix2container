@@ -1,11 +1,12 @@
 package nix
 
 import (
-	"github.com/nlewo/nix2container/types"
-	"github.com/stretchr/testify/assert"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/nlewo/nix2container/types"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestGraph(t *testing.T) {
@@ -28,6 +29,28 @@ func TestGraph(t *testing.T) {
 	assert.Contains(t, g.contents[""].contents, "nix")
 	assert.Contains(t, g.contents[""].contents["nix"].contents["store"].contents, "hash1")
 	assert.Contains(t, g.contents[""].contents["nix"].contents["store"].contents, "hash2")
+}
+
+func TestGraphSanitized(t *testing.T) {
+	g := initGraph()
+	_ = addFileToGraph(g, "/nix/store/hash1", nil, nil)
+	_ = addFileToGraph(g, "/Nix~nix~case~hack~1/store/hash1", nil, nil)
+	_ = addFileToGraph(g, "/Nix~nix~case~hack~0/store/hash1", nil, nil)
+	_ = addFileToGraph(g, "/nix/store/Path~nix~case~hack~1", nil, nil)
+	err := sanitizeGraph(g)
+	assert.Equal(t, nil, err)
+	assert.Contains(t, g.contents[""].contents["nix"].contents["store"].contents, "hash1")
+	assert.Contains(t, g.contents[""].contents["Nix"].contents["store"].contents, "hash1")
+	assert.Contains(t, g.contents[""].contents["Nix~nix~case~hack~0"].contents["store"].contents, "hash1")
+	assert.Contains(t, g.contents[""].contents["nix"].contents["store"].contents, "Path")
+}
+
+func TestGraphSanitizeCollision(t *testing.T) {
+	g := initGraph()
+	_ = addFileToGraph(g, "/nix/store/path/hash1", nil, nil)
+	_ = addFileToGraph(g, "/nix/store/path~nix~case~hack~1/hash1", nil, nil)
+	err := sanitizeGraph(g)
+	assert.ErrorContains(t, err, "collision")
 }
 
 func TestAddFileToGraphOverride(t *testing.T) {
@@ -61,7 +84,8 @@ func TestWalkGraph(t *testing.T) {
 	assert.Equal(t, nil, err)
 	err = addFileToGraph(g, "/nix/store/hash1", nil, nil)
 	assert.Equal(t, nil, err)
-
+	err = sanitizeGraph(g)
+	assert.Equal(t, nil, err)
 	err = walkGraph(g, func(srcPath, dstPath string, info *os.FileInfo, options *types.PathOptions) error {
 		paths[*pidx] = dstPath
 		*pidx = *pidx + 1
@@ -88,6 +112,8 @@ func TestWalkGraphOnDirectory(t *testing.T) {
 	missingDirectories := make([]string, 10)
 	var idx int
 	pidx := &idx
+	err = sanitizeGraph(graph)
+	assert.Equal(t, nil, err)
 	err = walkGraph(graph, func(srcPath, dstPath string, info *os.FileInfo, options *types.PathOptions) error {
 		dstPaths[*pidx] = dstPath
 		srcPaths[*pidx] = srcPath

@@ -1,10 +1,20 @@
 package nix
 
 import (
+	"testing"
+
 	"github.com/nlewo/nix2container/types"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
+
+func TestUnhackNixCaseHack(t *testing.T) {
+	assert.Equal(t, "filename", unhackNixCaseHack("filename"))
+	assert.Equal(t, "filename", unhackNixCaseHack("filename~nix~case~hack~1"))
+	assert.Equal(t, "filename", unhackNixCaseHack("filename~nix~case~hack~42"))
+	assert.Equal(t, "filename~nix~case~hack~0", unhackNixCaseHack("filename~nix~case~hack~0"))
+	assert.Equal(t, "filename~nix~case~hack~foo", unhackNixCaseHack("filename~nix~case~hack~foo"))
+	assert.Equal(t, "filename~nix~case~hack~0-foobar", unhackNixCaseHack("filename~nix~case~hack~0-foobar"))
+}
 
 func TestSplit(t *testing.T) {
 	assert.Equal(t, splitPath("/nix"), []string{"", "nix"})

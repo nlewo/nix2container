@@ -10,16 +10,12 @@ import (
 	"github.com/nlewo/nix2container/types"
 )
 
-// On case insensitive FS (adfs on MacOS for instance), Nix adds a
-// suffix to avoid filename collisions.
-// See https://github.com/NixOS/nix/blob/ba9e69cdcd8022f37e344f2c86e60ee2b9da493f/src/libutil/archive.cc#L90
-var useNixCaseHack string
-
 type fileNode struct {
 	// The file name on the FS
-	srcPath  string
-	info     *os.FileInfo
-	options  *types.PathOptions
+	srcPath string
+	info    *os.FileInfo
+	options *types.PathOptions
+	// The key is the destination file name and the value the source file name
 	contents map[string]*fileNode
 }
 
@@ -41,13 +37,7 @@ func initGraph() *fileNode {
 // file tree read on the FS. This means transformations are done during
 // the graph construction.
 func addFileToGraph(root *fileNode, path string, info *os.FileInfo, options *types.PathOptions) error {
-
-	dstPath := path
-	if useNixCaseHack != "" {
-		dstPath = removeNixCaseHackSuffix(dstPath)
-	}
-
-	dstPath = filePathToTarPath(dstPath, options)
+	dstPath := filePathToTarPath(path, options)
 	// A regex in the options could make the path becoming the
 	// empty string. In this case, we don't want to create
 	// anything in the graph.
@@ -89,6 +79,31 @@ func addFileToGraph(root *fileNode, path string, info *os.FileInfo, options *typ
 	current.options = options
 
 	current.srcPath = path
+	return nil
+}
+
+// sanitizeGraph applies post graph construction
+// transformations. Currently, it only remove the nix~case~hack suffix
+// by ensuring it doesn't create any file name collisions.
+func sanitizeGraph(node *fileNode) error {
+	sanitizedContents := make(map[string]*fileNode)
+	for n, c := range node.contents {
+		finalName := unhackNixCaseHack(n)
+		// Note we could also unhack only when this file name
+		// is equal (case insensitive comparison) to another
+		// file name because Nix is only supposed to add the
+		// nix case hack suffix on insensitive file name
+		// collisions.
+		// But I dont think it would bring any significant improvment especially since this is not done by Nix when creating the NAR.
+		if _, ok := sanitizedContents[finalName]; ok {
+			return fmt.Errorf("a filename collision occurs because of the nix-case-hack on the file %s", n)
+		}
+		sanitizedContents[finalName] = c
+		if err := sanitizeGraph(sanitizedContents[finalName]); err != nil {
+			return err
+		}
+	}
+	node.contents = sanitizedContents
 	return nil
 }
 

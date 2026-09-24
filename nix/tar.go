@@ -179,9 +179,17 @@ func TarPaths(paths types.Paths) io.ReadCloser {
 			}
 		}
 
+		err := sanitizeGraph(graph)
+		if err != nil {
+			if err := w.CloseWithError(err); err != nil {
+				return
+			}
+			return
+		}
+
 		// Once the graph of file has been built, it is walked
 		// in order to generate the tar stream.
-		err := walkGraph(graph, func(srcPath, dstPath string, info *os.FileInfo, options *types.PathOptions) error {
+		err = walkGraph(graph, func(srcPath, dstPath string, info *os.FileInfo, options *types.PathOptions) error {
 			// This file is a directory
 			if info == nil {
 				return createDirectory(tw, dstPath)
