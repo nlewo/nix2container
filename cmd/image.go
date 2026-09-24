@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"runtime"
+	"strings"
 	"time"
 
 	"github.com/nlewo/nix2container/nix"
@@ -15,6 +16,7 @@ import (
 )
 
 var fromImageFilename string
+var fromImageEnv bool
 
 var imageArch string
 var created timeValue
@@ -108,6 +110,27 @@ func imageFromManifest(outputFilename, manifestFilename string, blobsFilename st
 	return nil
 }
 
+// mergeBaseEnv merges a base image's config.Env into the caller's Env the
+// way nixpkgs dockerTools' overlay_base_config does: one entry per key
+// (the part before '='; an entry without '=' is keyed by the whole string)
+// in order of first appearance, base entries first, last value wins — a
+// caller entry replaces a base key in place, so the runtime sees the
+// caller's value at the base's position.
+func mergeBaseEnv(baseEnv, env []string) []string {
+	index := map[string]int{}
+	var merged []string
+	for _, kv := range append(append([]string{}, baseEnv...), env...) {
+		k, _, _ := strings.Cut(kv, "=")
+		if i, seen := index[k]; seen {
+			merged[i] = kv
+			continue
+		}
+		index[k] = len(merged)
+		merged = append(merged, kv)
+	}
+	return merged
+}
+
 func image(outputFilename, imageConfigPath string, fromImageFilename string, layerPaths []string, arch string, created time.Time) error {
 	var imageConfig v1.ImageConfig
 	var image types.Image
@@ -130,6 +153,10 @@ func image(outputFilename, imageConfigPath string, fromImageFilename string, lay
 			return err
 		}
 		image.Layers = append(image.Layers, fromImage.Layers...)
+
+		if fromImageEnv {
+			imageConfig.Env = mergeBaseEnv(fromImage.ImageConfig.Env, imageConfig.Env)
+		}
 
 		logrus.Infof("Using base image %s containing %d layers", fromImageFilename, len(fromImage.Layers))
 	}
@@ -181,6 +208,7 @@ func image(outputFilename, imageConfigPath string, fromImageFilename string, lay
 func init() {
 	rootCmd.AddCommand(imageCmd)
 	imageCmd.Flags().StringVarP(&fromImageFilename, "from-image", "", "", "A JSON file describing the base image")
+	imageCmd.Flags().BoolVarP(&fromImageEnv, "from-image-env", "", false, "Keep the Env entries of the base image that the image config does not set")
 	imageCmd.Flags().StringVarP(&imageArch, "arch", "", runtime.GOARCH, "Target CPU architecture of the image")
 	imageCmd.Flags().Var(&created, "created", "Timestamp at which the image was created")
 	rootCmd.AddCommand(imageFromDirCmd)
