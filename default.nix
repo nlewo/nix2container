@@ -230,6 +230,9 @@ let
     # store path "popularity" as described in
     # https://grahamc.com/blog/nix-and-layered-docker-images
     maxLayers ? 1,
+    # A JSON file holding a list of store path lists: the layer split
+    # to use, in order. When set, maxLayers is ignored.
+    layersFile ? null,
     # Deprecated: will be removed on v1
     contents ? null,
     # Author, comment, created_by
@@ -260,6 +263,7 @@ let
 
     allDeps = deps ++ copyToRootList;
     tarDirectory = l.optionalString (!reproducible) "--tar-directory $out";
+    layersFlag = l.optionalString (layersFile != null) "--layers-json ${layersFile}";
 
     layersJSON = pkgs.runCommandLocal "layers.json" {} ''
       mkdir $out
@@ -268,6 +272,7 @@ let
         $out/layers.json \
         ${closureGraph allDeps ignore} \
         --max-layers ${toString maxLayers} \
+        ${layersFlag} \
         ${rewritesFlag} \
         ${permsFlag} \
         ${historyFlag} \

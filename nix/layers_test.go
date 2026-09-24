@@ -114,3 +114,26 @@ func TestNewLayersNonReproducibleWritesEachLayer(t *testing.T) {
 		assert.Equal(t, reproducible[i].Digest, written[i].Digest)
 	}
 }
+
+func TestNewLayersFromSplit(t *testing.T) {
+	split := [][]string{
+		{"../data/tar-directory/file1"},
+		{"../data/layer1/file1"},
+	}
+	layers, err := NewLayersFromSplit(split, []types.Layer{}, []types.RewritePath{}, "", []types.PermPath{}, v1.History{})
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+	assert.Len(t, layers, 2)
+	assert.Equal(t, "../data/tar-directory/file1", layers[0].Paths[0].Path)
+	assert.Equal(t, "../data/layer1/file1", layers[1].Paths[0].Path)
+
+	// A group whose paths are all in a parent layer yields no layer.
+	parents := layers[:1]
+	layers, err = NewLayersFromSplit(split, parents, []types.RewritePath{}, "", []types.PermPath{}, v1.History{})
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+	assert.Len(t, layers, 1)
+	assert.Equal(t, "../data/layer1/file1", layers[0].Paths[0].Path)
+}

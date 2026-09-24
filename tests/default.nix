@@ -62,6 +62,10 @@ let
       image = examples.layered;
       pattern = "Hello, world";
     };
+    layersFile = testScript {
+      image = examples.layersFile;
+      pattern = "Hello, world";
+    };
     nonReproducible = testScript {
       image = examples.nonReproducible;
       pattern = "A non reproducible image built the";

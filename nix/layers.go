@@ -64,14 +64,8 @@ func getPaths(storePaths []string, parents []types.Layer, rewrites []types.Rewri
 // If tarDirectory is not an empty string, the tar layer is written to
 // the disk. This is useful for layer containing non reproducible
 // store paths.
-func newLayers(paths types.Paths, tarDirectory string, maxLayers int, history v1.History) (layers []types.Layer, err error) {
-	offset := 0
-	for offset < len(paths) {
-		max := offset + 1
-		if offset == maxLayers-1 {
-			max = len(paths)
-		}
-		layerPaths := paths[offset:max]
+func newLayers(groups []types.Paths, tarDirectory string, history v1.History) (layers []types.Layer, err error) {
+	for _, layerPaths := range groups {
 		layerPath := ""
 		var digest godigest.Digest
 		var size int64
@@ -99,20 +93,56 @@ func newLayers(paths types.Paths, tarDirectory string, maxLayers int, history v1
 		}
 
 		layers = append(layers, layer)
-
-		offset = max
 	}
 	return layers, nil
 }
 
+// maxLayersGroups cuts paths into at most maxLayers groups: one path
+// per group, in order, and every remaining path in the last group.
+func maxLayersGroups(paths types.Paths, maxLayers int) (groups []types.Paths) {
+	offset := 0
+	for offset < len(paths) {
+		max := offset + 1
+		if offset == maxLayers-1 {
+			max = len(paths)
+		}
+		groups = append(groups, paths[offset:max])
+		offset = max
+	}
+	return groups
+}
+
+// splitGroups filters each group like getPaths does and drops the
+// groups left empty, for instance when all their paths are already in
+// a parent layer.
+func splitGroups(split [][]string, parents []types.Layer, rewrites []types.RewritePath, exclude string, perms []types.PermPath) (groups []types.Paths) {
+	for _, storePaths := range split {
+		paths := getPaths(storePaths, parents, rewrites, exclude, perms)
+		if len(paths) > 0 {
+			groups = append(groups, paths)
+		}
+	}
+	return groups
+}
+
 func NewLayers(storePaths []string, maxLayers int, parents []types.Layer, rewrites []types.RewritePath, exclude string, perms []types.PermPath, history v1.History) ([]types.Layer, error) {
 	paths := getPaths(storePaths, parents, rewrites, exclude, perms)
-	return newLayers(paths, "", maxLayers, history)
+	return newLayers(maxLayersGroups(paths, maxLayers), "", history)
 }
 
 func NewLayersNonReproducible(storePaths []string, maxLayers int, tarDirectory string, parents []types.Layer, rewrites []types.RewritePath, exclude string, perms []types.PermPath, history v1.History) (layers []types.Layer, err error) {
 	paths := getPaths(storePaths, parents, rewrites, exclude, perms)
-	return newLayers(paths, tarDirectory, maxLayers, history)
+	return newLayers(maxLayersGroups(paths, maxLayers), tarDirectory, history)
+}
+
+// NewLayersFromSplit creates one layer per group of split, in order.
+// The split is not checked against a closure: see closure.SplitFromFile.
+func NewLayersFromSplit(split [][]string, parents []types.Layer, rewrites []types.RewritePath, exclude string, perms []types.PermPath, history v1.History) ([]types.Layer, error) {
+	return newLayers(splitGroups(split, parents, rewrites, exclude, perms), "", history)
+}
+
+func NewLayersNonReproducibleFromSplit(split [][]string, tarDirectory string, parents []types.Layer, rewrites []types.RewritePath, exclude string, perms []types.PermPath, history v1.History) ([]types.Layer, error) {
+	return newLayers(splitGroups(split, parents, rewrites, exclude, perms), tarDirectory, history)
 }
 
 func isPathInLayers(layers []types.Layer, path types.Path) bool {

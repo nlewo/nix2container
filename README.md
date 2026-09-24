@@ -251,6 +251,14 @@ Function arguments are:
     this is applied on the image layers and not on layers added with
     the `buildLayer.layers` attribute.
 
+- **`layersFile`** (defaults to `null`): a JSON file with the layer
+    split to use instead of `maxLayers`: a list of store path lists,
+    one list per layer, in order. Every path of the layer closure (the
+    closure of `deps` and `copyToRoot`, without `ignore`) must appear
+    in exactly one list, and no other path may appear. This lets the
+    split come from another tool, for instance the `store_layers` of
+    the `conf.json` that nixpkgs' `streamLayeredImage` writes.
+
 - **`perms`** (defaults to `[]`): a list of file permisssions which are
     set when the tar layer is created: these permissions are not
     written to the Nix store.
