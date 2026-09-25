@@ -79,6 +79,7 @@ func TestTarPathsWriteMatchesSum(t *testing.T) {
 func BenchmarkTarPathsSum(b *testing.B) {
 	paths := types.Paths{{Path: makeTree(b, 50, 100)}}
 	b.ReportAllocs()
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		if _, _, err := TarPathsSum(paths); err != nil {
 			b.Fatal(err)

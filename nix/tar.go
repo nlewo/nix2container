@@ -8,7 +8,6 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"sync"
 	"time"
 
 	"github.com/nlewo/nix2container/types"
@@ -81,7 +80,7 @@ func createDirectory(tw *tar.Writer, path string) error {
 	return nil
 }
 
-func appendFileToTar(tw *tar.Writer, srcPath, dstPath string, info os.FileInfo, opts *types.PathOptions) error {
+func appendFileToTar(tw *tar.Writer, srcPath, dstPath string, info os.FileInfo, opts *types.PathOptions, buf []byte) error {
 	var link string
 	var err error
 	if info.Mode()&os.ModeSymlink != 0 {
@@ -147,22 +146,16 @@ func appendFileToTar(tw *tar.Writer, srcPath, dstPath string, info os.FileInfo, 
 			return fmt.Errorf("could not open file '%s', got error '%s'", srcPath, err.Error())
 		}
 		defer file.Close() // nolint: errcheck
-		buf := copyBuffers.Get().(*[]byte)
-		defer copyBuffers.Put(buf)
-		// The struct hides the WriteTo method of os.File: io.CopyBuffer
-		// would call it, and it allocates a new buffer for every file.
-		_, err = io.CopyBuffer(tw, struct{ io.Reader }{file}, *buf)
+		// The structs hide the WriteTo method of os.File and any ReadFrom
+		// method of tar.Writer: io.CopyBuffer would call either one, and
+		// both allocate a new buffer for every file.
+		_, err = io.CopyBuffer(struct{ io.Writer }{tw}, struct{ io.Reader }{file}, buf)
 		if err != nil {
 			return fmt.Errorf("could not copy the file '%s' data to the tarball, got error '%s'", srcPath, err.Error())
 		}
 	}
 	return nil
 }
-
-var copyBuffers = sync.Pool{New: func() interface{} {
-	buf := make([]byte, 32*1024)
-	return &buf
-}}
 
 // TarPaths takes a list of paths and return a ReadCloser to the tar
 // archive. If an error occurs, the ReadCloser is closed with the error.
@@ -204,12 +197,15 @@ func TarPaths(paths types.Paths) io.ReadCloser {
 
 		// Once the graph of file has been built, it is walked
 		// in order to generate the tar stream.
+		// The whole stream is copied through one buffer, since the
+		// graph is walked by this goroutine alone.
+		copyBuf := make([]byte, 32*1024)
 		err = walkGraph(graph, func(srcPath, dstPath string, info *os.FileInfo, options *types.PathOptions) error {
 			// This file is a directory
 			if info == nil {
 				return createDirectory(tw, dstPath)
 			}
-			return appendFileToTar(tw, srcPath, dstPath, *info, options)
+			return appendFileToTar(tw, srcPath, dstPath, *info, options, copyBuf)
 		})
 		if err != nil {
 			if err := w.CloseWithError(err); err != nil {
