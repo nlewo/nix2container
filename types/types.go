@@ -22,6 +22,20 @@ type Image struct {
 	Created     *time.Time     `json:"created"`
 }
 
+// MarshalJSON normalizes nil Layers to an empty slice so consumers of
+// image.json never see `"layers": null`: a reader that indexes or
+// iterates the layers (e.g. `jq '.layers[]'`, or a Python script doing
+// `json["layers"]`) then works without a null guard. A nil Layers
+// slice is reachable for a config-only image (no base image and no
+// layer entries).
+func (i Image) MarshalJSON() ([]byte, error) {
+	type imageAlias Image // strip the method set to avoid recursion
+	if i.Layers == nil {
+		i.Layers = []Layer{}
+	}
+	return json.Marshal(imageAlias(i))
+}
+
 type Rewrite struct {
 	Regex string `json:"regex"`
 	Repl  string `json:"repl"`
