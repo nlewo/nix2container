@@ -41,7 +41,7 @@ func makeTree(t testing.TB, dirs, filesPerDir int) string {
 			t.Fatal(err)
 		}
 		for f := 0; f < filesPerDir; f++ {
-			// Sizes from a few bytes to more than the 32 KiB copy buffer.
+			// Sizes from a few bytes to more than copyBufferSize.
 			data := bytes.Repeat([]byte{byte('a' + f%26)}, 1+(f*7919)%70000)
 			if err := os.WriteFile(filepath.Join(dir, fmt.Sprintf("file%03d", f)), data, 0o644); err != nil {
 				t.Fatal(err)

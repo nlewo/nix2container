@@ -15,6 +15,17 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+const (
+	// io.Copy allocates a buffer of this size internally. Measured against
+	// 64 KiB, 128 KiB, 256 KiB and 1 MiB: larger buffers make no difference
+	// here, and cost memory per tar stream.
+	copyBufferSize = 32 * 1024
+
+	// The tar stream comes in pieces as small as one 512-byte header; this
+	// turns them into large writes.
+	blobWriteBufferSize = 256 * 1024
+)
+
 func TarPathsWrite(paths types.Paths, destinationDirectory string) (string, digest.Digest, int64, error) {
 	f, err := os.CreateTemp(destinationDirectory, "")
 	if err != nil {
@@ -24,9 +35,7 @@ func TarPathsWrite(paths types.Paths, destinationDirectory string) (string, dige
 	reader := TarPaths(paths)
 	defer reader.Close() // nolint: errcheck
 
-	// The tar stream comes in pieces as small as one 512-byte header.
-	// The buffer turns them into large writes.
-	w := bufio.NewWriterSize(f, 256*1024)
+	w := bufio.NewWriterSize(f, blobWriteBufferSize)
 	r := io.TeeReader(reader, w)
 
 	digester := digest.Canonical.Digester()
@@ -199,7 +208,7 @@ func TarPaths(paths types.Paths) io.ReadCloser {
 		// in order to generate the tar stream.
 		// The whole stream is copied through one buffer, since the
 		// graph is walked by this goroutine alone.
-		copyBuf := make([]byte, 32*1024)
+		copyBuf := make([]byte, copyBufferSize)
 		err = walkGraph(graph, func(srcPath, dstPath string, info *os.FileInfo, options *types.PathOptions) error {
 			// This file is a directory
 			if info == nil {
