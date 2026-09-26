@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 // A zero-value Image (a config-only image: no base image and no layer
@@ -13,9 +12,9 @@ import (
 func TestImageMarshalNilLayersAsEmpty(t *testing.T) {
 	var img Image
 	b, err := json.Marshal(img)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	var fields map[string]json.RawMessage
-	require.NoError(t, json.Unmarshal(b, &fields))
+	assert.NoError(t, json.Unmarshal(b, &fields))
 	assert.JSONEq(t, `[]`, string(fields["layers"]))
 }
 
@@ -26,8 +25,8 @@ func TestImageMarshalRoundTrip(t *testing.T) {
 		Layers:  []Layer{{Digest: "sha256:abc", DiffIDs: "sha256:def"}},
 	}
 	b, err := json.Marshal(img)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	var back Image
-	require.NoError(t, json.Unmarshal(b, &back))
+	assert.NoError(t, json.Unmarshal(b, &back))
 	assert.Equal(t, img.Layers, back.Layers)
 }
