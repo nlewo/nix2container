@@ -110,6 +110,35 @@ func NewLayers(storePaths []string, maxLayers int, parents []types.Layer, rewrit
 	return newLayers(paths, "", maxLayers, history)
 }
 
+// maxLayersGroups cuts paths into at most maxLayers groups: one path
+// per group, in order, and every remaining path in the last group.
+func maxLayersGroups(paths types.Paths, maxLayers int) (groups []types.Paths) {
+	offset := 0
+	for offset < len(paths) {
+		max := offset + 1
+		if offset == maxLayers-1 {
+			max = len(paths)
+		}
+		groups = append(groups, paths[offset:max])
+		offset = max
+	}
+	return groups
+}
+
+// NewLayersCompressed groups the paths like NewLayers, then tars and
+// compresses each layer to blobDir at build time. compressor names an
+// entry of the compressors table, such as "gzip". Each layer carries
+// the compressed digest, the uncompressed DiffIDs, the blob file as
+// LayerPath and the matching media type. With an empty compressor, it
+// returns the result of NewLayers.
+func NewLayersCompressed(storePaths []string, maxLayers int, compressor, blobDir string, parents []types.Layer, rewrites []types.RewritePath, exclude string, perms []types.PermPath, history v1.History) ([]types.Layer, error) {
+	if compressor == "" {
+		return NewLayers(storePaths, maxLayers, parents, rewrites, exclude, perms, history)
+	}
+	paths := getPaths(storePaths, parents, rewrites, exclude, perms)
+	return newLayersCompressed(maxLayersGroups(paths, maxLayers), compressor, blobDir, history)
+}
+
 func NewLayersNonReproducible(storePaths []string, maxLayers int, tarDirectory string, parents []types.Layer, rewrites []types.RewritePath, exclude string, perms []types.PermPath, history v1.History) (layers []types.Layer, err error) {
 	paths := getPaths(storePaths, parents, rewrites, exclude, perms)
 	return newLayers(paths, tarDirectory, maxLayers, history)
