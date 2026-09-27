@@ -2,6 +2,7 @@ package nix
 
 import (
 	"archive/tar"
+	"bufio"
 	"fmt"
 	"io"
 	"os"
@@ -20,6 +21,14 @@ const (
 	// whole tar stream, so the size only trades syscalls against memory:
 	// 64 KiB, 128 KiB, 256 KiB and 1 MiB all measure the same.
 	copyBufferSize = 32 * 1024
+
+	// The tar stream arrives in pieces as small as one 512-byte header, and
+	// TarPathsWrite would write the blob with one syscall per piece. This
+	// batches them: a 179 MB layer of 5000 files takes around 700 writes
+	// instead of around 19500. The exact size is not critical, it only has
+	// to be well above a tar block; bigger mostly buys fewer syscalls,
+	// which matters more the slower the filesystem underneath.
+	blobWriteBufferSize = 256 * 1024
 )
 
 func TarPathsWrite(paths types.Paths, destinationDirectory string) (string, digest.Digest, int64, error) {
@@ -31,11 +40,15 @@ func TarPathsWrite(paths types.Paths, destinationDirectory string) (string, dige
 	reader := TarPaths(paths)
 	defer reader.Close() // nolint: errcheck
 
-	r := io.TeeReader(reader, f)
+	w := bufio.NewWriterSize(f, blobWriteBufferSize)
+	r := io.TeeReader(reader, w)
 
 	digester := digest.Canonical.Digester()
 	size, err := io.Copy(digester.Hash(), r)
 	if err != nil {
+		return "", "", 0, err
+	}
+	if err := w.Flush(); err != nil {
 		return "", "", 0, err
 	}
 	digest := digester.Digest()

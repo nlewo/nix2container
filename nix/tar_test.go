@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/nlewo/nix2container/types"
+	"github.com/opencontainers/go-digest"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -108,12 +109,50 @@ func makeTree(t testing.TB, dirs, filesPerDir int) string {
 	return root
 }
 
+// The file written by TarPathsWrite must hold the same bytes as the
+// stream that TarPathsSum hashes.
+func TestTarPathsWriteMatchesSum(t *testing.T) {
+	paths := types.Paths{{Path: makeTree(t, 5, 20)}}
+	sum, size, err := TarPathsSum(paths)
+	if err != nil {
+		t.Fatal(err)
+	}
+	path, written, writtenSize, err := TarPathsWrite(paths, t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, sum, written)
+	assert.Equal(t, size, writtenSize)
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, size, int64(len(data)))
+	assert.Equal(t, sum, digest.FromBytes(data))
+}
+
 func BenchmarkTarPathsSum(b *testing.B) {
 	paths := types.Paths{{Path: makeTree(b, 50, 100)}}
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		if _, _, err := TarPathsSum(paths); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+// TarPathsSum never writes the stream out, so this covers the file path:
+// the buffered writer and the flush. Point TMPDIR at a real filesystem to
+// see the buffering, since write syscalls to tmpfs are nearly free.
+func BenchmarkTarPathsWrite(b *testing.B) {
+	paths := types.Paths{{Path: makeTree(b, 50, 100)}}
+	dir := b.TempDir()
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		// Every iteration writes the same digest, and so the same file.
+		if _, _, _, err := TarPathsWrite(paths, dir); err != nil {
 			b.Fatal(err)
 		}
 	}
