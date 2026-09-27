@@ -21,7 +21,7 @@ func TestPerms(t *testing.T) {
 			Mode:  "0641",
 		},
 	}
-	layer, err := NewLayers(paths, 1, []types.Layer{}, []types.RewritePath{}, "", perms, v1.History{})
+	layer, err := NewLayers(paths, 1, []types.Layer{}, []types.RewritePath{}, "", perms, "", v1.History{})
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -53,7 +53,7 @@ func TestNewLayers(t *testing.T) {
 	paths := []string{
 		"../data/layer1/file1",
 	}
-	layer, err := NewLayers(paths, 1, []types.Layer{}, []types.RewritePath{}, "", []types.PermPath{}, v1.History{})
+	layer, err := NewLayers(paths, 1, []types.Layer{}, []types.RewritePath{}, "", []types.PermPath{}, "", v1.History{})
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -73,7 +73,7 @@ func TestNewLayers(t *testing.T) {
 	assert.Equal(t, expected, layer)
 
 	tmpDir := t.TempDir()
-	layer, err = NewLayersNonReproducible(paths, 1, tmpDir, []types.Layer{}, []types.RewritePath{}, "", []types.PermPath{}, v1.History{})
+	layer, err = NewLayersNonReproducible(paths, 1, tmpDir, []types.Layer{}, []types.RewritePath{}, "", []types.PermPath{}, "", v1.History{})
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -101,11 +101,11 @@ func TestNewLayersNonReproducibleWritesEachLayer(t *testing.T) {
 		"../data/layer1/file1",
 		"../data/tar-directory/file1",
 	}
-	reproducible, err := NewLayers(paths, 2, []types.Layer{}, []types.RewritePath{}, "", []types.PermPath{}, v1.History{})
+	reproducible, err := NewLayers(paths, 2, []types.Layer{}, []types.RewritePath{}, "", []types.PermPath{}, "", v1.History{})
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
-	written, err := NewLayersNonReproducible(paths, 2, t.TempDir(), []types.Layer{}, []types.RewritePath{}, "", []types.PermPath{}, v1.History{})
+	written, err := NewLayersNonReproducible(paths, 2, t.TempDir(), []types.Layer{}, []types.RewritePath{}, "", []types.PermPath{}, "", v1.History{})
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -123,7 +123,7 @@ func TestPermsOrMode(t *testing.T) {
 	perms := []types.PermPath{
 		{Path: "../data/layer1/file1", Regex: ".*", Mode: "0444", OrMode: "0311"},
 	}
-	layers, err := NewLayers(paths, 1, nil, nil, "", perms, v1.History{})
+	layers, err := NewLayers(paths, 1, nil, nil, "", perms, "", v1.History{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -148,7 +148,7 @@ func TestNewLayersFromSplit(t *testing.T) {
 		{"../data/tar-directory/file1"},
 		{"../data/layer1/file1"},
 	}
-	layers, err := NewLayersFromSplit(split, []types.Layer{}, []types.RewritePath{}, "", []types.PermPath{}, v1.History{})
+	layers, err := NewLayersFromSplit(split, []types.Layer{}, []types.RewritePath{}, "", []types.PermPath{}, "", v1.History{})
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -158,7 +158,7 @@ func TestNewLayersFromSplit(t *testing.T) {
 
 	// A group whose paths are all in a parent layer yields no layer.
 	parents := layers[:1]
-	layers, err = NewLayersFromSplit(split, parents, []types.RewritePath{}, "", []types.PermPath{}, v1.History{})
+	layers, err = NewLayersFromSplit(split, parents, []types.RewritePath{}, "", []types.PermPath{}, "", v1.History{})
 	if err != nil {
 		t.Fatalf("%v", err)
 	}

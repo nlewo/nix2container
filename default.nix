@@ -242,6 +242,16 @@ let
     contents ? null,
     # Author, comment, created_by
     metadata ? { created_by = "nix2container"; },
+    # Regexes matched against the destination path of each file, after
+    # the rewrites of copyToRoot. A file whose destination matches is
+    # left out of the layer, and a directory that matches takes its
+    # subtree with it, so the walk never descends into it.
+    skipCopyTo ? [],
+    # When false, the layer carries the trees listed in copyToRoot but
+    # not their runtime closure, which has to be present at run time:
+    # a /nix/store mounted into the container, for instance. Sugar for
+    # adding the store directory to skipCopyTo. See the README.
+    includeStorePaths ? true,
   }:
   assert l.assertMsg (permsFile == null || perms == [])
     "nix2container.buildLayer: perms and permsFile are exclusive";
@@ -269,6 +279,16 @@ let
     historyFile = pkgs.writeText "history.json" (l.toJSON metadata);
     historyFlag = l.optionalString (metadata != {}) "--history ${historyFile}";
 
+    # copyToRoot is rewritten to the image root, so it survives a regex
+    # on the store directory while the closure, which keeps its store
+    # destination, does not.
+    # The empty regex matches everything, so an empty entry would drop
+    # the whole layer without saying so.
+    skipCopyToList = l.filter (r: r != "") (l.toList skipCopyTo)
+      ++ l.optional (!includeStorePaths) "^${builtins.storeDir}/";
+    skipCopyToFlag = l.optionalString (skipCopyToList != [])
+      "--skip-copy-to '${l.concatMapStringsSep "|" (r: "(?:${r})") skipCopyToList}'";
+
     allDeps = deps ++ copyToRootList;
     tarDirectory = l.optionalString (!reproducible) "--tar-directory $out";
     layersFlag = l.optionalString (layersFile != null) "--layers-json ${layersFile}";
@@ -284,6 +304,7 @@ let
         ${rewritesFlag} \
         ${permsFlag} \
         ${historyFlag} \
+        ${skipCopyToFlag} \
         ${tarDirectory} \
         ${toString (map (l: l + "/layers.json") layers)}
       set +x
@@ -396,6 +417,10 @@ let
     # Deprecated: will be removed
     contents ? null,
     meta ? {},
+    # See buildLayer. They apply to the image's own layer, built from
+    # copyToRoot; entries of `layers` carry their own.
+    skipCopyTo ? [],
+    includeStorePaths ? true,
   }:
     let
       configFile = pkgs.writeText "config.json" (l.toJSON config);
@@ -419,7 +444,7 @@ let
         };
 
       customizationLayer = buildLayer {
-        inherit maxLayers;
+        inherit maxLayers skipCopyTo includeStorePaths;
         perms = perms';
         copyToRoot = copyToRootList ++ l.optional initializeNixDatabase nixDatabase;
         deps = [configFile];

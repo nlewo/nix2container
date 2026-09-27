@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"sort"
 
 	"github.com/nlewo/nix2container/types"
@@ -36,12 +37,24 @@ func initGraph() *fileNode {
 // Note the graph describes the file tree of the tar stream, not the
 // file tree read on the FS. This means transformations are done during
 // the graph construction.
-func addFileToGraph(root *fileNode, path string, info *os.FileInfo, options *types.PathOptions) error {
+//
+// skip is the compiled PathOptions.SkipCopyTo of the store path being
+// walked, or nil. It is compiled once per store path rather than per
+// file, and matching a directory returns filepath.SkipDir so the walk
+// never descends into a subtree the layer will not carry.
+func addFileToGraph(root *fileNode, path string, info *os.FileInfo, options *types.PathOptions, skip *regexp.Regexp) error {
 	dstPath := filePathToTarPath(path, options)
 	// A regex in the options could make the path becoming the
 	// empty string. In this case, we don't want to create
 	// anything in the graph.
 	if dstPath == "" {
+		return nil
+	}
+
+	if skip != nil && skip.MatchString(dstPath) {
+		if info != nil && (*info).IsDir() {
+			return filepath.SkipDir
+		}
 		return nil
 	}
 

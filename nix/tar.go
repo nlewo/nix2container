@@ -205,12 +205,21 @@ func TarPaths(paths types.Paths) io.ReadCloser {
 		// anything to the tar stream.
 		for _, path := range paths {
 			options := path.Options
-			err := filepath.Walk(path.Path, func(path string, info os.FileInfo, err error) error {
+			// Compiled once per store path: doing it per file is what
+			// makes a regex option expensive.
+			skip, err := compileSkipCopyTo(options)
+			if err != nil {
+				if err := w.CloseWithError(err); err != nil {
+					return
+				}
+				return
+			}
+			err = filepath.Walk(path.Path, func(path string, info os.FileInfo, err error) error {
 				if err != nil {
 					return fmt.Errorf("failed accessing path %q: %v", path, err)
 				}
 				logrus.Debugf("Walking filesystem: %s", path)
-				return addFileToGraph(graph, path, &info, options)
+				return addFileToGraph(graph, path, &info, options, skip)
 			})
 			if err != nil {
 				if err := w.CloseWithError(err); err != nil {
