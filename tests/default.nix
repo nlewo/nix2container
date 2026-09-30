@@ -229,6 +229,11 @@ let
         exit $ret
       fi
     '';
+    skip-to-copy = testScript {
+      image = examples.skip-copy-to;
+      expectedReturnCode = 1;
+      pattern = "/tmp/sub";
+    };
     metadata = let
       image = examples.metadata;
       expected_created_by = "test created_by";
