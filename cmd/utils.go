@@ -46,10 +46,10 @@ func readHistoryFile(filename string) (history v1.History, err error) {
 	return
 }
 
-func readSkipCopyToFile(filename string) (skipCopyTo string, err error) {
+func readIgnoreDestinationFile(filename string) (ignoreDestination string, err error) {
 	content, err := os.ReadFile(filename)
 	if err != nil {
-		return skipCopyTo, err
+		return ignoreDestination, err
 	}
 	return strings.TrimSpace(string(content)), nil
 }

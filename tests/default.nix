@@ -229,10 +229,10 @@ let
         exit $ret
       fi
     '';
-    skip-to-copy = testScript {
-      image = examples.skip-copy-to;
+    ignore-destination = testScript {
+      image = examples.ignore-destination;
       expectedReturnCode = 1;
-      pattern = "/tmp/sub";
+      pattern = "sub";
     };
     metadata = let
       image = examples.metadata;

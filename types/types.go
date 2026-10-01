@@ -85,7 +85,7 @@ type PermPath struct {
 type PathOptions struct {
 	Rewrite Rewrite `json:"rewrite,omitempty"`
 	Perms   []Perm  `json:"perms,omitempty"`
-	// SkipCopyTo is a regex matched against the destination path of
+	// IgnoreDestination is a regex matched against the destination path of
 	// each file, after Rewrite has been applied. A file whose
 	// destination matches is left out of the layer, and a directory
 	// whose destination matches takes its whole subtree with it.
@@ -94,7 +94,7 @@ type PathOptions struct {
 	// the tar of a layer is produced twice: once to compute the digest
 	// and again when the layer is pushed. Both have to leave out the
 	// same files.
-	SkipCopyTo string `json:"skipCopyTo,omitempty"`
+	IgnoreDestination string `json:"ignoreDestination,omitempty"`
 }
 
 type Path struct {

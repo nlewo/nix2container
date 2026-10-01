@@ -53,21 +53,21 @@ func filePathToTarPath(filepath string, options *types.PathOptions) string {
 	return tarPath
 }
 
-// compileSkipCopyTo compiles the SkipCopyTo regex of a store path, or
-// returns nil when there is none. An empty SkipCopyTo means no filter,
+// compileIgnoreDestination compiles the IgnoreDestination regex of a store path, or
+// returns nil when there is none. An empty IgnoreDestination means no filter,
 // not a regex matching everything, which is what compiling "" would
 // give.
 //
 // It compiles rather than looking the pattern up in a cache: the result
 // is resolved once per store path and then dereferenced per file, and a
 // user-supplied regex should report an error instead of panicking.
-func compileSkipCopyTo(options *types.PathOptions) (*regexp.Regexp, error) {
-	if options == nil || options.SkipCopyTo == "" {
+func compileIgnoreDestination(options *types.PathOptions) (*regexp.Regexp, error) {
+	if options == nil || options.IgnoreDestination == "" {
 		return nil, nil
 	}
-	re, err := regexp.Compile(options.SkipCopyTo)
+	re, err := regexp.Compile(options.IgnoreDestination)
 	if err != nil {
-		return nil, fmt.Errorf("invalid skip-copy-to regex %q: %w", options.SkipCopyTo, err)
+		return nil, fmt.Errorf("invalid ignore-destination regex %q: %w", options.IgnoreDestination, err)
 	}
 	return re, nil
 }

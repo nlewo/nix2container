@@ -207,7 +207,7 @@ func TarPaths(paths types.Paths) io.ReadCloser {
 			options := path.Options
 			// Compiled once per store path: doing it per file is what
 			// makes a regex option expensive.
-			skip, err := compileSkipCopyTo(options)
+			skip, err := compileIgnoreDestination(options)
 			if err != nil {
 				if err := w.CloseWithError(err); err != nil {
 					return

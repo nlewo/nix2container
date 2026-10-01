@@ -40,11 +40,11 @@ func writeFile(t *testing.T, path string) {
 	}
 }
 
-// SkipCopyTo is matched against the destination path, so a rewrite that
+// IgnoreDestination is matched against the destination path, so a rewrite that
 // moves a tree out of the matched prefix keeps it: this is what
 // includeStorePaths = false relies on, since copyToRoot is rewritten to
 // the image root while the closure stays under the store directory.
-func TestSkipCopyToMatchesTheDestination(t *testing.T) {
+func TestIgnoreDestinationMatchesTheDestination(t *testing.T) {
 	root := t.TempDir()
 	store := filepath.Join(root, "nix", "store")
 	writeFile(t, filepath.Join(store, "aaa-kept", "bin", "hello"))
@@ -55,12 +55,12 @@ func TestSkipCopyToMatchesTheDestination(t *testing.T) {
 			Path: filepath.Join(store, "aaa-kept"),
 			Options: &types.PathOptions{
 				Rewrite:    types.Rewrite{Regex: "^" + filepath.Join(store, "aaa-kept"), Repl: ""},
-				SkipCopyTo: "^" + store,
+				IgnoreDestination: "^" + store,
 			},
 		},
 		{
 			Path:    filepath.Join(store, "bbb-dropped"),
-			Options: &types.PathOptions{SkipCopyTo: "^" + store},
+			Options: &types.PathOptions{IgnoreDestination: "^" + store},
 		},
 	}
 
@@ -74,7 +74,7 @@ func TestSkipCopyToMatchesTheDestination(t *testing.T) {
 // A directory whose destination matches takes its subtree with it, and
 // the walk does not descend into it. The unreadable directory would
 // make the walk fail if it were entered.
-func TestSkipCopyToPrunesTheWalk(t *testing.T) {
+func TestIgnoreDestinationPrunesTheWalk(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, filepath.Join(root, "keep", "file"))
 	locked := filepath.Join(root, "dropped", "locked")
@@ -89,7 +89,7 @@ func TestSkipCopyToPrunesTheWalk(t *testing.T) {
 
 	paths := types.Paths{{
 		Path:    root,
-		Options: &types.PathOptions{SkipCopyTo: filepath.Join(root, "dropped") + "$"},
+		Options: &types.PathOptions{IgnoreDestination: filepath.Join(root, "dropped") + "$"},
 	}}
 
 	names := tarEntries(t, paths)
@@ -100,21 +100,21 @@ func TestSkipCopyToPrunesTheWalk(t *testing.T) {
 }
 
 // An invalid regex has to fail the build rather than be ignored.
-func TestSkipCopyToInvalidRegex(t *testing.T) {
+func TestIgnoreDestinationInvalidRegex(t *testing.T) {
 	paths := types.Paths{{
 		Path:    t.TempDir(),
-		Options: &types.PathOptions{SkipCopyTo: "("},
+		Options: &types.PathOptions{IgnoreDestination: "("},
 	}}
 	_, _, err := TarPathsSum(paths)
-	assert.ErrorContains(t, err, "invalid skip-copy-to regex")
+	assert.ErrorContains(t, err, "invalid ignore-destination regex")
 }
 
-// An empty SkipCopyTo means no filter. Compiling "" would give a regex
+// An empty IgnoreDestination means no filter. Compiling "" would give a regex
 // that matches everything and silently empty the layer.
-func TestSkipCopyToEmptyIsNoFilter(t *testing.T) {
+func TestIgnoreDestinationEmptyIsNoFilter(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, filepath.Join(root, "keep", "file"))
 
-	paths := types.Paths{{Path: root, Options: &types.PathOptions{SkipCopyTo: ""}}}
+	paths := types.Paths{{Path: root, Options: &types.PathOptions{IgnoreDestination: ""}}}
 	assert.Contains(t, tarEntries(t, paths), filepath.Join(root, "keep", "file"))
 }

@@ -7,7 +7,7 @@ let
   '';
 in nix2container.buildImage {
   name = "perms";
-  config.entrypoint = "${pkgs.coreutils}/bin/ls -l /tmp/";
+  config.entrypoint = ["${pkgs.coreutils}/bin/ls" "-l" "/tmp/"];
   copyToRoot = [ test ];
-  skipCopyTo = "^/tmp/sub";
+  ignoreDestination = "^/tmp/sub";
 }

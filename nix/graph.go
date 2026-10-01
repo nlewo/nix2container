@@ -38,7 +38,7 @@ func initGraph() *fileNode {
 // file tree read on the FS. This means transformations are done during
 // the graph construction.
 //
-// skip is the compiled PathOptions.SkipCopyTo of the store path being
+// skip is the compiled PathOptions.IgnoreDestination of the store path being
 // walked, or nil. It is compiled once per store path rather than per
 // file, and matching a directory returns filepath.SkipDir so the walk
 // never descends into a subtree the layer will not carry.

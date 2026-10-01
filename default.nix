@@ -246,7 +246,7 @@ let
     # the rewrites of copyToRoot. A file whose destination matches is
     # left out of the layer, and a directory that matches takes its
     # subtree with it, so the walk never descends into it.
-    skipCopyTo ? null,
+    ignoreDestination ? null,
   }:
   assert l.assertMsg (permsFile == null || perms == [])
     "nix2container.buildLayer: perms and permsFile are exclusive";
@@ -280,10 +280,10 @@ let
     # A file whose destination matches is left out of the layer.
     # The empty regex matches everything, so an empty entry would drop
     # the whole layer without saying so.
-    skipCopyToFile = l.optionalString (skipCopyTo != null)
-      (pkgs.writeText "skip-copy-to.txt" skipCopyTo);
-    skipCopyToFlag = l.optionalString (skipCopyTo != null)
-      "--skip-copy-to ${skipCopyToFile}";
+    ignoreDestinationFile = l.optionalString (ignoreDestination != null)
+      (pkgs.writeText "ignore-destination.txt" ignoreDestination);
+    ignoreDestinationFlag = l.optionalString (ignoreDestination != null)
+      "--ignore-destination ${ignoreDestinationFile}";
     allDeps = deps ++ copyToRootList;
     tarDirectory = l.optionalString (!reproducible) "--tar-directory $out";
     layersFlag = l.optionalString (layersFile != null) "--layers-json ${layersFile}";
@@ -299,7 +299,7 @@ let
         ${rewritesFlag} \
         ${permsFlag} \
         ${historyFlag} \
-        ${skipCopyToFlag} \
+        ${ignoreDestinationFlag} \
         ${tarDirectory} \
         ${toString (map (l: l + "/layers.json") layers)}
       set +x
@@ -414,7 +414,7 @@ let
     meta ? {},
     # See buildLayer. They apply to the image's own layer, built from
     # copyToRoot; entries of `layers` carry their own.
-    skipCopyTo ? null,
+    ignoreDestination ? null,
   }:
     let
       configFile = pkgs.writeText "config.json" (l.toJSON config);
@@ -438,7 +438,7 @@ let
         };
 
       customizationLayer = buildLayer {
-        inherit maxLayers skipCopyTo;
+        inherit maxLayers ignoreDestination;
         perms = perms';
         copyToRoot = copyToRootList ++ l.optional initializeNixDatabase nixDatabase;
         deps = [configFile];

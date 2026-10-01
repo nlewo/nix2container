@@ -128,25 +128,12 @@ Function arguments are:
     is only useful to run nix commands from the image, for instance to
     build an image used by a CI to run Nix builds.
 
-- **`skipCopyTo`** (defaults to `[]`): a list of regexes matched
+- **`ignoreDestination`** (defaults to `null`): a regex matched
     against the destination path of each file, after the `copyToRoot`
     rewrites have been applied. A file whose destination matches is
     left out of the layer, and a directory whose destination matches
     takes its whole subtree with it, so the build never descends into
     it.
-
-- **`includeStorePaths`** (defaults to `true`): when `false`, the
-    layer carries the trees listed in `copyToRoot` but not their
-    runtime closure. Sugar for adding `^/nix/store/` to `skipCopyTo`:
-    `copyToRoot` is rewritten to the image root, so it survives, while
-    the closure keeps its store destination and does not. The closure
-    has to be available at run time some other way, typically a
-    `/nix/store` mounted into the container.
-
-    It combines with `initializeNixDatabase = true`: the database is
-    written through `copyToRoot`, so it lands at `/nix/var/nix/db` and
-    stays. That gives an image that knows about a store it does not
-    carry, ready for a store mounted at run time.
 
 - **`layers`** (defaults to `[]`): a list of layers built with the
     buildLayer function: if a store path in deps or contents belongs
@@ -322,25 +309,12 @@ Function arguments are:
 - **`metadata`** (defaults to `{ created_by = "nix2container"; }`): an attribute
     set containing this layer's `created_by`, `author` and `comment` values
 
-- **`skipCopyTo`** (defaults to `[]`): a list of regexes matched
+- **`ignoreDestination`** (defaults to `null`): a regex matched
     against the destination path of each file, after the `copyToRoot`
     rewrites have been applied. A file whose destination matches is
     left out of the layer, and a directory whose destination matches
     takes its whole subtree with it, so the build never descends into
     it.
-
-- **`includeStorePaths`** (defaults to `true`): when `false`, the
-    layer carries the trees listed in `copyToRoot` but not their
-    runtime closure. Sugar for adding `^/nix/store/` to `skipCopyTo`:
-    `copyToRoot` is rewritten to the image root, so it survives, while
-    the closure keeps its store destination and does not. The closure
-    has to be available at run time some other way, typically a
-    `/nix/store` mounted into the container.
-
-    It combines with `initializeNixDatabase = true`: the database is
-    written through `copyToRoot`, so it lands at `/nix/var/nix/db` and
-    stays. That gives an image that knows about a store it does not
-    carry, ready for a store mounted at run time.
 
 ## Isolate dependencies in dedicated layers
 
