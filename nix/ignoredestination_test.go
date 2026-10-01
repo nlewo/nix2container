@@ -54,7 +54,7 @@ func TestIgnoreDestinationMatchesTheDestination(t *testing.T) {
 		{
 			Path: filepath.Join(store, "aaa-kept"),
 			Options: &types.PathOptions{
-				Rewrite:    types.Rewrite{Regex: "^" + filepath.Join(store, "aaa-kept"), Repl: ""},
+				Rewrite:           types.Rewrite{Regex: "^" + filepath.Join(store, "aaa-kept"), Repl: ""},
 				IgnoreDestination: "^" + store,
 			},
 		},
