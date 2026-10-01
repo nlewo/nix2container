@@ -286,9 +286,10 @@ let
     # the whole layer without saying so.
     skipCopyToList = l.filter (r: r != "") (l.toList skipCopyTo)
       ++ l.optional (!includeStorePaths) "^${builtins.storeDir}/";
+    skipCopyToFile = l.optionalString (skipCopyToList != [])
+      (pkgs.writeText "skip-copy-to.txt" (l.concatMapStringsSep "|" (r: "(?:${r})") skipCopyToList));
     skipCopyToFlag = l.optionalString (skipCopyToList != [])
-      "--skip-copy-to '${l.concatMapStringsSep "|" (r: "(?:${r})") skipCopyToList}'";
-
+      "--skip-copy-to ${skipCopyToFile}";
     allDeps = deps ++ copyToRootList;
     tarDirectory = l.optionalString (!reproducible) "--tar-directory $out";
     layersFlag = l.optionalString (layersFile != null) "--layers-json ${layersFile}";

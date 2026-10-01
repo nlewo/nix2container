@@ -29,6 +29,7 @@ var historyFilepath string
 var maxLayers int
 var layersJSONFilepath string
 var skipCopyTo string
+var skipCopyToFilepath string
 
 // layerCmd represents the layer command
 var layersReproducibleCmd = &cobra.Command{
@@ -76,6 +77,13 @@ var layersReproducibleCmd = &cobra.Command{
 		var history v1.History
 		if historyFilepath != "" {
 			history, err = readHistoryFile(historyFilepath)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "%s", err)
+				os.Exit(1)
+			}
+		}
+		if skipCopyToFilepath != "" {
+			skipCopyTo, err = readSkipCopyToFile(skipCopyToFilepath)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "%s", err)
 				os.Exit(1)
@@ -151,6 +159,13 @@ var layersNonReproducibleCmd = &cobra.Command{
 				os.Exit(1)
 			}
 		}
+		if skipCopyToFilepath != "" {
+			skipCopyTo, err = readSkipCopyToFile(skipCopyToFilepath)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "%s", err)
+				os.Exit(1)
+			}
+		}
 
 		var layers []types.Layer
 		if layersJSONFilepath != "" {
@@ -205,7 +220,7 @@ func init() {
 	layersNonReproducibleCmd.Flags().StringVarP(&historyFilepath, "history", "", "", "A JSON file containing layer history")
 	layersNonReproducibleCmd.Flags().IntVarP(&maxLayers, "max-layers", "", 1, "The maximum number of layers")
 	layersNonReproducibleCmd.Flags().StringVarP(&layersJSONFilepath, "layers-json", "", "", "A JSON list of store path lists: the layer split to use, in order, instead of --max-layers")
-	layersNonReproducibleCmd.Flags().StringVarP(&skipCopyTo, "skip-copy-to", "", "", "A regex matched against the destination path of each file, after the rewrites. Files whose destination matches are left out of the layer, and a directory that matches takes its subtree with it.")
+	layersNonReproducibleCmd.Flags().StringVarP(&skipCopyToFilepath, "skip-copy-to", "", "", "A file containing a regex matched against the destination path of each file, after the rewrites. Files whose destination matches are left out of the layer, and a directory that matches takes its subtree with it.")
 
 	rootCmd.AddCommand(layersReproducibleCmd)
 	layersReproducibleCmd.Flags().StringVarP(&ignore, "ignore", "", "", "Ignore the path from the list of storepaths")
@@ -214,6 +229,6 @@ func init() {
 	layersReproducibleCmd.Flags().StringVarP(&historyFilepath, "history", "", "", "A JSON file containing layer history")
 	layersReproducibleCmd.Flags().IntVarP(&maxLayers, "max-layers", "", 1, "The maximum number of layers")
 	layersReproducibleCmd.Flags().StringVarP(&layersJSONFilepath, "layers-json", "", "", "A JSON list of store path lists: the layer split to use, in order, instead of --max-layers")
-	layersReproducibleCmd.Flags().StringVarP(&skipCopyTo, "skip-copy-to", "", "", "A regex matched against the destination path of each file, after the rewrites. Files whose destination matches are left out of the layer, and a directory that matches takes its subtree with it.")
+	layersReproducibleCmd.Flags().StringVarP(&skipCopyToFilepath, "skip-copy-to", "", "", "A file containing a regex matched against the destination path of each file, after the rewrites. Files whose destination matches are left out of the layer, and a directory that matches takes its subtree with it.")
 
 }
