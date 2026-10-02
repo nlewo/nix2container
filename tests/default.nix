@@ -229,6 +229,11 @@ let
         exit $ret
       fi
     '';
+    ignore-destination = testScript {
+      image = examples.ignore-destination;
+      expectedReturnCode = 1;
+      pattern = "sub";
+    };
     metadata = let
       image = examples.metadata;
       expected_created_by = "test created_by";
