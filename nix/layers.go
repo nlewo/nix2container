@@ -131,6 +131,20 @@ func NewLayers(storePaths []string, maxLayers int, parents []types.Layer, rewrit
 	return newLayers(maxLayersGroups(paths, maxLayers), "", history)
 }
 
+// NewLayersCompressed groups the paths like NewLayers, then tars and
+// compresses each layer to blobDir at build time. compressor names an
+// entry of the compressors table, such as "gzip". Each layer carries
+// the compressed digest, the uncompressed DiffIDs, the blob file as
+// LayerPath and the matching media type. With an empty compressor, it
+// returns the result of NewLayers.
+func NewLayersCompressed(storePaths []string, maxLayers int, compressor, blobDir string, parents []types.Layer, rewrites []types.RewritePath, exclude string, perms []types.PermPath, history v1.History) ([]types.Layer, error) {
+	if compressor == "" {
+		return NewLayers(storePaths, maxLayers, parents, rewrites, exclude, perms, history)
+	}
+	paths := getPaths(storePaths, parents, rewrites, exclude, perms)
+	return newLayersCompressed(maxLayersGroups(paths, maxLayers), compressor, blobDir, history)
+}
+
 func NewLayersNonReproducible(storePaths []string, maxLayers int, tarDirectory string, parents []types.Layer, rewrites []types.RewritePath, exclude string, perms []types.PermPath, history v1.History) (layers []types.Layer, err error) {
 	paths := getPaths(storePaths, parents, rewrites, exclude, perms)
 	return newLayers(maxLayersGroups(paths, maxLayers), tarDirectory, history)
@@ -140,6 +154,16 @@ func NewLayersNonReproducible(storePaths []string, maxLayers int, tarDirectory s
 // The split is not checked against a closure: see closure.SplitFromFile.
 func NewLayersFromSplit(split [][]string, parents []types.Layer, rewrites []types.RewritePath, exclude string, perms []types.PermPath, history v1.History) ([]types.Layer, error) {
 	return newLayers(splitGroups(split, parents, rewrites, exclude, perms), "", history)
+}
+
+// NewLayersCompressedFromSplit is NewLayersFromSplit with each layer
+// compressed to blobDir, like NewLayersCompressed. With an empty
+// compressor, it returns the result of NewLayersFromSplit.
+func NewLayersCompressedFromSplit(split [][]string, compressor, blobDir string, parents []types.Layer, rewrites []types.RewritePath, exclude string, perms []types.PermPath, history v1.History) ([]types.Layer, error) {
+	if compressor == "" {
+		return NewLayersFromSplit(split, parents, rewrites, exclude, perms, history)
+	}
+	return newLayersCompressed(splitGroups(split, parents, rewrites, exclude, perms), compressor, blobDir, history)
 }
 
 func NewLayersNonReproducibleFromSplit(split [][]string, tarDirectory string, parents []types.Layer, rewrites []types.RewritePath, exclude string, perms []types.PermPath, history v1.History) ([]types.Layer, error) {

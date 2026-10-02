@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/nlewo/nix2container/closure"
 	"github.com/nlewo/nix2container/nix"
@@ -28,6 +29,7 @@ var rewritesFilepath string
 var historyFilepath string
 var maxLayers int
 var layersJSONFilepath string
+var compressor string
 
 // layerCmd represents the layer command
 var layersReproducibleCmd = &cobra.Command{
@@ -81,11 +83,20 @@ var layersReproducibleCmd = &cobra.Command{
 			}
 		}
 
+		// Blobs live next to the output layers.json. Resolve to an
+		// absolute path: the layer-path values recorded in layers.json
+		// are read at push time, possibly from another directory.
+		output, err := filepath.Abs(args[0])
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s", err)
+			os.Exit(1)
+		}
+		blobDir := filepath.Join(filepath.Dir(output), "blobs")
 		var layers []types.Layer
 		if layersJSONFilepath != "" {
-			layers, err = nix.NewLayersFromSplit(split, parents, rewrites, ignore, perms, history)
+			layers, err = nix.NewLayersCompressedFromSplit(split, compressor, blobDir, parents, rewrites, ignore, perms, history)
 		} else {
-			layers, err = nix.NewLayers(storepaths, maxLayers, parents, rewrites, ignore, perms, history)
+			layers, err = nix.NewLayersCompressed(storepaths, maxLayers, compressor, blobDir, parents, rewrites, ignore, perms, history)
 		}
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s", err)
@@ -212,5 +223,6 @@ func init() {
 	layersReproducibleCmd.Flags().StringVarP(&historyFilepath, "history", "", "", "A JSON file containing layer history")
 	layersReproducibleCmd.Flags().IntVarP(&maxLayers, "max-layers", "", 1, "The maximum number of layers")
 	layersReproducibleCmd.Flags().StringVarP(&layersJSONFilepath, "layers-json", "", "", "A JSON list of store path lists: the layer split to use, in order, instead of --max-layers")
+	layersReproducibleCmd.Flags().StringVarP(&compressor, "compressor", "", "", "Compress the layers at build time (gzip). The blobs are written to a blobs directory next to the output file, and they are served at push time.")
 
 }
