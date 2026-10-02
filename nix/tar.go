@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/nlewo/nix2container/types"
@@ -94,11 +95,11 @@ func createDirectory(tw *tar.Writer, path string) error {
 	return nil
 }
 
-func appendFileToTar(tw *tar.Writer, srcPath, dstPath string, info os.FileInfo, opts *types.PathOptions, buf []byte) error {
+func appendFileToTar(tw *tar.Writer, srcPath, dstPath string, info os.FileInfo, opts *types.PathOptions, buf []byte, src source) error {
 	var link string
 	var err error
 	if info.Mode()&os.ModeSymlink != 0 {
-		link, err = os.Readlink(srcPath)
+		link, err = src.readlink()
 		if err != nil {
 			return err
 		}
@@ -170,7 +171,7 @@ func appendFileToTar(tw *tar.Writer, srcPath, dstPath string, info os.FileInfo, 
 		return fmt.Errorf("could not write hdr '%#v', got error '%s'", hdr, err.Error())
 	}
 	if link == "" && !info.IsDir() {
-		file, err := os.Open(srcPath)
+		file, err := src.open()
 		if err != nil {
 			return fmt.Errorf("could not open file '%s', got error '%s'", srcPath, err.Error())
 		}
@@ -205,12 +206,19 @@ func TarPaths(paths types.Paths) io.ReadCloser {
 		// anything to the tar stream.
 		for _, path := range paths {
 			options := path.Options
-			err := filepath.Walk(path.Path, func(path string, info os.FileInfo, err error) error {
+			root := path.Path
+			err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
 				if err != nil {
 					return fmt.Errorf("failed accessing path %q: %v", path, err)
 				}
+				if options != nil && excluded(root, path, options.Excludes) {
+					if info.IsDir() {
+						return filepath.SkipDir
+					}
+					return nil
+				}
 				logrus.Debugf("Walking filesystem: %s", path)
-				return addFileToGraph(graph, path, &info, options)
+				return addFileToGraph(graph, path, &info, options, fsSource{path: path})
 			})
 			if err != nil {
 				if err := w.CloseWithError(err); err != nil {
@@ -233,12 +241,12 @@ func TarPaths(paths types.Paths) io.ReadCloser {
 		// The whole stream is copied through one buffer, since the
 		// graph is walked by this goroutine alone.
 		copyBuf := make([]byte, copyBufferSize)
-		err = walkGraph(graph, func(srcPath, dstPath string, info *os.FileInfo, options *types.PathOptions) error {
+		err = walkGraph(graph, func(srcPath, dstPath string, info *os.FileInfo, options *types.PathOptions, src source) error {
 			// This file is a directory
 			if info == nil {
 				return createDirectory(tw, dstPath)
 			}
-			return appendFileToTar(tw, srcPath, dstPath, *info, options, copyBuf)
+			return appendFileToTar(tw, srcPath, dstPath, *info, options, copyBuf, src)
 		})
 		if err != nil {
 			if err := w.CloseWithError(err); err != nil {
@@ -256,4 +264,19 @@ func TarPaths(paths types.Paths) io.ReadCloser {
 		}
 	}()
 	return r
+}
+
+// excluded reports whether path, under root, is one of the excluded
+// relative paths or inside one of them.
+func excluded(root, path string, excludes []string) bool {
+	if len(excludes) == 0 || path == root {
+		return false
+	}
+	rel := strings.TrimPrefix(path, root+"/")
+	for _, ex := range excludes {
+		if rel == ex || strings.HasPrefix(rel, ex+"/") {
+			return true
+		}
+	}
+	return false
 }
