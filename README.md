@@ -289,6 +289,21 @@ Function arguments are:
     `{ mode = "0444"; orMode = "0200"; }` gives `0644`. The entries
     are applied in list order.
 
+- **`fromTar`** (defaults to `[]`): a list of `{ path = <store path>;
+    tar = <tar archive>; }`. The members of the archive are the content
+    of the store path, with the ownership, modes and modification times
+    of the archive headers. This is for a layer built under fakeroot, whose owners and
+    modes exist only in the tar it produces. Entry names are taken
+    relative to the archive root. Hard links, devices and fifos are
+    refused.
+
+- **`ensureDirs`** (defaults to `[]`): a list of `{ path = <store
+    path>; dir = "relative/dir"; uid; gid; mode; }`. The directory is
+    created at that owner and mode when the source lacks it, for
+    instance `/nix` and `/nix/store` above a shipped store, which no
+    store path contains; one the source has is left as the source
+    shipped it.
+
 - **`layers`** (defaults to `[]`): a list of layers built with the
     `buildLayer` function: if a store path in deps or contents belongs
     to one of these layers, this store path is skipped. This is pretty
