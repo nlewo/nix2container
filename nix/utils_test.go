@@ -33,8 +33,8 @@ func TestFilePathToTarPath(t *testing.T) {
 		Perms: []types.Perm(nil),
 	}
 	path := "/nix/store/x896lxz471i4rgicjxygfh37a0appv7l-nix-database"
-	tarPath := filePathToTarPath(path, &pathOptions)
+	tarPath := filePathToTarPath(path, &pathOptions, nil)
 	assert.Equal(t, tarPath, "")
 
-	assert.Equal(t, filePathToTarPath("/", nil), "/")
+	assert.Equal(t, filePathToTarPath("/", nil, nil), "/")
 }

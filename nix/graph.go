@@ -36,8 +36,8 @@ func initGraph() *fileNode {
 // Note the graph describes the file tree of the tar stream, not the
 // file tree read on the FS. This means transformations are done during
 // the graph construction.
-func addFileToGraph(root *fileNode, path string, info *os.FileInfo, options *types.PathOptions) error {
-	dstPath := filePathToTarPath(path, options)
+func addFileToGraph(root *fileNode, path string, info *os.FileInfo, options *types.PathOptions, regexes *regexCache) error {
+	dstPath := filePathToTarPath(path, options, regexes)
 	// A regex in the options could make the path becoming the
 	// empty string. In this case, we don't want to create
 	// anything in the graph.
