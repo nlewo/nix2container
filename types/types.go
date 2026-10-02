@@ -90,6 +90,18 @@ type PathOptions struct {
 type Path struct {
 	Path    string       `json:"path"`
 	Options *PathOptions `json:"options,omitempty"`
+	// When set, the layer content is the members of this tar archive
+	// (ownership and modes from the archive headers) rather than the
+	// files under Path; Path then only names the entries for perms and
+	// rewrites ("<Path>/<member>").
+	Tar string `json:"tar,omitempty"`
+}
+
+// TarPath names a tar archive whose members are the content of a store
+// path in the layer.
+type TarPath struct {
+	Path string `json:"path"`
+	Tar  string `json:"tar"`
 }
 
 type Paths []Path

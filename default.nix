@@ -231,6 +231,11 @@ let
     # headers, say) rather than being known at eval time. Exactly one
     # of perms and permsFile.
     permsFile ? null,
+    # [ { path = <store path>; tar = <tar archive>; } ]: the archive's
+    # members as that path's content, with ownership, modes and mtimes from
+    # the archive headers (a customisation layer built under fakeroot,
+    # whose headers are the only place those exist).
+    fromTar ? [],
     # The maximun number of layer to create. This is based on the
     # store path "popularity" as described in
     # https://grahamc.com/blog/nix-and-layered-docker-images
@@ -266,6 +271,9 @@ let
     permsJson = if permsFile != null then permsFile else pkgs.writeText "perms.json" (l.toJSON perms);
     permsFlag = l.optionalString (perms != [] || permsFile != null) "--perms ${permsJson}";
 
+    tarsFile = pkgs.writeText "tars.json" (l.toJSON (map (t: { path = toString t.path; tar = toString t.tar; }) fromTar));
+    tarsFlag = l.optionalString (fromTar != []) "--tars ${tarsFile}";
+
     historyFile = pkgs.writeText "history.json" (l.toJSON metadata);
     historyFlag = l.optionalString (metadata != {}) "--history ${historyFile}";
 
@@ -283,6 +291,7 @@ let
         ${layersFlag} \
         ${rewritesFlag} \
         ${permsFlag} \
+        ${tarsFlag} \
         ${historyFlag} \
         ${tarDirectory} \
         ${toString (map (l: l + "/layers.json") layers)}
