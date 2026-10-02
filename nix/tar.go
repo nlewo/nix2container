@@ -7,7 +7,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strconv"
 	"time"
 
@@ -94,7 +93,7 @@ func createDirectory(tw *tar.Writer, path string) error {
 	return nil
 }
 
-func appendFileToTar(tw *tar.Writer, srcPath, dstPath string, info os.FileInfo, opts *types.PathOptions, buf []byte) error {
+func appendFileToTar(tw *tar.Writer, srcPath, dstPath string, info os.FileInfo, opts *types.PathOptions, buf []byte, regexes *regexCache) error {
 	var link string
 	var err error
 	if info.Mode()&os.ModeSymlink != 0 {
@@ -123,8 +122,7 @@ func appendFileToTar(tw *tar.Writer, srcPath, dstPath string, info os.FileInfo, 
 
 	if opts != nil {
 		for _, perms := range opts.Perms {
-			re := regexp.MustCompile(perms.Regex)
-			if re.Match([]byte(srcPath)) {
+			if regexes.permMatch(perms.Regex, srcPath) {
 				// Zero value is same as root ID (0)
 				hdr.Uid = perms.Uid
 				hdr.Gid = perms.Gid
@@ -199,6 +197,8 @@ func TarPaths(paths types.Paths) io.ReadCloser {
 
 	go func() {
 		defer w.Close() // nolint: errcheck
+		// One cache for this layer: it goes away with the goroutine.
+		regexes := newRegexCache()
 		// First, we build a graph representing all files that
 		// has to be added to the layer. This graph allows to
 		// transform the file tree without having to write
@@ -210,7 +210,7 @@ func TarPaths(paths types.Paths) io.ReadCloser {
 					return fmt.Errorf("failed accessing path %q: %v", path, err)
 				}
 				logrus.Debugf("Walking filesystem: %s", path)
-				return addFileToGraph(graph, path, &info, options)
+				return addFileToGraph(graph, path, &info, options, regexes)
 			})
 			if err != nil {
 				if err := w.CloseWithError(err); err != nil {
@@ -238,7 +238,7 @@ func TarPaths(paths types.Paths) io.ReadCloser {
 			if info == nil {
 				return createDirectory(tw, dstPath)
 			}
-			return appendFileToTar(tw, srcPath, dstPath, *info, options, copyBuf)
+			return appendFileToTar(tw, srcPath, dstPath, *info, options, copyBuf, regexes)
 		})
 		if err != nil {
 			if err := w.CloseWithError(err); err != nil {

@@ -2,7 +2,6 @@ package nix
 
 import (
 	"path/filepath"
-	"regexp"
 	"strconv"
 	"strings"
 
@@ -43,11 +42,11 @@ func splitPath(path string) []string {
 	return parts
 }
 
-func filePathToTarPath(filepath string, options *types.PathOptions) string {
+func filePathToTarPath(filepath string, options *types.PathOptions, regexes *regexCache) string {
 	tarPath := filepath
 	if options != nil && options.Rewrite.Regex != "" {
-		re := regexp.MustCompile(options.Rewrite.Regex)
-		tarPath = string(re.ReplaceAll([]byte(filepath), []byte(options.Rewrite.Repl)))
+		re := regexes.get(options.Rewrite.Regex)
+		tarPath = re.ReplaceAllString(filepath, options.Rewrite.Repl)
 	}
 	return tarPath
 }
