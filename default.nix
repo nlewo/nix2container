@@ -246,6 +246,10 @@ let
     # the rewrites of copyToRoot. A file whose destination matches is
     # left out of the layer, and a directory that matches takes its
     # subtree with it, so the walk never descends into it.
+    # This option with the value "^/nix/store" can be used to remove
+    # the closure from the layer (which can could be mounted at runtime).
+    # If the option initializeNixDatabase is set to true, the Nix database
+    # still contains the whole closure graph.
     ignoreDestination ? null,
   }:
   assert l.assertMsg (permsFile == null || perms == [])
@@ -274,12 +278,6 @@ let
     historyFile = pkgs.writeText "history.json" (l.toJSON metadata);
     historyFlag = l.optionalString (metadata != {}) "--history ${historyFile}";
 
-    # copyToRoot is rewritten to the image root, so it survives a regex
-    # on the store directory while the closure, which keeps its store
-    # destination, does not.
-    # A file whose destination matches is left out of the layer.
-    # The empty regex matches everything, so an empty entry would drop
-    # the whole layer without saying so.
     ignoreDestinationFile = l.optionalString (ignoreDestination != null)
       (pkgs.writeText "ignore-destination.txt" ignoreDestination);
     ignoreDestinationFlag = l.optionalString (ignoreDestination != null)

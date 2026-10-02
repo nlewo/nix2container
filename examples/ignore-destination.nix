@@ -6,7 +6,7 @@ let
     touch $out/tmp/sub/test2.txt
   '';
 in nix2container.buildImage {
-  name = "perms";
+  name = "ignore-destination";
   config.entrypoint = ["${pkgs.coreutils}/bin/ls" "-l" "/tmp/"];
   copyToRoot = [ test ];
   ignoreDestination = "^/tmp/sub";
