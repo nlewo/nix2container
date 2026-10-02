@@ -22,21 +22,9 @@ let
     preBuild = let
       # Needs to use fetchpatch2 to handle "git extended headers", which include
       # lines with semantic content like "rename from" and "rename to".
-      # However, it also includes "index" lines which include the git revision(s) the patch was initially created from.
-      # These lines may include revisions of differing length, based on how Github generates them.
-      # fetchpatch2 does not filter out, but probably should
-      fetchgitpatch = args: pkgs.fetchpatch2 (args // {
-        postFetch = (args.postFetch or "") + ''
-          sed -i \
-            -e '/^index /d' \
-            -e '/^similarity index /d' \
-            -e '/^dissimilarity index /d' \
-            $out
-        '';
-      });
-      patch = fetchgitpatch {
-        url = "https://github.com/nlewo/container-libs/commit/21b053ac62f3137de42585611953e923577d0e10.patch";
-        sha256 = "sha256-pfwQh7FKWHY/xVAGMSvnjMOmkpMo9NG2HFZqhqZ1VN0=";
+      patch = pkgs.fetchpatch2 {
+        url = "https://github.com/nlewo/container-libs/commit/21b053ac62f3137de42585611953e923577d0e10.patch?full_index=1";
+        hash = "sha256-mfqllB8R8/5Nku7dItvQaaZyQc4XrbnFFqXkG33Uob0=";
       };
     in ''
       cat ${patch}
