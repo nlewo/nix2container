@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/nlewo/nix2container/nix"
+	"github.com/nlewo/nix2container/types"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -91,4 +92,33 @@ func TestImageFromImageEnv(t *testing.T) {
 		}
 		assert.Equal(t, tc.want, got.ImageConfig.Env, "--from-image-env=%v", tc.flag)
 	}
+}
+
+func TestImageHealthcheck(t *testing.T) {
+	dir := t.TempDir()
+	config := filepath.Join(dir, "config.json")
+	err := os.WriteFile(config, []byte(`{
+		"Entrypoint": ["/bin/valkey-server"],
+		"Healthcheck": {
+			"Test": ["CMD-SHELL", "valkey-cli ping"],
+			"Interval": "5s",
+			"Timeout": 3000000000,
+			"StartPeriod": "10s",
+			"Retries": 3
+		}
+	}`), 0o644)
+	assert.NoError(t, err)
+
+	out := filepath.Join(dir, "image.json")
+	assert.NoError(t, image(out, config, "", nil, "amd64", time.Time{}))
+
+	got, err := nix.NewImageFromFile(out)
+	assert.NoError(t, err)
+	assert.Equal(t, &types.HealthConfig{
+		Test:        []string{"CMD-SHELL", "valkey-cli ping"},
+		Interval:    5 * time.Second,
+		Timeout:     3 * time.Second,
+		StartPeriod: 10 * time.Second,
+		Retries:     3,
+	}, got.ImageConfig.Healthcheck)
 }

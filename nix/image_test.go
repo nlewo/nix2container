@@ -1,11 +1,13 @@
 package nix
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
 	"testing"
+	"time"
 
 	digest "github.com/opencontainers/go-digest"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
@@ -90,21 +92,50 @@ func TestGetV1Image(t *testing.T) {
 		},
 	}
 
-	v1Image, err := getV1Image(image)
-	expected := v1.Image{
-		Platform: v1.Platform{OS: "linux"},
-		RootFS: v1.RootFS{
-			DiffIDs: []digest.Digest{
-				"sha256:adf74a52f9e1bcd7dab77193455fa06743b979cf5955148010e5becedba4f72d"},
-			Type: "layers",
-		},
-		History: []v1.History{
-			{
-				CreatedBy: "nix2container",
+	got, err := getV1Image(image)
+	expected := v1Image{
+		Image: v1.Image{
+			Platform: v1.Platform{OS: "linux"},
+			RootFS: v1.RootFS{
+				DiffIDs: []digest.Digest{
+					"sha256:adf74a52f9e1bcd7dab77193455fa06743b979cf5955148010e5becedba4f72d"},
+				Type: "layers",
+			},
+			History: []v1.History{
+				{
+					CreatedBy: "nix2container",
+				},
 			},
 		},
 	}
 
 	assert.Nil(t, err)
-	assert.Equal(t, v1Image, expected)
+	assert.Equal(t, expected, got)
+}
+
+func TestGetConfigBlobHealthcheck(t *testing.T) {
+	hc := &types.HealthConfig{
+		Test:        []string{"CMD-SHELL", "valkey-cli ping"},
+		Interval:    5 * time.Second,
+		Timeout:     3 * time.Second,
+		StartPeriod: 10 * time.Second,
+		Retries:     3,
+	}
+	img := types.Image{
+		Arch: "amd64",
+		ImageConfig: types.ImageConfig{
+			ImageConfig: v1.ImageConfig{
+				Entrypoint: []string{"/bin/valkey-server"},
+			},
+			Healthcheck: hc,
+		},
+	}
+
+	blob, err := GetConfigBlob(img)
+	assert.NoError(t, err)
+
+	var got v1Image
+	assert.NoError(t, json.Unmarshal(blob, &got))
+	assert.Equal(t, []string{"/bin/valkey-server"}, got.Config.Entrypoint)
+	assert.Equal(t, hc, got.Config.Healthcheck)
 }

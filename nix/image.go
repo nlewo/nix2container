@@ -69,7 +69,12 @@ func GetBlob(image types.Image, digest godigest.Digest) (io.ReadCloser, int64, e
 	return nil, 0, errors.New("no blob with specified digest found in image")
 }
 
-func getV1Image(image types.Image) (imageV1 v1.Image, err error) {
+type v1Image struct {
+	v1.Image
+	Config types.ImageConfig `json:"config,omitempty"`
+}
+
+func getV1Image(image types.Image) (imageV1 v1Image, err error) {
 	imageV1.OS = "linux"
 	imageV1.Architecture = image.Arch
 	imageV1.Config = image.ImageConfig

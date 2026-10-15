@@ -2,6 +2,7 @@ package types
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"os"
 	"time"
@@ -11,15 +12,74 @@ import (
 
 const ImageVersion = 1
 
+// HealthConfig holds the Docker/Schema2 healthcheck configuration.
+type HealthConfig struct {
+	Test          []string      `json:"Test,omitempty"`
+	Interval      time.Duration `json:"Interval,omitempty"`
+	Timeout       time.Duration `json:"Timeout,omitempty"`
+	StartPeriod   time.Duration `json:"StartPeriod,omitempty"`
+	StartInterval time.Duration `json:"StartInterval,omitempty"`
+	Retries       int           `json:"Retries,omitempty"`
+}
+
+type duration time.Duration
+
+func (d *duration) UnmarshalJSON(b []byte) error {
+	var n int64
+	if err := json.Unmarshal(b, &n); err == nil {
+		*d = duration(n)
+		return nil
+	}
+	var s string
+	if err := json.Unmarshal(b, &s); err == nil {
+		dur, err := time.ParseDuration(s)
+		if err != nil {
+			return err
+		}
+		*d = duration(dur)
+		return nil
+	}
+	return fmt.Errorf("invalid duration: %s", string(b))
+}
+
+func (h *HealthConfig) UnmarshalJSON(b []byte) error {
+	var raw struct {
+		Test          []string `json:"Test,omitempty"`
+		Interval      duration `json:"Interval,omitempty"`
+		Timeout       duration `json:"Timeout,omitempty"`
+		StartPeriod   duration `json:"StartPeriod,omitempty"`
+		StartInterval duration `json:"StartInterval,omitempty"`
+		Retries       int      `json:"Retries,omitempty"`
+	}
+	if err := json.Unmarshal(b, &raw); err != nil {
+		return err
+	}
+	*h = HealthConfig{
+		Test:          raw.Test,
+		Interval:      time.Duration(raw.Interval),
+		Timeout:       time.Duration(raw.Timeout),
+		StartPeriod:   time.Duration(raw.StartPeriod),
+		StartInterval: time.Duration(raw.StartInterval),
+		Retries:       raw.Retries,
+	}
+	return nil
+}
+
+// ImageConfig embeds the standard OCI v1.ImageConfig and adds Healthcheck.
+type ImageConfig struct {
+	v1.ImageConfig
+	Healthcheck *HealthConfig `json:"Healthcheck,omitempty"`
+}
+
 // Image represent the JSON image file produced by nix2container. This
 // JSON file can then be used by the Skopeo Nix transport to actually
 // build the container image.
 type Image struct {
-	Version     int            `json:"version"`
-	ImageConfig v1.ImageConfig `json:"image-config"`
-	Layers      []Layer        `json:"layers"`
-	Arch        string         `json:"arch"`
-	Created     *time.Time     `json:"created"`
+	Version     int         `json:"version"`
+	ImageConfig ImageConfig `json:"image-config"`
+	Layers      []Layer     `json:"layers"`
+	Arch        string      `json:"arch"`
+	Created     *time.Time  `json:"created"`
 }
 
 // MarshalJSON normalizes nil Layers to an empty slice so consumers of
