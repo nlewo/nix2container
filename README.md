@@ -128,6 +128,13 @@ Function arguments are:
     is only useful to run nix commands from the image, for instance to
     build an image used by a CI to run Nix builds.
 
+- **`ignoreDestination`** (defaults to `null`): a regex matched
+    against the destination path of each file, after the `copyToRoot`
+    rewrites have been applied. A file whose destination matches is
+    left out of the layer, and a directory whose destination matches
+    takes its whole subtree with it, so the build never descends into
+    it.
+
 - **`layers`** (defaults to `[]`): a list of layers built with the
     buildLayer function: if a store path in deps or contents belongs
     to one of these layers, this store path is skipped. This is pretty
@@ -301,6 +308,13 @@ Function arguments are:
 
 - **`metadata`** (defaults to `{ created_by = "nix2container"; }`): an attribute
     set containing this layer's `created_by`, `author` and `comment` values
+
+- **`ignoreDestination`** (defaults to `null`): a regex matched
+    against the destination path of each file, after the `copyToRoot`
+    rewrites have been applied. A file whose destination matches is
+    left out of the layer, and a directory whose destination matches
+    takes its whole subtree with it, so the build never descends into
+    it.
 
 ## Isolate dependencies in dedicated layers
 

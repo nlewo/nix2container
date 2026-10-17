@@ -28,6 +28,8 @@ var rewritesFilepath string
 var historyFilepath string
 var maxLayers int
 var layersJSONFilepath string
+var ignoreDestination string
+var ignoreDestinationFilepath string
 
 // layerCmd represents the layer command
 var layersReproducibleCmd = &cobra.Command{
@@ -80,12 +82,19 @@ var layersReproducibleCmd = &cobra.Command{
 				os.Exit(1)
 			}
 		}
+		if ignoreDestinationFilepath != "" {
+			ignoreDestination, err = readIgnoreDestinationFile(ignoreDestinationFilepath)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "%s", err)
+				os.Exit(1)
+			}
+		}
 
 		var layers []types.Layer
 		if layersJSONFilepath != "" {
-			layers, err = nix.NewLayersFromSplit(split, parents, rewrites, ignore, perms, history)
+			layers, err = nix.NewLayersFromSplit(split, parents, rewrites, ignore, perms, ignoreDestination, history)
 		} else {
-			layers, err = nix.NewLayers(storepaths, maxLayers, parents, rewrites, ignore, perms, history)
+			layers, err = nix.NewLayers(storepaths, maxLayers, parents, rewrites, ignore, perms, ignoreDestination, history)
 		}
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s", err)
@@ -150,12 +159,19 @@ var layersNonReproducibleCmd = &cobra.Command{
 				os.Exit(1)
 			}
 		}
+		if ignoreDestinationFilepath != "" {
+			ignoreDestination, err = readIgnoreDestinationFile(ignoreDestinationFilepath)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "%s", err)
+				os.Exit(1)
+			}
+		}
 
 		var layers []types.Layer
 		if layersJSONFilepath != "" {
-			layers, err = nix.NewLayersNonReproducibleFromSplit(split, tarDirectory, parents, rewrites, ignore, perms, history)
+			layers, err = nix.NewLayersNonReproducibleFromSplit(split, tarDirectory, parents, rewrites, ignore, perms, ignoreDestination, history)
 		} else {
-			layers, err = nix.NewLayersNonReproducible(storepaths, maxLayers, tarDirectory, parents, rewrites, ignore, perms, history)
+			layers, err = nix.NewLayersNonReproducible(storepaths, maxLayers, tarDirectory, parents, rewrites, ignore, perms, ignoreDestination, history)
 		}
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s", err)
@@ -204,6 +220,7 @@ func init() {
 	layersNonReproducibleCmd.Flags().StringVarP(&historyFilepath, "history", "", "", "A JSON file containing layer history")
 	layersNonReproducibleCmd.Flags().IntVarP(&maxLayers, "max-layers", "", 1, "The maximum number of layers")
 	layersNonReproducibleCmd.Flags().StringVarP(&layersJSONFilepath, "layers-json", "", "", "A JSON list of store path lists: the layer split to use, in order, instead of --max-layers")
+	layersNonReproducibleCmd.Flags().StringVarP(&ignoreDestinationFilepath, "ignore-destination", "", "", "A file containing a regex matched against the destination path of each file, after the rewrites. Files whose destination matches are left out of the layer, and a directory that matches takes its subtree with it.")
 
 	rootCmd.AddCommand(layersReproducibleCmd)
 	layersReproducibleCmd.Flags().StringVarP(&ignore, "ignore", "", "", "Ignore the path from the list of storepaths")
@@ -212,5 +229,6 @@ func init() {
 	layersReproducibleCmd.Flags().StringVarP(&historyFilepath, "history", "", "", "A JSON file containing layer history")
 	layersReproducibleCmd.Flags().IntVarP(&maxLayers, "max-layers", "", 1, "The maximum number of layers")
 	layersReproducibleCmd.Flags().StringVarP(&layersJSONFilepath, "layers-json", "", "", "A JSON list of store path lists: the layer split to use, in order, instead of --max-layers")
+	layersReproducibleCmd.Flags().StringVarP(&ignoreDestinationFilepath, "ignore-destination", "", "", "A file containing a regex matched against the destination path of each file, after the rewrites. Files whose destination matches are left out of the layer, and a directory that matches takes its subtree with it.")
 
 }

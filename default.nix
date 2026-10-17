@@ -242,6 +242,15 @@ let
     contents ? null,
     # Author, comment, created_by
     metadata ? { created_by = "nix2container"; },
+    # Regex matched against the destination path of each file, after
+    # the rewrites of copyToRoot. A file whose destination matches is
+    # left out of the layer, and a directory that matches takes its
+    # subtree with it, so the walk never descends into it.
+    # This option with the value "^/nix/store" can be used to remove
+    # the closure from the layer (which can could be mounted at runtime).
+    # If the option initializeNixDatabase is set to true, the Nix database
+    # still contains the whole closure graph.
+    ignoreDestination ? null,
   }:
   assert l.assertMsg (permsFile == null || perms == [])
     "nix2container.buildLayer: perms and permsFile are exclusive";
@@ -269,6 +278,10 @@ let
     historyFile = pkgs.writeText "history.json" (l.toJSON metadata);
     historyFlag = l.optionalString (metadata != {}) "--history ${historyFile}";
 
+    ignoreDestinationFile = l.optionalString (ignoreDestination != null)
+      (pkgs.writeText "ignore-destination.txt" ignoreDestination);
+    ignoreDestinationFlag = l.optionalString (ignoreDestination != null)
+      "--ignore-destination ${ignoreDestinationFile}";
     allDeps = deps ++ copyToRootList;
     tarDirectory = l.optionalString (!reproducible) "--tar-directory $out";
     layersFlag = l.optionalString (layersFile != null) "--layers-json ${layersFile}";
@@ -284,6 +297,7 @@ let
         ${rewritesFlag} \
         ${permsFlag} \
         ${historyFlag} \
+        ${ignoreDestinationFlag} \
         ${tarDirectory} \
         ${toString (map (l: l + "/layers.json") layers)}
       set +x
@@ -396,6 +410,9 @@ let
     # Deprecated: will be removed
     contents ? null,
     meta ? {},
+    # See buildLayer. They apply to the image's own layer, built from
+    # copyToRoot; entries of `layers` carry their own.
+    ignoreDestination ? null,
   }:
     let
       configFile = pkgs.writeText "config.json" (l.toJSON config);
@@ -419,7 +436,7 @@ let
         };
 
       customizationLayer = buildLayer {
-        inherit maxLayers;
+        inherit maxLayers ignoreDestination;
         perms = perms';
         copyToRoot = copyToRootList ++ l.optional initializeNixDatabase nixDatabase;
         deps = [configFile];

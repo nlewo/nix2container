@@ -3,6 +3,7 @@ package cmd
 import (
 	"encoding/json"
 	"os"
+	"strings"
 
 	"github.com/nlewo/nix2container/types"
 
@@ -43,4 +44,12 @@ func readHistoryFile(filename string) (history v1.History, err error) {
 		return history, err
 	}
 	return
+}
+
+func readIgnoreDestinationFile(filename string) (ignoreDestination string, err error) {
+	content, err := os.ReadFile(filename)
+	if err != nil {
+		return ignoreDestination, err
+	}
+	return strings.TrimSpace(string(content)), nil
 }
