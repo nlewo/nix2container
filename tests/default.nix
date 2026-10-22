@@ -72,6 +72,22 @@ let
       image = examples.nonReproducible;
       pattern = "A non reproducible image built the";
     };
+    materializedCustomizationLayer = let
+      image = nix2container.buildImage {
+        name = "materialized-customization-layer";
+        copyToRoot = pkgs.hello;
+        reproducible = false;
+      };
+    in pkgs.runCommand "test-script" { nativeBuildInputs = [ pkgs.jq ]; } ''
+      set -e
+      layer=$(jq -r '.layers[-1] | ."layer-path"' ${image})
+      digest=$(jq -r '.layers[-1].digest' ${image})
+      test -f "$layer"
+      test "sha256:$(sha256sum "$layer" | cut -d' ' -f1)" = "$digest"
+      mkdir -p $out/bin
+      echo 'echo Test passed' > $out/bin/test-script
+      chmod +x $out/bin/test-script
+    '';
     nested = testScript {
       image = examples.nested;
       pattern = "Hello, world";
