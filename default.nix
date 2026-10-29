@@ -83,7 +83,7 @@ let
   '';
 
   copyTo = image: writeSkopeoApplication "copy-to" ''
-    echo "Running skopeo --insecure-policy copy nix:${image}" "$@"
+    echo "Copy image ${image.imageName}:${image.imageTag}"
     skopeo --insecure-policy copy nix:${image} "$@"
   '';
 
