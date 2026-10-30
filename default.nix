@@ -302,7 +302,7 @@ let
         ${toString (map (l: l + "/layers.json") layers)}
       set +x
     '';
-    nestedLayers = l.flatten (l.map (l: l.nestedLayers) layers) ++ layers;
+    nestedLayers = l.unique (l.flatten (l.map (l: l.nestedLayers) layers) ++ layers);
     out = l.traceIf debug ("buildLayer " + layersJSON + ": " + l.concatStringsSep " " nestedLayers) layersJSON;
   in checked { inherit copyToRoot contents; } (out // {inherit nestedLayers;});
 
