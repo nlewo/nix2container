@@ -115,6 +115,19 @@ func appendFileToTar(tw *tar.Writer, srcPath, dstPath string, info os.FileInfo, 
 	hdr.Uname = "root"
 	hdr.Gname = "root"
 
+	// Nix's NAR records only whether a regular file is executable; it does
+	// not record directory modes or write bits. Use the modes Nix
+	// canonicalises store paths to, so a store path hashes to the same tar
+	// whatever write bits the filesystem shows (e.g. inside a build sandbox).
+	if info.IsDir() {
+		hdr.Mode = 0o555
+	} else if info.Mode().IsRegular() {
+		hdr.Mode = 0o444
+		if info.Mode()&0o111 != 0 {
+			hdr.Mode = 0o555
+		}
+	}
+
 	// Force symlink permissions to match Linux ones
 	// see https://github.com/nlewo/nix2container/issues/23
 	if link != "" {

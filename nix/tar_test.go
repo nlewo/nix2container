@@ -3,6 +3,7 @@ package nix
 import (
 	"archive/tar"
 	"fmt"
+	"io"
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -22,13 +23,93 @@ func TestTar(t *testing.T) {
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
-	expectedDigest := "sha256:1ea63d00b937dc24c711265b80444cc9e7e63751fb7f349b160be61d31381983"
+	expectedDigest := "sha256:7428918446924c9c347e346fad1ae51e9287517eef419e92817755ba7262805f"
 	assert.Equal(t, expectedDigest, digest.String())
 
 	expectedSize := int64(4096)
 	assert.Equal(t, expectedSize, size)
 	if size != expectedSize {
 		t.Errorf("Size is %d while it should be %d", size, expectedSize)
+	}
+}
+
+func TestTarPathsIgnoresModesNotPreservedByNix(t *testing.T) {
+	root := t.TempDir()
+	dir := filepath.Join(root, "dir")
+	if err := os.Mkdir(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	file := filepath.Join(dir, "file")
+	if err := os.WriteFile(file, []byte("hello"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	executable := filepath.Join(dir, "executable")
+	if err := os.WriteFile(executable, []byte("#!/bin/sh\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(executable, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	paths := types.Paths{{Path: root}}
+	before, _, err := TarPathsSum(paths)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := os.Chmod(file, 0o444); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(executable, 0o555); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(dir, 0o555); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(root, 0o555); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		for _, path := range []string{root, dir} {
+			if err := os.Chmod(path, 0o755); err != nil {
+				t.Error(err)
+			}
+		}
+	})
+	after, _, err := TarPathsSum(paths)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, before, after)
+}
+
+func TestTarPathsExplicitPermissionsOverrideNixModes(t *testing.T) {
+	root := t.TempDir()
+	file := filepath.Join(root, "file")
+	if err := os.WriteFile(file, []byte("hello"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	paths := types.Paths{{
+		Path: root,
+		Options: &types.PathOptions{Perms: []types.Perm{
+			{Regex: "file$", Mode: "0600"},
+			{Regex: "file$", OrMode: "0200"},
+		}},
+	}}
+	r := TarPaths(paths)
+	defer r.Close() // nolint: errcheck
+	tr := tar.NewReader(r)
+	for {
+		hdr, err := tr.Next()
+		if err == io.EOF {
+			t.Fatal("file missing from tar")
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		if hdr.Name == file {
+			assert.Equal(t, int64(0o600), hdr.Mode)
+			return
+		}
 	}
 }
 
