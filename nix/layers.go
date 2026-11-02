@@ -4,6 +4,8 @@ import (
 	_ "crypto/sha256"
 	_ "crypto/sha512"
 	"reflect"
+	"runtime"
+	"sync"
 
 	"github.com/nlewo/nix2container/types"
 	godigest "github.com/opencontainers/go-digest"
@@ -69,37 +71,70 @@ func getPaths(storePaths []string, parents []types.Layer, rewrites []types.Rewri
 // If tarDirectory is not an empty string, the tar layer is written to
 // the disk. This is useful for layer containing non reproducible
 // store paths.
-func newLayers(groups []types.Paths, tarDirectory string, history v1.History) (layers []types.Layer, err error) {
-	for _, layerPaths := range groups {
-		layerPath := ""
-		var digest godigest.Digest
-		var size int64
-		if tarDirectory == "" {
-			digest, size, err = TarPathsSum(layerPaths)
-		} else {
-			layerPath, digest, size, err = TarPathsWrite(layerPaths, tarDirectory)
-		}
+//
+// Layers are tarred concurrently, by up to GOMAXPROCS workers, and
+// returned in the order of groups.
+func newLayers(groups []types.Paths, tarDirectory string, history v1.History) ([]types.Layer, error) {
+	layers := make([]types.Layer, len(groups))
+	errs := make([]error, len(groups))
+	jobs := make(chan int)
+	var wg sync.WaitGroup
+	// No min builtin nor range over int: skopeo vendors this package
+	// with an old go directive.
+	workers := runtime.GOMAXPROCS(0)
+	if len(groups) < workers {
+		workers = len(groups)
+	}
+	for w := 0; w < workers; w++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for i := range jobs {
+				layers[i], errs[i] = newLayer(groups[i], tarDirectory, history)
+			}
+		}()
+	}
+	for i := range groups {
+		jobs <- i
+	}
+	close(jobs)
+	wg.Wait()
+	for _, err := range errs {
 		if err != nil {
-			return layers, err
+			return nil, err
 		}
-		logrus.Infof("Adding %d paths to layer (size:%d digest:%s)", len(layerPaths), size, digest.String())
-		layer := types.Layer{
-			Digest:    digest.String(),
-			DiffIDs:   digest.String(),
-			Size:      size,
-			Paths:     layerPaths,
-			MediaType: v1.MediaTypeImageLayer,
-			History:   history,
-		}
-		if tarDirectory != "" {
-			// TODO: we should use v1.MediaTypeImageLayerGzip instead
-			layer.MediaType = v1.MediaTypeImageLayer
-			layer.LayerPath = layerPath
-		}
-
-		layers = append(layers, layer)
 	}
 	return layers, nil
+}
+
+func newLayer(layerPaths types.Paths, tarDirectory string, history v1.History) (types.Layer, error) {
+	layerPath := ""
+	var digest godigest.Digest
+	var size int64
+	var err error
+	if tarDirectory == "" {
+		digest, size, err = TarPathsSum(layerPaths)
+	} else {
+		layerPath, digest, size, err = TarPathsWrite(layerPaths, tarDirectory)
+	}
+	if err != nil {
+		return types.Layer{}, err
+	}
+	logrus.Infof("Adding %d paths to layer (size:%d digest:%s)", len(layerPaths), size, digest.String())
+	layer := types.Layer{
+		Digest:    digest.String(),
+		DiffIDs:   digest.String(),
+		Size:      size,
+		Paths:     layerPaths,
+		MediaType: v1.MediaTypeImageLayer,
+		History:   history,
+	}
+	if tarDirectory != "" {
+		// TODO: we should use v1.MediaTypeImageLayerGzip instead
+		layer.MediaType = v1.MediaTypeImageLayer
+		layer.LayerPath = layerPath
+	}
+	return layer, nil
 }
 
 // maxLayersGroups cuts paths into at most maxLayers groups: one path

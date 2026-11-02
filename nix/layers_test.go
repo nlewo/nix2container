@@ -2,6 +2,10 @@ package nix
 
 import (
 	"archive/tar"
+	"bytes"
+	"fmt"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/nlewo/nix2container/types"
@@ -114,6 +118,39 @@ func TestNewLayersNonReproducibleWritesEachLayer(t *testing.T) {
 		assert.Len(t, written[i].Paths, 1)
 		assert.Equal(t, reproducible[i].Digest, written[i].Digest)
 	}
+}
+
+// Layers are tarred concurrently but must come back in the order of
+// their groups, with the digest each group hashes to on its own.
+func TestNewLayersKeepsGroupOrder(t *testing.T) {
+	root := t.TempDir()
+	var storePaths []string
+	for i := 0; i < 64; i++ {
+		p := filepath.Join(root, fmt.Sprintf("path-%02d", i))
+		if err := os.WriteFile(p, bytes.Repeat([]byte{byte(i)}, 1024*i), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		storePaths = append(storePaths, p)
+	}
+	layers, err := NewLayersNonReproducible(storePaths, len(storePaths), t.TempDir(), []types.Layer{}, []types.RewritePath{}, "", []types.PermPath{}, "", v1.History{})
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+	assert.Len(t, layers, len(storePaths))
+	for i, layer := range layers {
+		assert.Equal(t, storePaths[i], layer.Paths[0].Path)
+		digest, _, err := TarPathsSum(layer.Paths)
+		if err != nil {
+			t.Fatal(err)
+		}
+		assert.Equal(t, digest.String(), layer.Digest)
+	}
+}
+
+func TestNewLayersReturnsError(t *testing.T) {
+	storePaths := []string{"../data/layer1/file1", "../data/does-not-exist", "../data/tar-directory/file1"}
+	_, err := NewLayers(storePaths, len(storePaths), []types.Layer{}, []types.RewritePath{}, "", []types.PermPath{}, "", v1.History{})
+	assert.Error(t, err)
 }
 
 // OrMode must OR bits into the mode set by Mode: {Mode:"0444",
