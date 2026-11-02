@@ -116,15 +116,15 @@ func appendFileToTar(tw *tar.Writer, srcPath, dstPath string, info os.FileInfo, 
 	hdr.Gname = "root"
 
 	// Nix's NAR records only whether a regular file is executable; it does
-	// not record directory modes or file write bits. Use the canonical NAR
-	// modes so a store path hashes to the same tar before and after Nix makes
-	// it read-only (or restores it from a binary cache).
+	// not record directory modes or write bits. Use the modes Nix
+	// canonicalises store paths to, so a store path hashes to the same tar
+	// whatever write bits the filesystem shows (e.g. inside a build sandbox).
 	if info.IsDir() {
-		hdr.Mode = 0o755
+		hdr.Mode = 0o555
 	} else if info.Mode().IsRegular() {
-		hdr.Mode = 0o644
+		hdr.Mode = 0o444
 		if info.Mode()&0o111 != 0 {
-			hdr.Mode = 0o755
+			hdr.Mode = 0o555
 		}
 	}
 
