@@ -125,7 +125,7 @@ func TestNewLayersNonReproducibleWritesEachLayer(t *testing.T) {
 func TestNewLayersKeepsGroupOrder(t *testing.T) {
 	root := t.TempDir()
 	var storePaths []string
-	for i := range 64 {
+	for i := 0; i < 64; i++ {
 		p := filepath.Join(root, fmt.Sprintf("path-%02d", i))
 		if err := os.WriteFile(p, bytes.Repeat([]byte{byte(i)}, 1024*i), 0o644); err != nil {
 			t.Fatal(err)

@@ -79,7 +79,13 @@ func newLayers(groups []types.Paths, tarDirectory string, history v1.History) ([
 	errs := make([]error, len(groups))
 	jobs := make(chan int)
 	var wg sync.WaitGroup
-	for range min(runtime.GOMAXPROCS(0), len(groups)) {
+	// No min builtin nor range over int: skopeo vendors this package
+	// with an old go directive.
+	workers := runtime.GOMAXPROCS(0)
+	if len(groups) < workers {
+		workers = len(groups)
+	}
+	for w := 0; w < workers; w++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
