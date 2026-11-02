@@ -401,6 +401,9 @@ let
     # commands from the image, for instance to build an image used by
     # a CI to run Nix builds.
     initializeNixDatabase ? false,
+    # Store the image's own layer tars instead of regenerating them when copying.
+    # Layers passed through `layers` retain their own reproducible setting.
+    reproducible ? true,
     # If initializeNixDatabase is set to true, the uid/gid of /nix can be
     # controlled using nixUid/nixGid.
     nixUid ? 0,
@@ -436,7 +439,7 @@ let
         };
 
       customizationLayer = buildLayer {
-        inherit maxLayers ignoreDestination;
+        inherit maxLayers ignoreDestination reproducible;
         perms = perms';
         copyToRoot = copyToRootList ++ l.optional initializeNixDatabase nixDatabase;
         deps = [configFile];
