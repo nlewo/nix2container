@@ -5,11 +5,19 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"testing"
 
 	"github.com/nlewo/nix2container/types"
 	"github.com/stretchr/testify/assert"
 )
+
+// relTarPath mirrors how walkGraphFn turns an absolute source path into a
+// tar entry name: the leading "/" is dropped so layer tars only contain
+// relative paths (see nix/graph.go).
+func relTarPath(path string) string {
+	return strings.TrimPrefix(filepath.Clean(path), "/")
+}
 
 // tarEntries returns the names of the entries of the tar built from
 // paths, sorted.
@@ -65,7 +73,7 @@ func TestIgnoreDestinationMatchesTheDestination(t *testing.T) {
 	}
 
 	names := tarEntries(t, paths)
-	assert.Contains(t, names, "/bin/hello")
+	assert.Contains(t, names, "bin/hello")
 	for _, n := range names {
 		assert.NotContains(t, n, "bbb-dropped")
 	}
@@ -96,7 +104,7 @@ func TestIgnoreDestinationPrunesTheWalk(t *testing.T) {
 	for _, n := range names {
 		assert.NotContains(t, n, "dropped")
 	}
-	assert.Contains(t, names, filepath.Join(root, "keep", "file"))
+	assert.Contains(t, names, relTarPath(filepath.Join(root, "keep", "file")))
 }
 
 // An invalid regex has to fail the build rather than be ignored.
@@ -116,5 +124,5 @@ func TestIgnoreDestinationEmptyIsNoFilter(t *testing.T) {
 	writeFile(t, filepath.Join(root, "keep", "file"))
 
 	paths := types.Paths{{Path: root, Options: &types.PathOptions{IgnoreDestination: ""}}}
-	assert.Contains(t, tarEntries(t, paths), filepath.Join(root, "keep", "file"))
+	assert.Contains(t, tarEntries(t, paths), relTarPath(filepath.Join(root, "keep", "file")))
 }
