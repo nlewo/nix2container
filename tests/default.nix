@@ -72,6 +72,29 @@ let
       image = examples.nonReproducible;
       pattern = "A non reproducible image built the";
     };
+    # Reproducible compressed layers store no blob: skopeo compresses them
+    # again, and must write the bytes their digests were computed from.
+    reproducibleCompressedLayers = let
+      image = examples.gzipReproducible;
+    in pkgs.runCommand "test-script" { nativeBuildInputs = [ pkgs.jq pkgs.gzip ]; } ''
+      set -euo pipefail
+      if jq -e '[.layers[] | select(has("layer-path"))] | length > 0' ${image}; then
+        echo "error: a reproducible layer has a stored blob" >&2
+        exit 1
+      fi
+      jq -e '[.layers[].mediatype] | all(. == "application/vnd.oci.image.layer.v1.tar+gzip")' ${image}
+      ${image.copyTo}/bin/copy-to --preserve-digests oci:$PWD/image
+      for i in $(seq 0 $(( $(jq '.layers | length' ${image}) - 1 ))); do
+        digest=$(jq -r ".layers[$i].digest" ${image})
+        diff_id=$(jq -r ".layers[$i].diff_ids" ${image})
+        blob=image/blobs/sha256/''${digest#sha256:}
+        test "sha256:$(sha256sum "$blob" | cut -d' ' -f1)" = "$digest"
+        test "sha256:$(gzip -dc "$blob" | sha256sum | cut -d' ' -f1)" = "$diff_id"
+      done
+      mkdir -p $out/bin
+      echo 'echo Test passed' > $out/bin/test-script
+      chmod +x $out/bin/test-script
+    '';
     nested = testScript {
       image = examples.nested;
       pattern = "Hello, world";

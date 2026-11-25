@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/nlewo/nix2container/types"
+	godigest "github.com/opencontainers/go-digest"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/stretchr/testify/assert"
 )
@@ -180,4 +181,114 @@ func TestGzipWriterBytesDoNotDependOnConcurrency(t *testing.T) {
 	for _, c := range []struct{ blocks, chunk int }{{2, 64 << 10}, {16, 4 << 10}, {64, 3 << 20}, {0, len(in)}} {
 		assert.True(t, bytes.Equal(want, compress(c.blocks, c.chunk)), "blocks %d chunk %d", c.blocks, c.chunk)
 	}
+}
+
+// Without an output directory the blob is only hashed, to the digest
+// it gets when it is stored.
+func TestTarPathsCompressWithoutOutDir(t *testing.T) {
+	paths := types.Paths{{Path: "../data/tar-directory"}}
+	for _, name := range []string{"gzip"} {
+		stored, storedDiff, storedSize, _, err := TarPathsCompress(paths, name, t.TempDir())
+		if err != nil {
+			t.Fatal(err)
+		}
+		// Where os.CreateTemp("", ...) would write.
+		tmp := t.TempDir()
+		t.Setenv("TMPDIR", tmp)
+		digest, diffID, size, path, err := TarPathsCompress(paths, name, "")
+		if err != nil {
+			t.Fatal(err)
+		}
+		left, err := os.ReadDir(tmp)
+		if err != nil {
+			t.Fatal(err)
+		}
+		assert.Empty(t, left, name)
+		assert.Equal(t, stored, digest, name)
+		assert.Equal(t, storedDiff, diffID, name)
+		assert.Equal(t, storedSize, size, name)
+		assert.Empty(t, path, name)
+	}
+}
+
+// A compressed layer whose blob is not stored is read back as the very
+// bytes its digest and size were computed from, and decompresses to the
+// tar of its diff_id. This is what skopeo --preserve-digests relies on.
+func TestLayerGetBlobRecompresses(t *testing.T) {
+	paths := []string{"../data/layer1/file1", "../data/tar-directory"}
+	for _, name := range []string{"gzip"} {
+		layers, err := NewLayersCompressed(paths, 2, name, "", []types.Layer{}, []types.RewritePath{}, "", []types.PermPath{}, v1.History{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		stored, err := NewLayersCompressed(paths, 2, name, t.TempDir(), []types.Layer{}, []types.RewritePath{}, "", []types.PermPath{}, v1.History{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		assert.Len(t, layers, 2, name)
+		for i, layer := range layers {
+			assert.Empty(t, layer.LayerPath, name)
+			assert.Equal(t, stored[i].Digest, layer.Digest, name)
+			assert.Equal(t, stored[i].DiffIDs, layer.DiffIDs, name)
+			assert.Equal(t, stored[i].Size, layer.Size, name)
+			assert.Equal(t, stored[i].MediaType, layer.MediaType, name)
+
+			reader, _, err := LayerGetBlob(layer)
+			if err != nil {
+				t.Fatal(err)
+			}
+			blob, err := io.ReadAll(reader)
+			reader.Close() // nolint: errcheck
+			if err != nil {
+				t.Fatal(err)
+			}
+			assert.Equal(t, layer.Digest, godigest.FromBytes(blob).String(), name)
+			assert.Equal(t, layer.Size, int64(len(blob)), name)
+
+			gz, err := stdgzip.NewReader(bytes.NewReader(blob))
+			if err != nil {
+				t.Fatal(err)
+			}
+			tarBytes, err := io.ReadAll(gz)
+			if err != nil {
+				t.Fatal(err)
+			}
+			assert.Equal(t, layer.DiffIDs, godigest.FromBytes(tarBytes).String(), name)
+		}
+	}
+}
+
+// An uncompressed layer still streams the plain tar.
+func TestLayerGetBlobUncompressed(t *testing.T) {
+	layers, err := NewLayers([]string{"../data/tar-directory"}, 1, []types.Layer{}, []types.RewritePath{}, "", []types.PermPath{}, v1.History{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	reader, _, err := LayerGetBlob(layers[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer reader.Close() // nolint: errcheck
+	blob, err := io.ReadAll(reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, layers[0].Digest, godigest.FromBytes(blob).String())
+}
+
+func TestLayerGetBlobUnknownMediaType(t *testing.T) {
+	layer := types.Layer{
+		Paths:     types.Paths{{Path: "../data/tar-directory"}},
+		MediaType: "application/vnd.oci.image.layer.v1.tar+lzma",
+	}
+	_, _, err := LayerGetBlob(layer)
+	assert.ErrorContains(t, err, "no compressor for the media type")
+}
+
+// An error while tarring reaches the reader instead of a truncated blob.
+func TestTarPathsCompressReaderPropagatesErrors(t *testing.T) {
+	reader := TarPathsCompressReader(types.Paths{{Path: "../data/does-not-exist"}}, "gzip")
+	defer reader.Close() // nolint: errcheck
+	_, err := io.ReadAll(reader)
+	assert.Error(t, err)
 }

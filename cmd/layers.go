@@ -11,7 +11,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
 
 	"github.com/nlewo/nix2container/closure"
 	"github.com/nlewo/nix2container/nix"
@@ -83,20 +82,13 @@ var layersReproducibleCmd = &cobra.Command{
 			}
 		}
 
-		// Blobs live next to the output layers.json. Resolve to an
-		// absolute path: the layer-path values recorded in layers.json
-		// are read at push time, possibly from another directory.
-		output, err := filepath.Abs(args[0])
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "%s", err)
-			os.Exit(1)
-		}
-		blobDir := filepath.Join(filepath.Dir(output), "blobs")
+		// Compressed layers are only hashed: like uncompressed ones,
+		// they are generated again from the store paths at push time.
 		var layers []types.Layer
 		if layersJSONFilepath != "" {
-			layers, err = nix.NewLayersCompressedFromSplit(split, compressor, blobDir, parents, rewrites, ignore, perms, history)
+			layers, err = nix.NewLayersCompressedFromSplit(split, compressor, "", parents, rewrites, ignore, perms, history)
 		} else {
-			layers, err = nix.NewLayersCompressed(storepaths, maxLayers, compressor, blobDir, parents, rewrites, ignore, perms, history)
+			layers, err = nix.NewLayersCompressed(storepaths, maxLayers, compressor, "", parents, rewrites, ignore, perms, history)
 		}
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s", err)
@@ -230,7 +222,7 @@ func init() {
 	layersReproducibleCmd.Flags().StringVarP(&historyFilepath, "history", "", "", "A JSON file containing layer history")
 	layersReproducibleCmd.Flags().IntVarP(&maxLayers, "max-layers", "", 1, "The maximum number of layers")
 	layersReproducibleCmd.Flags().StringVarP(&layersJSONFilepath, "layers-json", "", "", "A JSON list of store path lists: the layer split to use, in order, instead of --max-layers")
-	layersReproducibleCmd.Flags().StringVarP(&compressor, "compressor", "", "", "Compress the layers at build time (gzip). The blobs are written to a blobs directory next to the output file, and they are served at push time.")
+	layersReproducibleCmd.Flags().StringVarP(&compressor, "compressor", "", "", "Compress the layers (gzip). The blobs are only hashed: they are compressed again, to the same bytes, at push time.")
 	layersNonReproducibleCmd.Flags().StringVarP(&compressor, "compressor", "", "", "Compress the layers stored in the tar directory (gzip).")
 
 }

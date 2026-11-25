@@ -39,6 +39,20 @@ let
         sha256 = "sha256-pfwQh7FKWHY/xVAGMSvnjMOmkpMo9NG2HFZqhqZ1VN0=";
       };
     in ''
+      # Reproducible compressed layers are compressed again when skopeo
+      # reads them, with the compression libraries vendored in skopeo:
+      # they must be the versions nix2container hashed the layers with,
+      # or the pushed bytes do not match the digests.
+      for module in github.com/klauspost/compress github.com/klauspost/pgzip; do
+        ours=$(awk -v m="$module" '$1 == m { print $2 }' ${nix2container-bin.src}/go.mod)
+        theirs=$(awk -v m="$module" '$1 == "#" && $2 == m { print $3 }' vendor/modules.txt)
+        if [ -z "$ours" ] || [ "$ours" != "$theirs" ]; then
+          echo "error: nix2container uses $module ''${ours:-(none)} but skopeo vendors ''${theirs:-(none)}." >&2
+          echo "Align the version in nix2container's go.mod with skopeo's." >&2
+          exit 1
+        fi
+      done
+
       cat ${patch}
       mkdir -p vendor/github.com/nlewo/nix2container/
       cp -r ${nix2container-bin.src}/* vendor/github.com/nlewo/nix2container/
@@ -242,16 +256,12 @@ let
     contents ? null,
     # Author, comment, created_by
     metadata ? { created_by = "nix2container"; },
-    # Compress the layers at build time: "gzip" or null (the default).
-    # The blobs are written to the layers.json output, and the nix:
-    # transport pushes them as they are, so a push does not tar the
-    # store paths again. With reproducible = false the layers were
-    # already stored, uncompressed. With reproducible = true the output
-    # grows from a small JSON file to the compressed size of the
-    # layers: a compressed blob is stored rather than rebuilt at push
-    # time, because skopeo and nix2container can be built with different
-    # versions of the compression library, which may not write the same
-    # bytes.
+    # Compress the layers: "gzip" or null (the default).
+    # With reproducible = false the compressed blobs are stored in the
+    # layers.json output and pushed as they are. With reproducible = true
+    # they are only hashed, and the nix: transport compresses them again,
+    # to the same bytes, at push time: skopeo-nix2container fails to build
+    # if it vendors other compression library versions than nix2container.
     compressor ? null,
   }:
   assert l.assertMsg (permsFile == null || perms == [])

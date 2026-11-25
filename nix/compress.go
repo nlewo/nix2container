@@ -73,27 +73,35 @@ func newGzipWriter(w io.Writer, blocks int) (io.WriteCloser, error) {
 	return zw, nil
 }
 
-// TarPathsCompress tars the paths and writes the compressed blob to
-// outDir/<digest>.<ext>. It returns the compressed digest and size, the
-// digest of the uncompressed tar (the diff_id), and the blob path.
+// TarPathsCompress tars and compresses the paths. It returns the
+// compressed digest and size, and the digest of the uncompressed tar
+// (the diff_id). If outDir is not empty, the blob is written to
+// outDir/<digest>.<ext> and its path returned. Otherwise nothing is
+// written and the returned path is empty: the blob is compressed again,
+// to the same bytes, when it is read (see TarPathsCompressReader).
 func TarPathsCompress(paths types.Paths, name, outDir string) (digest, diffID godigest.Digest, size int64, path string, err error) {
 	c, err := getCompressor(name)
 	if err != nil {
 		return "", "", 0, "", err
 	}
-	f, err := os.CreateTemp(outDir, "layer-*")
-	if err != nil {
-		return "", "", 0, "", err
-	}
-	defer func() {
-		f.Close() //nolint:errcheck
-		if err != nil {
-			os.Remove(f.Name()) //nolint:errcheck
-		}
-	}()
-
 	digestHasher := godigest.Canonical.Digester()
-	counted := &countingWriter{w: io.MultiWriter(f, digestHasher.Hash())}
+	var sink io.Writer = digestHasher.Hash()
+	var f *os.File
+	if outDir != "" {
+		f, err = os.CreateTemp(outDir, "layer-*")
+		if err != nil {
+			return "", "", 0, "", err
+		}
+		defer func() {
+			f.Close() //nolint:errcheck
+			if err != nil {
+				os.Remove(f.Name()) //nolint:errcheck
+			}
+		}()
+		sink = io.MultiWriter(f, sink)
+	}
+
+	counted := &countingWriter{w: sink}
 	cw, err := c.newWriter(counted, runtime.GOMAXPROCS(0))
 	if err != nil {
 		return "", "", 0, "", err
@@ -115,17 +123,65 @@ func TarPathsCompress(paths types.Paths, name, outDir string) (digest, diffID go
 	if err = cw.Close(); err != nil {
 		return "", "", 0, "", err
 	}
+	digest = digestHasher.Digest()
+	if f == nil {
+		return digest, diffHasher.Digest(), counted.n, "", nil
+	}
+
 	// os.CreateTemp creates the file with mode 0600.
 	if err = f.Chmod(0o644); err != nil {
 		return "", "", 0, "", err
 	}
-
-	digest = digestHasher.Digest()
 	path = filepath.Join(outDir, digest.Encoded()+"."+c.ext)
 	if err = os.Rename(f.Name(), path); err != nil {
 		return "", "", 0, "", err
 	}
 	return digest, diffHasher.Digest(), counted.n, path, nil
+}
+
+// TarPathsCompressReader streams the blob TarPathsCompress hashes for
+// the same paths and compressor, without storing it. It gives the same
+// bytes only when built against the same compression library version
+// as the binary that computed the digest: skopeo-nix2container checks
+// that at build time.
+func TarPathsCompressReader(paths types.Paths, name string) io.ReadCloser {
+	r, w := io.Pipe()
+	go func() {
+		c, err := getCompressor(name)
+		if err != nil {
+			w.CloseWithError(err) //nolint:errcheck
+			return
+		}
+		cw, err := c.newWriter(w, runtime.GOMAXPROCS(0))
+		if err != nil {
+			w.CloseWithError(err) //nolint:errcheck
+			return
+		}
+		reader := TarPaths(paths)
+		_, err = io.Copy(cw, reader)
+		if closeErr := reader.Close(); err == nil {
+			err = closeErr
+		}
+		if closeErr := cw.Close(); err == nil {
+			err = closeErr
+		}
+		w.CloseWithError(err) //nolint:errcheck
+	}()
+	return r
+}
+
+// compressorForMediaType returns the name of the compressor writing
+// layers of mediaType, or "" for an uncompressed layer.
+func compressorForMediaType(mediaType string) (string, error) {
+	if mediaType == "" || mediaType == v1.MediaTypeImageLayer {
+		return "", nil
+	}
+	for name, c := range compressors {
+		if c.mediaType == mediaType {
+			return name, nil
+		}
+	}
+	return "", fmt.Errorf("no compressor for the media type %q", mediaType)
 }
 
 type countingWriter struct {
@@ -139,14 +195,17 @@ func (c *countingWriter) Write(p []byte) (int, error) {
 	return n, err
 }
 
-// newLayersCompressed is newLayers with each layer compressed to outDir.
+// newLayersCompressed is newLayers with each layer compressed. The
+// blobs are written to outDir, or only hashed if outDir is empty.
 func newLayersCompressed(groups []types.Paths, name, outDir string, history v1.History) ([]types.Layer, error) {
 	c, err := getCompressor(name)
 	if err != nil {
 		return nil, err
 	}
-	if err := os.MkdirAll(outDir, 0o755); err != nil {
-		return nil, err
+	if outDir != "" {
+		if err := os.MkdirAll(outDir, 0o755); err != nil {
+			return nil, err
+		}
 	}
 	var layers []types.Layer
 	for _, paths := range groups {
