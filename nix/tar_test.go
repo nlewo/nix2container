@@ -3,6 +3,7 @@ package nix
 import (
 	"archive/tar"
 	"fmt"
+	"io"
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -182,5 +183,105 @@ func TestTarPathsSumReusesTheCopyBuffer(t *testing.T) {
 	if max := uint64(2 << 20); allocated > max {
 		t.Errorf("%d files allocated %d bytes, more than %d: the copy is no longer using the shared buffer (a buffer per file would be %d)",
 			files, allocated, max, files*copyBufferSize)
+	}
+}
+
+// copyTree copies the regular files, directories and symlinks of src to dst.
+func copyTree(t *testing.T, src, dst string) {
+	t.Helper()
+	err := filepath.Walk(src, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		rel, err := filepath.Rel(src, path)
+		if err != nil {
+			return err
+		}
+		target := filepath.Join(dst, rel)
+		switch {
+		case info.IsDir():
+			return os.MkdirAll(target, 0o755)
+		case info.Mode()&os.ModeSymlink != 0:
+			link, err := os.Readlink(path)
+			if err != nil {
+				return err
+			}
+			return os.Symlink(link, target)
+		default:
+			content, err := os.ReadFile(path)
+			if err != nil {
+				return err
+			}
+			return os.WriteFile(target, content, info.Mode().Perm())
+		}
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+// A path read from a Source gives the tar of the path itself: the
+// entry names, the rewrite and the perms all apply to
+// Path, whatever directory the files are read from.
+func TestTarPathsReadsFromSource(t *testing.T) {
+	storePath, err := filepath.Abs("../data/tar-directory")
+	if err != nil {
+		t.Fatal(err)
+	}
+	options := &types.PathOptions{
+		Rewrite: types.Rewrite{Regex: "^" + storePath, Repl: "/root"},
+		Perms:   []types.Perm{{Regex: "^" + storePath + "/file1$", Mode: "0600", Uid: 1000}},
+	}
+	for name, options := range map[string]*types.PathOptions{
+		"plain":             nil,
+		"rewrite and perms": options,
+	} {
+		source := filepath.Join(t.TempDir(), "restored")
+		copyTree(t, storePath, source)
+		want, wantSize, err := TarPathsSum(types.Paths{{Path: storePath, Options: options}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, src := range []string{source, source + "/"} {
+			got, gotSize, err := TarPathsSum(types.Paths{{Path: storePath, Source: src, Options: options}})
+			if err != nil {
+				t.Fatal(err)
+			}
+			assert.Equal(t, want, got, "%s, source %q", name, src)
+			assert.Equal(t, wantSize, gotSize, "%s, source %q", name, src)
+		}
+	}
+}
+
+// The files really are read from the Source.
+func TestTarPathsSourceContent(t *testing.T) {
+	storePath, err := filepath.Abs("../data/layer1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := t.TempDir()
+	if err := os.WriteFile(filepath.Join(source, "file1"), []byte("from the source"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	r := TarPaths(types.Paths{{Path: storePath, Source: source}})
+	defer r.Close() // nolint: errcheck
+	tr := tar.NewReader(r)
+	for {
+		hdr, err := tr.Next()
+		if err == io.EOF {
+			t.Fatal("file1 missing from tar")
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		if hdr.Name != storePath+"/file1" {
+			continue
+		}
+		content, err := io.ReadAll(tr)
+		if err != nil {
+			t.Fatal(err)
+		}
+		assert.Equal(t, "from the source", string(content))
+		return
 	}
 }

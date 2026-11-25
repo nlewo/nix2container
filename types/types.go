@@ -88,7 +88,13 @@ type PathOptions struct {
 }
 
 type Path struct {
-	Path    string       `json:"path"`
+	Path string `json:"path"`
+	// Source, if set, is the directory the files of Path are read
+	// from, for instance a copy of a store path restored outside the
+	// Nix store. The tar is the one Path would give: entry names and
+	// perms still apply to Path. It is not set
+	// at build time, so it does not change the digest of the layer.
+	Source  string       `json:"source,omitempty"`
 	Options *PathOptions `json:"options,omitempty"`
 }
 

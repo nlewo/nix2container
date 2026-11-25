@@ -26,6 +26,7 @@
           tests = import ./tests {
             inherit pkgs examples;
             inherit (nix2container) nix2container;
+            skopeoNix2container = nix2container.skopeo-nix2container;
           };
         in {
           inherit (nix2container) nix2container-bin skopeo-nix2container nix2container;

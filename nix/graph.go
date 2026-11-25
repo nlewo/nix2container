@@ -11,10 +11,13 @@ import (
 )
 
 type fileNode struct {
-	// The file name on the FS
+	// The file name in the store path, which perms are matched against
 	srcPath string
-	info    *os.FileInfo
-	options *types.PathOptions
+	// The file name on the FS, which differs from srcPath when the
+	// store path is read from a Path.Source
+	readPath string
+	info     *os.FileInfo
+	options  *types.PathOptions
 	// The key is the destination file name and the value the source file name
 	contents map[string]*fileNode
 }
@@ -37,6 +40,12 @@ func initGraph() *fileNode {
 // file tree read on the FS. This means transformations are done during
 // the graph construction.
 func addFileToGraph(root *fileNode, path string, info *os.FileInfo, options *types.PathOptions) error {
+	return addFileToGraphFrom(root, path, path, info, options)
+}
+
+// addFileToGraphFrom is addFileToGraph for a file named path whose
+// content is read from readPath.
+func addFileToGraphFrom(root *fileNode, path, readPath string, info *os.FileInfo, options *types.PathOptions) error {
 	dstPath := filePathToTarPath(path, options)
 	// A regex in the options could make the path becoming the
 	// empty string. In this case, we don't want to create
@@ -79,6 +88,7 @@ func addFileToGraph(root *fileNode, path string, info *os.FileInfo, options *typ
 	current.options = options
 
 	current.srcPath = path
+	current.readPath = readPath
 	return nil
 }
 
@@ -111,7 +121,7 @@ func sanitizeGraph(node *fileNode) error {
 // been added to the graph but has not been walk by
 // filepath.Walk. This for instance occurs when /nix/store/storepath1
 // is added: /nix/store is not walk by the filepath.Walk function.
-type walkFunc func(srcPath, dstPath string, info *os.FileInfo, options *types.PathOptions) error
+type walkFunc func(srcPath, readPath, dstPath string, info *os.FileInfo, options *types.PathOptions) error
 
 func walkGraph(root *fileNode, walkFn walkFunc) error {
 	return walkGraphFn("", root, walkFn)
@@ -134,7 +144,7 @@ func walkGraphFn(base string, root *fileNode, walkFn walkFunc) error {
 		if k == "" {
 			dstPath = filepath.Join("/", k)
 		}
-		if err := walkFn(root.contents[k].srcPath, dstPath, root.contents[k].info, root.contents[k].options); err != nil {
+		if err := walkFn(root.contents[k].srcPath, root.contents[k].readPath, dstPath, root.contents[k].info, root.contents[k].options); err != nil {
 			return err
 		}
 		if err := walkGraphFn(dstPath, root.contents[k], walkFn); err != nil {

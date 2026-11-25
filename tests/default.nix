@@ -1,4 +1,4 @@
-{ pkgs, nix2container, examples }:
+{ pkgs, nix2container, examples, skopeoNix2container }:
 
 let
   testScript = {
@@ -90,6 +90,31 @@ let
         blob=image/blobs/sha256/''${digest#sha256:}
         test "sha256:$(sha256sum "$blob" | cut -d' ' -f1)" = "$digest"
         test "sha256:$(gzip -dc "$blob" | sha256sum | cut -d' ' -f1)" = "$diff_id"
+      done
+      mkdir -p $out/bin
+      echo 'echo Test passed' > $out/bin/test-script
+      chmod +x $out/bin/test-script
+    '';
+    # A layer path read from a restored copy outside the store gives the
+    # same blob: the nix: transport uses `source` to read, `path` to name.
+    layerPathSource = let
+      image = examples.gzipReproducible;
+    in pkgs.runCommand "test-script" { nativeBuildInputs = [ pkgs.jq pkgs.nix ]; } ''
+      set -euo pipefail
+      mkdir sources
+      for path in $(jq -r '.layers[].paths[].path' ${image}); do
+        nix-store --dump "$path" | nix-store --restore "sources/$(basename "$path")"
+      done
+      # The tar carries file modes: give the copies the ones of the store.
+      # Unnecessary with nlewo/nix2container#244, which normalises them.
+      chmod -R a-w sources
+      jq --arg dir "$PWD/sources" \
+        '.layers |= map(.paths |= map(.source = "\($dir)/\(.path | split("/") | last)"))' \
+        ${image} > image.json
+      ${skopeoNix2container}/bin/skopeo --insecure-policy copy --preserve-digests \
+        nix:$PWD/image.json oci:$PWD/image
+      for digest in $(jq -r '.layers[].digest' image.json); do
+        test "sha256:$(sha256sum "image/blobs/sha256/''${digest#sha256:}" | cut -d' ' -f1)" = "$digest"
       done
       mkdir -p $out/bin
       echo 'echo Test passed' > $out/bin/test-script

@@ -86,7 +86,7 @@ func TestWalkGraph(t *testing.T) {
 	assert.Equal(t, nil, err)
 	err = sanitizeGraph(g)
 	assert.Equal(t, nil, err)
-	err = walkGraph(g, func(srcPath, dstPath string, info *os.FileInfo, options *types.PathOptions) error {
+	err = walkGraph(g, func(srcPath, readPath, dstPath string, info *os.FileInfo, options *types.PathOptions) error {
 		paths[*pidx] = dstPath
 		*pidx = *pidx + 1
 		return nil
@@ -114,7 +114,7 @@ func TestWalkGraphOnDirectory(t *testing.T) {
 	pidx := &idx
 	err = sanitizeGraph(graph)
 	assert.Equal(t, nil, err)
-	err = walkGraph(graph, func(srcPath, dstPath string, info *os.FileInfo, options *types.PathOptions) error {
+	err = walkGraph(graph, func(srcPath, readPath, dstPath string, info *os.FileInfo, options *types.PathOptions) error {
 		dstPaths[*pidx] = dstPath
 		srcPaths[*pidx] = srcPath
 		if info == nil {

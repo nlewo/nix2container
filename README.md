@@ -280,6 +280,15 @@ Function arguments are:
     nix2container is built with: `skopeo-nix2container` fails to build
     otherwise.
 
+    The `nix:` transport reads the files of a reproducible layer from
+    its store paths. A tool pushing an image without its closure in
+    the store can restore some store paths elsewhere (e.g. with
+    `nix store dump-path | nix-store --restore`) and set a `source`
+    next to their `path` in the image JSON: the files are then read
+    from `source`, while the tar entry names and `perms` still follow
+    `path`, so the blob is unchanged as long as the copy has the modes
+    of the store (`nix-store --restore` leaves write bits: remove them).
+
 - **`perms`** (defaults to `[]`): a list of file permisssions which are
     set when the tar layer is created: these permissions are not
     written to the Nix store.
